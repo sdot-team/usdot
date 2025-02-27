@@ -58,6 +58,24 @@ DTP UTP::PiecewiseConstantDensity( const Vec<TF> &xs, const Vec<TF> &ys ) : xs( 
     ASSERT( xs.size() == ys.size() + 1 );
 }
 
+DTP std::pair<Vec<TF>,Vec<TF>> UTP::cdf_approximation( TF epsilon ) const {
+    Vec<TF> rxs, rys;
+    auto app = [&]( TF x, TF y ) {
+        if ( rxs.empty() || rxs.back() != x || rys.back() != y ) {
+            rxs << x;
+            rys << y;
+        }
+    };
+
+    TF y = 0;
+    app( xs[ 0 ], y );
+    for( PI i = 0; i < ys.size(); ++i ) {
+        y += ( xs[ i + 1 ] - xs[ i + 0 ] ) * ys[ i ];
+        app( xs[ i + 1 ], y );
+    }
+    return { rxs, rys };
+}
+
 DTP RcPtr<Density<TF>> UTP::convoluted( RcPtr<Convolution<TF>> convolution ) const {
     return new ConvolutedPiecewiseConstantDensity<TF>( xs, ys, convolution );
 }

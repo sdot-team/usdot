@@ -8,6 +8,11 @@ namespace usdot {
 #define DTP template<class TF>
 #define UTP Density<TF>
 
+DTP std::pair<Vec<TF>,Vec<TF>> UTP::cdf_approximation( TF epsilon ) const {
+    TODO;
+    return {};
+}
+
 DTP TF UTP::integral( TF l0, TF l1 ) const {
     RcPtr<DensityIterator<TF>> p = iterator();
     if ( ! p )

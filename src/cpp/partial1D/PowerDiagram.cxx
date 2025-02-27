@@ -32,15 +32,44 @@ DTP UTP::PowerDiagram( const Vec<TF> &seed_coords, const Vec<TF> &seed_weights )
 }
 
 DTP void UTP::for_each_cell( auto &&func ) const {
+    using namespace std;
     using Bt = BndType;
 
     const PI nc = sorted_seed_coords.size();
     if ( nc == 0 )
         return;
-    
+
+    //
+    auto call_with_ball_cut = [&]( PI num_seed, Bt t0, Bt t1, TF x0, TF x1 ) {
+        if ( allow_ball_cut ) {
+            const TF ra = sqrt( max( 0, sorted_seed_weights[ num_seed ] ) );
+            const TF xc = sorted_seed_coords[ num_seed ];
+            const TF bl = xc - ra;
+            const TF br = xc + ra;
+
+            if ( x0 < bl ) {
+                t0 = Bt::Ball;
+                x0 = bl;
+            } else if ( x0 > br ) {
+                t0 = Bt::Ball;
+                x0 = br;
+            }
+
+            if ( x1 < bl ) {
+                t1 = Bt::Ball;
+                x1 = bl;
+            } else if ( x1 > br ) {
+                t1 = Bt::Ball;
+                x1 = br;
+            }
+        }
+
+        func( num_seed, Interval{ t0, t1, x0, x1 } );
+    };
+
+    //
     TF x0 = std::numeric_limits<TF>::lowest();
     Bt t0 = Bt::Inf;
-
     for( PI i = 1; i < nc; ++i ) {
         const TF w0 = sorted_seed_weights[ i - 1 ];
         const TF w1 = sorted_seed_weights[ i - 0 ];
@@ -50,13 +79,13 @@ DTP void UTP::for_each_cell( auto &&func ) const {
         TF x1 = ( d1 + d0 - ( w1 - w0 ) / ( d1 - d0 ) ) / 2;
         Bt t1 = Bt::Cell;
 
-        func( i - 1, Interval{ t0, t1, x0, x1 } );
+        call_with_ball_cut( i - 1, t0, t1, x0, x1 );
 
         x0 = x1;
         t0 = t1;
     }
 
-    func( nc - 1, Interval{ t0, Bt::Inf, x0, std::numeric_limits<TF>::max() } );
+    call_with_ball_cut( nc - 1, t0, Bt::Inf, x0, std::numeric_limits<TF>::max() );
 }
 
 DTP void UTP::_for_each_sub_interval( DensityIterator<TF> &density_iterator, const Interval<TF> &cell_interval, auto &&func ) const {
@@ -119,18 +148,18 @@ DTP void UTP::for_each_sub_interval( DensityIterator<TF> &density_iterator, cons
     return _for_each_sub_interval( density_iterator, cell_interval, FORWARD( func ) );
 }
 
-DTP void UTP::get_newton_system_ap( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_arcs, const Density<TF> &density, TF eps ) const {
+DTP void UTP::get_newton_system_ap( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_arcs, const Density<TF> &density, TF eps ) {
     using std::max;
     using std::min;
 
-    Vec<TF> R = masses();
+    Vec<TF> R = masses( density );
 
     for( PI n = 0; n < nb_cells(); ++n ) {
         TF &ref_weight = sorted_seed_weights[ n ];
         TF old_weight = ref_weight;
         ref_weight += eps;
 
-        Vec<TF> A = masses();
+        Vec<TF> A = masses( density );
         for( PI m = max( n, 1ul ) - 1; m <= n; ++m )
             M( m, n ) += ( A[ m ] - R[ m ] ) / eps;
 
@@ -155,6 +184,11 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
                     dmass_dM += value;
                     break;
                 }
+                case BndType::Ball: {
+                    const TF value = diter->value( interval.x0 ) / sqrt( sorted_seed_weights[ num_cell + 0 ] ) / 2;
+                    dmass_dM += value;
+                    break;
+                }
                 default:
                     break;
             }
@@ -162,7 +196,11 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
             switch ( interval.t1 ) {
                 case BndType::Cell: {
                     const TF value = diter->value( interval.x1 ) / rdist / 2;
-                    // darea_dR -= value;
+                    dmass_dM += value;
+                    break;
+                }
+                case BndType::Ball: {
+                    const TF value = diter->value( interval.x0 ) / sqrt( sorted_seed_weights[ num_cell + 0 ] ) / 2;
                     dmass_dM += value;
                     break;
                 }
@@ -270,7 +308,7 @@ DTP Vec<TF> UTP::masses_ap( const Density<TF> &density, PI ni ) const {
 DTP Vec<TF> UTP::masses( const Density<TF> &density ) const {
     Vec<TF> res( FromSize(), nb_cells() );
 
-    auto diter = density->iterator();
+    auto diter = density.iterator();
     for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
         TF area = 0;
 
@@ -296,106 +334,7 @@ DTP Vec<TF> UTP::get_weights() const {
     return res;
 }
 
-// DTP bool UTP::_update_weights_iteration( BandMatrix<TF> &M, Vec<TF> &V, Vec<TF> &target_masses, const UpdateWeightParameters<TF> &uwp, const Density<TF> &density ) {
-//     using std::sqrt;
-//     PI nb_arcs;
-
-//     // iterations
-//     _get_system( M, V, nb_arcs, target_masses, density );
-
-//     // check the system
-//     TF mid = M( 0, 0 );
-//     TF mad = mid;
-//     for( PI i = 0; i < nb_cells(); ++i ) {
-//         mid = std::min( mid, M( i, i ) );
-//         mad = std::max( mad, M( i, i ) );
-//     }
-
-//     // P( mid, mad );
-
-//     // stop if system is in bad shape
-//     // if ( mid == 0 || mid / mad <= sqrt( std::numeric_limits<TF>::epsilon() ) * nb_cells() ) // TODO: a more precise criterion
-//     //     return false;
-
-//     //
-//     if ( nb_arcs == 0 )
-//         M( 0, 0 ) += 1;
-
-//     // solve
-//     Vec<TF> R = M.solve( V );
-//     sorted_seed_weights += relax * R;
-//     P( norm_2( R ) );
-
-//     //
-//     // P( norm_inf( V / target_masses ) );
-//     hist_inf_mass_error << norm_inf( V / target_masses );
-//     hist_2_residual << norm_2( R );
-//     return true;
-// }
-
-// DTP bool UTP::update_weights( const UpdateWeightParameters<TF> &uwp ) {
-//     if ( nb_cells() == 0 )
-//         return true;
-    
-//     // compute target mass for each dirac
-//     const TF target_mass = density->mass() * uwp.density_ratio / nb_cells();
-//     Vec<TF> target_masses( FromSizeAndItemValue(), nb_cells(), target_mass );
-
-//     // variable needed for the solvers
-//     BandMatrix<TF> M( FromSize(), nb_cells() );
-//     Vec<TF> V( FromSize(), nb_cells() );
-
-//     // reset solver data
-//     hist_inf_mass_error.clear();
-//     hist_2_residual.clear();
-
-//     // until convergence
-//     for( PI nb_iter = 0; ! converged() && nb_iter < 500; ++nb_iter ) {
-//         bool ok = _update_weights_iteration( M, V, target_masses, uwp, *density );
-//         // P( ok, converged() );
-//         if ( ! ok ) {
-//             P( "bim" );
-//             return false;
-//         }
-//     }
-
-//     // // until convergence
-//     // for( TF starting_std = 0.1; ! converged(); ) {
-//     //     P( sorted_seed_weights );
-        
-//     //     // try without convolution
-//     //     if ( _add_event( UWE::StdSolve ) )
-//     //         return false;
-//     //     if ( _update_weights_iteration( M, V, target_masses, uwp, density ) ) {
-//     //         if ( _add_event( UWE::StdSolve ) )
-//     //             return false;
-//     //         continue;
-//     //     }
-
-//     //     // increase the convolution to find a solvable system
-//     //     auto loop_until_convergence = [&]( TF std ) {
-//     //         while ( ! converged() )
-//     //             if ( ! _update_weights_iteration( M, V, target_masses, uwp, convoluted_density( std ) ) )
-//     //                 return false;
-//     //         return true;
-//     //     };
-//     //     update_weight_events << UWE::TryStdSystem;
-//     //     TF std = starting_std;
-//     //     starting_std /= 2;
-//     //     for( ; ; std *= 2 ) {
-//     //         P( "increasing", std );
-//     //         if ( loop_until_convergence( std ) )
-//     //             break;
-//     //         if ( _add_event( UWE::StdSolve ) )
-//     //             return false;
-//     //     }
-//     // }
-
-//     return true;
-// }
-
 #undef DTP
 #undef UTP
-
 
 } // namespace usdot

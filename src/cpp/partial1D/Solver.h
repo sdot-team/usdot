@@ -46,6 +46,7 @@ public:
        
     // outputs
     Vec<TF>                 max_mass_ratio_error_history    = {};
+    Vec<TF>                 norm_2_residual_history         = {};
     PI                      nb_errors                       = 0;
              
     // intermediate data     

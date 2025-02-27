@@ -10,6 +10,7 @@
 #include "Density/BoundedDensity.h"
 #include "Density/Lebesgue.h"
 #include "Extrapolation.h"
+#include "CdfSolver.h"
 #include "Solver.h"
 
 namespace usdot {
@@ -24,7 +25,8 @@ DTP UTP::Solver( RcPtr<PowerDiagram<TF>> power_diagram, RcPtr<Density<TF>> densi
 }
 
 DTP void UTP::initialize_weights( InitializeWeightsPrm parms ) {
-
+    CdfSolver cs( density->cdf_approximation( 1e-4 / power_diagram->nb_cells() ), power_diagram->sorted_seed_coords, target_mass_ratios );
+    cs.solve( power_diagram->sorted_seed_weights );
 }
 
 DTP bool UTP::converged() const {
@@ -118,6 +120,11 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
             power_diagram->get_newton_system( M, V, nb_arcs, *_convex_hull_density, convex_hull_density_ratio / mass_convex_hull_density );
         power_diagram->get_newton_system( M, V, nb_arcs, *_convoluted_density, ( 1 - convex_hull_density_ratio ) / mass_convoluted_density );
 
+        SymmetricBandMatrix<TF> Ma( FromSize(), power_diagram->nb_cells() );
+        Vec<TF> Va = target_mass_ratios;
+        Ma.fill_with( 0 );
+        power_diagram->get_newton_system_ap( Ma, Va, nb_arcs, *_convoluted_density );
+
         // check the system
         TF mid = M( 0, 0 );
         TF mad = mid;
@@ -127,8 +134,10 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
         }
 
         // stop if system is in bad shape
-        // if ( mid == 0 || mid / mad <= sqrt( std::numeric_limits<TF>::epsilon() ) * nb_cells() ) // TODO: a more precise criterion
-        //     return false;
+        if ( mid == 0 || mid / mad <= sqrt( std::numeric_limits<TF>::epsilon() ) * power_diagram->nb_cells() ) {// TODO: a more precise criterion
+            ++nb_errors;
+            return;
+        }
 
         //
         if ( nb_arcs == 0 )
@@ -136,14 +145,15 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
 
         // solve
         Vec<TF> R = M.solve( V );
-        // P( norm_2( R ) );
         
         // update weights
         power_diagram->sorted_seed_weights += R;
 
-        //
+        // history
         max_mass_ratio_error_history << norm_inf( V / target_mass_ratios );
+        norm_2_residual_history << norm_2( R );
 
+        // log
         if ( iteration_callback )
             iteration_callback();
 

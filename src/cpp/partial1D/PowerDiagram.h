@@ -37,7 +37,7 @@ public:
     Vec<TF>            masses                   ( const Density<TF> &density ) const;
     
     // approximated versions (for debug purpose)
-    void               get_newton_system_ap     ( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_arcs, const Density<TF> &density, TF eps = 1e-6 ) const;
+    void               get_newton_system_ap     ( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_arcs, const Density<TF> &density, TF eps = 1e-6 );
     Vec<TF>            barycenters_ap           ( const Density<TF> &density, PI ni = 10000 ) const;
     TF                 integral_ap              ( const Density<TF> &density, TF x0, TF x1, PI ni = 10000 ) const;
     Vec<TF>            masses_ap                ( const Density<TF> &density, PI ni = 10000 ) const;
@@ -46,6 +46,7 @@ public:
     Vec<TF>            sorted_seed_weights;     ///<
     Vec<TF>            sorted_seed_coords;      ///<
     Vec<PI>            sorted_seed_nums;        ///<
+    bool               allow_ball_cut           = 1;
     
 private: 
     void               _for_each_sub_interval   ( DensityIterator<TF> &density_iterator, const Interval<TF> &cell_interval, auto &&func ) const;
