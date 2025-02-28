@@ -32,6 +32,7 @@ struct OtResult {
 
 struct OtParms {
     TF max_mass_ratio_error_target = 1e-6;
+    TF epsilon = 0;
 };
 
 static Array array_from_vec( const Vec<TF> &v ) {
@@ -44,7 +45,7 @@ static Array array_from_vec( const Vec<TF> &v ) {
 static Vec<TF> vec_from_array( const Array &array ) {
     Vec<TF> res( FromSize(), array.size() );
     for( PI r = 0; r < res.size(); ++r )
-           res[ r ] = array.at( r );
+        res[ r ] = array.at( r );
     return res;
 }
 
@@ -59,7 +60,7 @@ OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Dens
     solver.target_mass_ratios = vec_from_array( target_mass_ratios );
     
     solver.initialize_weights();
-    // solver.update_weights();
+    solver.update_weights();
 
     // 
     Vec<TF> bnds;

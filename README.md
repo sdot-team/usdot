@@ -12,6 +12,20 @@ The python examples need the library `cpp_import` (`pip import cppimport`) with 
 
 ```export PYTHONPATH=$PYTHONPATH:$PWD/src/python/; python tests/python/test_ot.py```
 
+The solver procedures return an instance of `OtResult` which contains
+    * `norm_2_residual_history (array)`: ...
+    * `error_message (str)`: empty if ok
+    * `barycenters (array)`: ...
+    * `boundaries (array)`: left and right cell boudaries
+    * `weights (array)`: the Kantorovitch potentials
+    * `masses (array)`: the final cell masses (which of course must be the prescribed ones if the solver did not fail)
+
+As can be seen in `src/python/usdot/__init__.py`, they have in common a parameter `ot_parms` which must be `None` or an instance of `OtParms`. `OtParms` contains the attributes
+    * max_mass_ratio_error_target (1e-6 by default): target for `max( ( mass - prescribed_mass ) / prescribed_mass )`
+    * epsilon: the regularization parameter as explained in the upcoming publication...
+
+
+
 C++ examples
 ------------
 
