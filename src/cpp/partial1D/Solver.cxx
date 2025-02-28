@@ -138,7 +138,8 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
         }
 
         // stop if system is in bad shape
-        if ( mid == 0 || mid / mad <= sqrt( std::numeric_limits<TF>::epsilon() ) * power_diagram->nb_cells() ) {// TODO: a more precise criterion
+        if ( mid == 0 || mid / mad <= std::numeric_limits<TF>::epsilon() * power_diagram->nb_cells() ) { // TODO: a more precise criterion
+            P( "bim", mid, mad );
             ++nb_errors;
             return;
         }

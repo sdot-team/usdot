@@ -7,7 +7,6 @@
  
 #include "PowerDiagram.h"
 #include "Interval.h"
-#include "partial1D/BndType.h"
 
 namespace usdot {
 
@@ -244,18 +243,26 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
 //     return res;
 // }
 
-DTP Vec<TF> UTP::cell_boundaries() const {
+DTP Vec<TF> UTP::cell_boundaries( bool sorted_nums ) const {
     Vec<TF> res( FromSize(), 2 * nb_cells() );
 
-    for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
-        res[ 2 * num_cell + 0 ] = interval.x0;
-        res[ 2 * num_cell + 1 ] = interval.x1;
-    } );
+    if ( sorted_nums ) {
+        for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
+            res[ 2 * num_cell + 0 ] = interval.x0;
+            res[ 2 * num_cell + 1 ] = interval.x1;
+        } );
+    } else {
+        for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
+            PI n = sorted_seed_nums[ num_cell ];
+            res[ 2 * n + 0 ] = interval.x0;
+            res[ 2 * n + 1 ] = interval.x1;
+        } );
+    }
 
     return res;
 }
 
-DTP Vec<TF> UTP::barycenters_ap( const Density<TF> &density, PI ni ) const {
+DTP Vec<TF> UTP::barycenters_ap( const Density<TF> &density, bool sorted_nums, PI ni ) const {
     Vec<TF> res( FromSize(), nb_cells() );
 
     auto diter = density->iterator();
@@ -270,13 +277,13 @@ DTP Vec<TF> UTP::barycenters_ap( const Density<TF> &density, PI ni ) const {
                 mass += a;
             }            
         } );
-        res[ num_cell ] = mass ? pint / mass : 0;
+        res[ sorted_nums ? num_cell : sorted_seed_nums[ num_cell ] ] = mass ? pint / mass : 0;
     } );
 
     return res;
 }
 
-DTP Vec<TF> UTP::barycenters( const Density<TF> &density ) const {
+DTP Vec<TF> UTP::barycenters( const Density<TF> &density, bool sorted_nums ) const {
     Vec<TF> res( FromSize(), nb_cells() );
 
     auto diter = density.iterator();
@@ -287,13 +294,13 @@ DTP Vec<TF> UTP::barycenters( const Density<TF> &density ) const {
             diter->barycenter( pint, area, interval.x0, interval.x1 );
         } );
 
-        res[ num_cell ] = area ? pint / area : 0;
+        res[ sorted_nums ? num_cell : sorted_seed_nums[ num_cell ] ] = area ? pint / area : 0;
     } );
 
     return res;
 }
 
-DTP Vec<TF> UTP::masses_ap( const Density<TF> &density, PI ni ) const {
+DTP Vec<TF> UTP::masses_ap( const Density<TF> &density, bool sorted_nums, PI ni ) const {
     Vec<TF> res( FromSize(), nb_cells() );
 
     auto diter = density->iterator();
@@ -310,13 +317,13 @@ DTP Vec<TF> UTP::masses_ap( const Density<TF> &density, PI ni ) const {
             area += loc * ( interval.x1 - interval.x0 ) / ni;
         } );
 
-        res[ num_cell ] = area;
+        res[ sorted_nums ? num_cell : sorted_seed_nums[ num_cell ] ] = area;
     } );
 
     return res;
 }
 
-DTP Vec<TF> UTP::masses( const Density<TF> &density ) const {
+DTP Vec<TF> UTP::masses( const Density<TF> &density, bool sorted_nums ) const {
     Vec<TF> res( FromSize(), nb_cells() );
 
     auto diter = density.iterator();
@@ -327,21 +334,21 @@ DTP Vec<TF> UTP::masses( const Density<TF> &density ) const {
             area += diter->integral( interval.x0, interval.x1 );
         } );
 
-        res[ num_cell ] = area;
+        res[ sorted_nums ? num_cell : sorted_seed_nums[ num_cell ] ] = area;
     } );
 
     return res;
 }
 
-DTP void UTP::set_weights( const Vec<TF> &weights ) const {
+DTP void UTP::set_weights( const Vec<TF> &weights, bool sorted_nums ) const {
     for( PI i = 0; i < nb_cells(); ++i )
-        sorted_seed_weights[ i ] = weights[ sorted_seed_nums[ i ] ];
+        sorted_seed_weights[ i ] = weights[ sorted_nums ? i : sorted_seed_nums[ i ] ];
 }
 
-DTP Vec<TF> UTP::get_weights() const {
+DTP Vec<TF> UTP::get_weights( bool sorted_nums ) const {
     Vec<TF> res( FromSize(), nb_cells() );
     for( PI i = 0; i < nb_cells(); ++i )
-        res[ sorted_seed_nums[ i ] ] = sorted_seed_weights[ i ];
+        res[ sorted_nums ? i : sorted_seed_nums[ i ] ] = sorted_seed_weights[ i ];
     return res;
 }
 

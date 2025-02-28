@@ -2,7 +2,7 @@ import numpy as np
 import usdot
 
 ot_parms = usdot.OtParms()
-ot_parms.epsilon = 1e-3
+# ot_parms.epsilon = 1e-3
 
 dip = np.linspace( 0, 1, 30 )
 dep = [ 0, 0.4, 0.6, 1 ]

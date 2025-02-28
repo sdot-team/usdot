@@ -1,12 +1,12 @@
+#include <tl/support/containers/Vec.h>
 #include <tl/support/Displayer.h>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/LU>
 
 /** */
-template<int dim>
+template<class TF,int dim>
 struct AffineTransformation {
-    using TF = double;
-    using Pt = Vec<double,dim>;
+    using Pt = Vec<TF,dim>;
     using TM = Eigen::Matrix<TF,dim+1,dim+1>;
     using TV = Eigen::Matrix<TF,dim+1,1>;
 

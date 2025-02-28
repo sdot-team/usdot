@@ -67,16 +67,16 @@ OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Dens
     Vec<TF> bnds;
     TF mi = de->min_x();
     TF ma = de->max_x();
-    for( TF p : pd->cell_boundaries() )
+    for( TF p : pd->cell_boundaries( false ) )
         bnds << min( ma, max( mi, p ) );
 
     OtResult res;
     res.norm_2_residual_history = array_from_vec( solver.norm_2_residual_history );
     res.error_message = solver.nb_errors ? "error" : "";
-    res.barycenters = array_from_vec( pd->barycenters( *de ) );
+    res.barycenters = array_from_vec( pd->barycenters( *de, false ) );
     res.boundaries = array_from_vec( bnds );
-    res.weights = array_from_vec( pd->get_weights() );
-    res.masses = array_from_vec( pd->masses( *de ) );
+    res.weights = array_from_vec( pd->get_weights( false ) );
+    res.masses = array_from_vec( pd->masses( *de, false ) );
     return res;
 }
 
