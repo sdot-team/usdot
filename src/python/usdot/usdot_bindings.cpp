@@ -50,19 +50,20 @@ static Vec<TF> vec_from_array( const Array &array ) {
 }
 
 OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Density<TF>> de, OtParms &parms ) {
-    auto pd = RcPtr<PowerDiagram<TF>>::New(
-        vec_from_array( dirac_positions ),
-        Vec<TF>::fill( dirac_positions.size(), 1 )
-    );
+    // init power diagram
+    auto pd = RcPtr<PowerDiagram<TF>>::New( vec_from_array( dirac_positions ), Vec<TF>::fill( dirac_positions.size(), 1 ) );
+    pd->epsilon = parms.epsilon;
  
+    // init solver
     Solver<TF> solver( pd, de );
     solver.max_mass_ratio_error_target = parms.max_mass_ratio_error_target;
     solver.target_mass_ratios = vec_from_array( target_mass_ratios );
     
+    // run
     solver.initialize_weights();
     solver.update_weights();
 
-    // 
+    // result summary
     Vec<TF> bnds;
     TF mi = de->min_x();
     TF ma = de->max_x();
@@ -106,6 +107,7 @@ PYBIND11_MODULE(usdot_bindings, m) {
     pybind11::class_<OtParms>( m, "OtParms" )
         .def( py::init<>() )
         .def_readwrite( "max_mass_ratio_error_target" , &OtParms::max_mass_ratio_error_target, "" )
+        .def_readwrite( "epsilon" , &OtParms::epsilon, "" )
         .def( "__repr__",
             []( const OtParms &a ) {
                 return "{ max_mass_ratio_error_target: " + std::to_string( a.max_mass_ratio_error_target ) + " }";

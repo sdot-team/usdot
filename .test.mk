@@ -2,4 +2,4 @@
 # mamba run -n vfs vfs_build run tests/cpp/test_Solver.cpp
 
 all:
-	export PYTHONPATH=$$PYTHONPATH:$$PWD/src/python/; python tests/python/test_ot.py
+	export PYTHONPATH=$$PYTHONPATH:$$PWD/src/python/; python tests/python/test_epsilon.py

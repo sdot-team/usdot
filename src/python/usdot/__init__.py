@@ -2,6 +2,9 @@ import cppimport.import_hook
 from . import usdot_bindings
 import numpy as np
 
+OtResult = usdot_bindings.OtResult
+OtParms = usdot_bindings.OtParms
+
 def d2p( dirac_positions, density_positions, density_values, mass_ratio = None, dirac_mass_ratios = None, ot_parms = None ):
     """ optimal transport plan with src = diracs, dst = piecewise polynomial density
 

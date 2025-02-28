@@ -1,8 +1,5 @@
 #pragma once
 
-#include <tl/support/operators/norm_inf.h>
-#include <tl/support/operators/norm_2.h>
-#include <tl/support/operators/mean.h>
 #include <tl/support/ASSERT.h>
 #include <tl/support/ERROR.h>
 #include <tl/support/P.h>
@@ -10,6 +7,7 @@
  
 #include "PowerDiagram.h"
 #include "Interval.h"
+#include "partial1D/BndType.h"
 
 namespace usdot {
 
@@ -88,7 +86,7 @@ DTP void UTP::for_each_cell( auto &&func ) const {
     call_with_ball_cut( nc - 1, t0, Bt::Inf, x0, std::numeric_limits<TF>::max() );
 }
 
-DTP void UTP::_for_each_sub_interval( DensityIterator<TF> &density_iterator, const Interval<TF> &cell_interval, auto &&func ) const {
+DTP void UTP::__for_each_sub_interval( DensityIterator<TF> &density_iterator, const Interval<TF> &cell_interval, PI cell_num, auto &&func ) const {
     const BndType c_t0 = cell_interval.t0;
     const BndType c_t1 = cell_interval.t1;
     const TF c_x0 = cell_interval.x0;
@@ -133,11 +131,24 @@ DTP void UTP::_for_each_sub_interval( DensityIterator<TF> &density_iterator, con
         func( Interval<TF>( BndType::Density, c_t1, density_iterator.x0, c_x1 ) );
 }
 
-DTP void UTP::for_each_sub_interval( DensityIterator<TF> &density_iterator, const Interval<TF> &cell_interval, auto &&func ) const {
+DTP void UTP::_for_each_sub_interval( DensityIterator<TF> &density_iterator, const Interval<TF> &cell_interval, PI cell_num, auto &&func ) const {
+    using namespace std;
+    
+    if ( allow_ball_cut && epsilon && ( cell_interval.t0 == BndType::Ball || cell_interval.t1 == BndType::Ball ) ) {
+        const TF radius = sqrt( max( 0, sorted_seed_weights[ cell_num ] ) );
+        const TF center = sorted_seed_coords[ cell_num ];
+        TODO;
+        return;
+    }
+
+    __for_each_sub_interval( density_iterator, cell_interval, cell_num, FORWARD( func ) );
+}
+
+DTP void UTP::for_each_sub_interval( DensityIterator<TF> &density_iterator, const Interval<TF> &cell_interval, PI cell_num, auto &&func ) const {
     // need to swap the cell boundaries ?
     if ( cell_interval.x0 > cell_interval.x1 ) {
         Interval<TF> si( cell_interval.t1, cell_interval.t0, cell_interval.x1, cell_interval.x0 );
-        return _for_each_sub_interval( density_iterator, si, [&]( Interval<TF> interval ) {
+        return _for_each_sub_interval( density_iterator, si, cell_num, [&]( Interval<TF> interval ) {
             std::swap( interval.t0, interval.t1 );
             std::swap( interval.x0, interval.x1 );
             func( interval );
@@ -145,7 +156,7 @@ DTP void UTP::for_each_sub_interval( DensityIterator<TF> &density_iterator, cons
     }
 
     //
-    return _for_each_sub_interval( density_iterator, cell_interval, FORWARD( func ) );
+    return _for_each_sub_interval( density_iterator, cell_interval, cell_num, FORWARD( func ) );
 }
 
 DTP void UTP::get_newton_system_ap( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_arcs, const Density<TF> &density, TF eps ) {
@@ -176,7 +187,7 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
         const TF ldist = num_cell ? sorted_seed_coords[ num_cell - 0 ] - sorted_seed_coords[ num_cell - 1 ] : 0;
         
         TF mass = 0, dmass_dL = 0, dmass_dM = 0;
-        for_each_sub_interval( *diter, interval, [&]( Interval<TF> interval ) {
+        for_each_sub_interval( *diter, interval, num_cell, [&]( Interval<TF> interval ) {
             switch ( interval.t0 ) {
                 case BndType::Cell: {
                     const TF value = diter->value( interval.x0 ) / ldist / 2;
@@ -217,21 +228,21 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
     } );
 }
 
-DTP TF UTP::integral_ap( const Density<TF> &density, TF x0, TF x1, PI ni ) const {
-    TF res = 0;
-    for( PI i = 0; i < ni; ++i )
-        res += density_value( x0 + ( x1 - x0 ) * ( i + 0.5 ) / ni );
-    return res * ( x1 - x0 ) / ni;
-}
+// DTP TF UTP::integral_ap( const Density<TF> &density, TF x0, TF x1, PI ni ) const {
+//     TF res = 0;
+//     for( PI i = 0; i < ni; ++i )
+//         res += density_value( x0 + ( x1 - x0 ) * ( i + 0.5 ) / ni );
+//     return res * ( x1 - x0 ) / ni;
+// }
 
-DTP TF UTP::integral( const Density<TF> &density, TF x0, TF x1 ) const {
-    TF res = 0;
-    RcPtr<DensityIterator<TF>> iter = density->iterator();
-    for_each_sub_interval( *iter, { BndType::Density, BndType::Density, x0, x1 }, [&]( Interval<TF> interval ) {
-        res += iter->integral( interval.x0, interval.x1 );
-    } );
-    return res;
-}
+// DTP TF UTP::integral( const Density<TF> &density, TF x0, TF x1 ) const {
+//     TF res = 0;
+//     RcPtr<DensityIterator<TF>> iter = density->iterator();
+//     for_each_sub_interval( *iter, { BndType::Density, BndType::Density, x0, x1 }, [&]( Interval<TF> interval ) {
+//         res += iter->integral( interval.x0, interval.x1 );
+//     } );
+//     return res;
+// }
 
 DTP Vec<TF> UTP::cell_boundaries() const {
     Vec<TF> res( FromSize(), 2 * nb_cells() );
@@ -250,7 +261,7 @@ DTP Vec<TF> UTP::barycenters_ap( const Density<TF> &density, PI ni ) const {
     auto diter = density->iterator();
     for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
         TF pint = 0, mass = 0;
-        for_each_sub_interval( *diter, interval, [&]( Interval<TF> interval ) {
+        for_each_sub_interval( *diter, interval, num_cell, [&]( Interval<TF> interval ) {
             // diter.barycenter( pint, area, interval.x0, interval.x1 );
             for( PI i = 0; i < ni; ++i ) {
                 const TF x = interval.x0 + ( interval.x1 - interval.x0 ) * ( i + 0.5 ) / ni;
@@ -272,7 +283,7 @@ DTP Vec<TF> UTP::barycenters( const Density<TF> &density ) const {
     for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
         TF pint = 0, area = 0;
 
-        for_each_sub_interval( *diter, interval, [&]( Interval<TF> interval ) {
+        for_each_sub_interval( *diter, interval, num_cell, [&]( Interval<TF> interval ) {
             diter->barycenter( pint, area, interval.x0, interval.x1 );
         } );
 
@@ -289,7 +300,7 @@ DTP Vec<TF> UTP::masses_ap( const Density<TF> &density, PI ni ) const {
     for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
         TF area = 0;
 
-        for_each_sub_interval( *diter, interval, [&]( Interval<TF> interval ) {
+        for_each_sub_interval( *diter, interval, num_cell, [&]( Interval<TF> interval ) {
             TF loc = 0;
             for( PI i = 0; i < ni; ++i ) {
                 const TF x = interval.x0 + ( interval.x1 - interval.x0 ) * ( i + 0.5 ) / ni;
@@ -312,7 +323,7 @@ DTP Vec<TF> UTP::masses( const Density<TF> &density ) const {
     for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
         TF area = 0;
 
-        for_each_sub_interval( *diter, interval, [&]( Interval<TF> interval ) {
+        for_each_sub_interval( *diter, interval, num_cell, [&]( Interval<TF> interval ) {
             area += diter->integral( interval.x0, interval.x1 );
         } );
 

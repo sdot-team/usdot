@@ -39,10 +39,6 @@ public:
     IterationCallback       iteration_callback              = {};
     bool                    throw_if_error                  = 1;
     int                     verbosity                       = 1;
-   
-    // state
-    TF                      convex_hull_density_ratio       = 0; ///< density = this->density + ( convex_hull_density - this->density ) * convex_hull_density_ratio
-    TF                      convolution_width               = 0; ///<
        
     // outputs
     Vec<TF>                 max_mass_ratio_error_history    = {};
@@ -54,6 +50,10 @@ public:
     RcPtr<Density<TF>>      _convex_hull_density;           ///< 
     RcPtr<Density<TF>>      _convoluted_density;            ///< 
     SymmetricBandMatrix<TF> cholesky;                       ///<
+   
+    // state (input data that can be modified)
+    TF                      convex_hull_density_ratio       = 0; ///< density = this->density + ( convex_hull_density - this->density ) * convex_hull_density_ratio
+    TF                      convolution_width               = 0; ///<
              
     // input             
     Vec<TF>                 target_mass_ratios              = {}; ///< mass ratio for each dirac

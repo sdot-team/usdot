@@ -1,9 +1,13 @@
 #pragma once
 
-#include <tl/support/string/va_string.h>
+#include <tl/support/operators/norm_inf.h>
+#include <tl/support/operators/norm_2.h>
 #include <tl/support/operators/sum.h>
 #include <tl/support/operators/abs.h>
 #include <tl/support/operators/max.h>
+
+#include <tl/support/string/va_string.h>
+
 #include <tl/support/P.h>
 
 #include "Convolution/InvX2Convolution.h"
