@@ -12,6 +12,7 @@ callgrind*
 __pycache__/
 *.pyc
 *.pyo
+data/
 
 .partial1D.*
 .partial1d.*
