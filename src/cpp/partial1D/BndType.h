@@ -2,6 +2,8 @@
 
 #include <tl/support/Displayer.h>
 
+namespace usdot {
+
 enum class BndType {
     Density,
     Cell,
@@ -9,11 +11,13 @@ enum class BndType {
     Inf,
 };
 
-inline void display( Displayer &ds, const BndType &value ) {
+} // namespace usdot
+
+inline void display( Displayer &ds, const usdot::BndType &value ) {
     switch ( value ) {
-    case BndType::Density: ds << "Density"; return;
-    case BndType::Cell   : ds << "Cell"   ; return;
-    case BndType::Ball   : ds << "Ball"   ; return;
-    case BndType::Inf    : ds << "Inf"    ; return;
+    case usdot::BndType::Density: ds << "Density"; return;
+    case usdot::BndType::Cell   : ds << "Cell"   ; return;
+    case usdot::BndType::Ball   : ds << "Ball"   ; return;
+    case usdot::BndType::Inf    : ds << "Inf"    ; return;
     }
 }

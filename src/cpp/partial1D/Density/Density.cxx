@@ -8,7 +8,7 @@ namespace usdot {
 #define DTP template<class TF>
 #define UTP Density<TF>
 
-DTP std::pair<Vec<TF>,Vec<TF>> UTP::cdf_approximation( TF epsilon ) const {
+DTP CdfApproximation<TF> UTP::cdf_approximation( TF epsilon ) const {
     TODO;
     return {};
 }

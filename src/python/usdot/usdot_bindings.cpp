@@ -1,10 +1,10 @@
 // cppimport
 #include "../../cpp/partial1D/Density/PiecewiseConstantDensity.h"
+#include "../../cpp/partial1D/Density/PiecewiseAffineDensity.h"
 #include "../../cpp/partial1D/Solver.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-#include <tl/support/P.h>
 
 #include <tl/support/display/DisplayItem_Pointer.cpp>
 #include <tl/support/display/DisplayItem_String.cpp>
@@ -14,6 +14,7 @@
 #include <tl/support/Displayer.cpp>
 
 #include <tl/support/string/read_arg_name.cpp>
+#include <tl/support/P.h>
 
 namespace py = pybind11;
 using namespace usdot;
@@ -32,6 +33,7 @@ struct OtResult {
 
 struct OtParms {
     TF max_mass_ratio_error_target = 1e-6;
+    int verbosity = 1;
     TF epsilon = 0;
 };
 
@@ -49,6 +51,15 @@ static Vec<TF> vec_from_array( const Array &array ) {
     return res;
 }
 
+template<int N> 
+static Vec<Vec<TF,N>> vec_of_vec_from_array( const Array &array ) {
+    Vec<Vec<TF,N>> res( FromSize(), array.shape( 0 ) );
+    for( PI r = 0; r < res.size(); ++r )
+        for( PI c = 0; c < N; ++c )
+            res[ r ][ c ] = array.at( r, c );
+    return res;
+}
+
 OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Density<TF>> de, OtParms &parms ) {
     // init power diagram
     auto pd = RcPtr<PowerDiagram<TF>>::New( vec_from_array( dirac_positions ), Vec<TF>::fill( dirac_positions.size(), 1 ) );
@@ -61,7 +72,7 @@ OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Dens
     
     // run
     solver.initialize_weights();
-    solver.update_weights();
+    // solver.update_weights();
 
     // result summary
     Vec<TF> bnds;
@@ -80,16 +91,27 @@ OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Dens
     return res;
 }
 
-OtResult ot_diracs_to_piecewise_constant( Array &dirac_positions, Array &target_mass_ratios, Array &density_positions, Array &density_values, OtParms &parms ) {
-    auto de = RcPtr<PiecewiseConstantDensity<TF>>::New( 
-        vec_from_array( density_positions ),
-        vec_from_array( density_values )
-    );
+OtResult ot_diracs_to_piecewise_polynomial( Array &dirac_positions, Array &target_mass_ratios, Array &density_positions, Array &density_values, OtParms &parms ) {
+    PI nc = density_values.ndim() >= 2 ? density_values.shape( 1 ) : 1;
+    RcPtr<Density<TF>> de;
+    if ( nc == 1 ) {
+        de = RcPtr<PiecewiseConstantDensity<TF>>::New( 
+            vec_from_array( density_positions ),
+            vec_from_array( density_values )
+        );
+    } else if ( nc == 2 ) {
+        de = RcPtr<PiecewiseAffineDensity<TF>>::New( 
+            vec_from_array( density_positions ),
+            vec_of_vec_from_array<2>( density_values )
+        );
+    } else {
+        throw std::runtime_error( "TODO: high order polynomials" );
+    }
 
     return ot_solve( dirac_positions, target_mass_ratios, de, parms );
 }
 
-PYBIND11_MODULE(usdot_bindings, m) {
+PYBIND11_MODULE( usdot_bindings, m ) {
     pybind11::class_<OtResult>( m, "OtResult" )
         .def_readwrite( "norm_2_residual_history", &OtResult::norm_2_residual_history, "" )
         .def_readwrite( "error_message", &OtResult::error_message, "" )
@@ -107,6 +129,7 @@ PYBIND11_MODULE(usdot_bindings, m) {
     pybind11::class_<OtParms>( m, "OtParms" )
         .def( py::init<>() )
         .def_readwrite( "max_mass_ratio_error_target" , &OtParms::max_mass_ratio_error_target, "" )
+        .def_readwrite( "verbosity" , &OtParms::verbosity, "" )
         .def_readwrite( "epsilon" , &OtParms::epsilon, "" )
         .def( "__repr__",
             []( const OtParms &a ) {
@@ -115,7 +138,7 @@ PYBIND11_MODULE(usdot_bindings, m) {
         )
         ;
 
-    m.def( "ot_diracs_to_piecewise_constant", &ot_diracs_to_piecewise_constant );
+    m.def( "ot_diracs_to_piecewise_polynomial", &ot_diracs_to_piecewise_polynomial );
 }
 /*
 <%

@@ -8,14 +8,14 @@ namespace usdot {
 #define DTP template<class TF>
 #define UTP CdfSolver<TF>
 
-DTP UTP::CdfSolver( std::pair<Vec<TF>,Vec<TF>> &&cdf, const Vec<TF> &seed_coords, const Vec<TF> &mass_ratios ) : seed_coords( seed_coords ), mass_ratios( mass_ratios ), cx( std::move( cdf.first ) ), cy( std::move( cdf.second ) ), last( nullptr ) {
+DTP UTP::CdfSolver( CdfApproximation<TF> &&cdf, const Vec<TF> &seed_coords, const Vec<TF> &mass_ratios ) : seed_coords( seed_coords ), mass_ratios( mass_ratios ), cx( std::move( cdf.xs ) ), cy( std::move( cdf.ys ) ), cz( std::move( cdf.zs ) ), last( nullptr ) {
     if ( cy.empty() )
         return;
 
     // normalization
-    const TF ey = cy.back();
-    for( auto &y : cy )
-        y /= ey;
+    if ( const TF ey = cy.back() )
+        for( auto &y : cy ) 
+            y /= ey;    
 }
 
 DTP void UTP::solve( Vec<TF> &seed_weights ) {
@@ -70,7 +70,7 @@ DTP void UTP::solve( Vec<TF> &seed_weights ) {
         // compute the weight from the required radius
         TF w = max( pow( end_x - c, 2 ), pow( c - beg_x, 2 ) );
         seed_weights[ item->end_n - 1 ] = w;
-        
+
         //  
         TF w_to_add = 0;
         for( PI n = item->end_n; --n > item->beg_n; ) {

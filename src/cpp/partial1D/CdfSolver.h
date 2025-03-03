@@ -1,7 +1,7 @@
 #pragma once
 
 #include <tl/support/memory/BumpPointerPool.h>
-#include <tl/support/containers/Vec.h>
+#include "CdfApproximation.h"
 
 namespace usdot {
     
@@ -10,7 +10,7 @@ namespace usdot {
 template<class TF>
 class CdfSolver {
 public:
-    /**/           CdfSolver    ( std::pair<Vec<TF>,Vec<TF>> &&cdf, const Vec<TF> &seed_coords, const Vec<TF> &mass_ratios );
+    /**/           CdfSolver    ( CdfApproximation<TF> &&cdf, const Vec<TF> &seed_coords, const Vec<TF> &mass_ratios );
 
     PI             nb_cells     () const { return seed_coords.size(); }
     void           solve        ( Vec<TF> &seed_weights ); ///<
@@ -31,6 +31,7 @@ private:
     const Vec<TF>&  mass_ratios;
     Vec<TF>         cx;
     Vec<TF>         cy;
+    Vec<TF>         cz;
     
     BumpPointerPool pool;
     Agglomeration*  last;

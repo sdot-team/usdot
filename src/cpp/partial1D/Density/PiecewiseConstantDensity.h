@@ -12,7 +12,7 @@ class PiecewiseConstantDensity : public Density<TF> {
 public:
     /**/         PiecewiseConstantDensity( const Vec<TF> &xs, const Vec<TF> &ys ); ///< xs.size() must be equal to ys.size() + 1
        
-    virtual auto cdf_approximation       ( TF epsilon ) const -> std::pair<Vec<TF>,Vec<TF>> override;
+    virtual auto cdf_approximation       ( TF epsilon ) const -> CdfApproximation<TF> override;
     virtual auto convoluted              ( RcPtr<Convolution<TF>> convolution ) const -> RcPtr<Density<TF>> override;
     virtual auto iterator                () const -> RcPtr<DensityIterator<TF>> override;
     virtual void display                 ( Displayer &ds ) const override;

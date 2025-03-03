@@ -134,8 +134,8 @@ DTP void UTP::_for_each_sub_interval( DensityIterator<TF> &density_iterator, con
     using namespace std;
     
     if ( allow_ball_cut && epsilon && ( cell_interval.t0 == BndType::Ball || cell_interval.t1 == BndType::Ball ) ) {
-        const TF radius = sqrt( max( 0, sorted_seed_weights[ cell_num ] ) );
-        const TF center = sorted_seed_coords[ cell_num ];
+        // const TF radius = sqrt( max( 0, sorted_seed_weights[ cell_num ] ) );
+        // const TF center = sorted_seed_coords[ cell_num ];
         TODO;
         return;
     }

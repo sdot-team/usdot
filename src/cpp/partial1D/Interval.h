@@ -2,6 +2,8 @@
 
 #include "BndType.h"
 
+namespace usdot {
+
 template<class TF>
 struct Interval {
     void    display( Displayer &ds ) const { DS_OBJECT( Interval, t0, t1, x0, x1 ); }
@@ -13,3 +15,4 @@ struct Interval {
     TF      x1; 
 };
 
+} // namespace usdot
