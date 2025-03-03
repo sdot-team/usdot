@@ -44,6 +44,15 @@ static Array array_from_vec( const Vec<TF> &v ) {
     return res;
 }
 
+template<int N>
+static Array array_from_vec( const Vec<Vec<TF,N>> &v ) {
+    Array res( std::array<PI,2>{ v.size(), PI( N ) } );
+    for( PI i = 0; i < v.size(); ++i )
+        for( int d = 0; d < N; ++d )
+            res.mutable_at( i, d ) = v[ i ][ d ];
+    return res;
+}
+
 static Vec<TF> vec_from_array( const Array &array ) {
     Vec<TF> res( FromSize(), array.size() );
     for( PI r = 0; r < res.size(); ++r )
@@ -69,21 +78,24 @@ OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Dens
     Solver<TF> solver( pd, de );
     solver.max_mass_ratio_error_target = parms.max_mass_ratio_error_target;
     solver.target_mass_ratios = vec_from_array( target_mass_ratios );
-    
+    solver.verbosity = parms.verbosity;
+
     // run
     solver.initialize_weights();
-    // solver.update_weights();
+    // if ( solver.update_weights() )
+    //     P( "bad initialization" );
 
     // result summary
-    Vec<TF> bnds;
+    Vec<Vec<TF,2>> bnds = pd->cell_boundaries( false );
     TF mi = de->min_x();
     TF ma = de->max_x();
-    for( TF p : pd->cell_boundaries( false ) )
-        bnds << min( ma, max( mi, p ) );
+    for( Vec<TF,2> &b : bnds )
+        for( TF &v : b )
+            v = min( ma, max( mi, v ) );
 
     OtResult res;
     res.norm_2_residual_history = array_from_vec( solver.norm_2_residual_history );
-    res.error_message = solver.nb_errors ? "error" : "";
+    res.error_message = ""; // solver.nb_errors ? "error" : 
     res.barycenters = array_from_vec( pd->barycenters( *de, false ) );
     res.boundaries = array_from_vec( bnds );
     res.weights = array_from_vec( pd->get_weights( false ) );

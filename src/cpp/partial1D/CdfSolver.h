@@ -26,6 +26,7 @@ private:
     };
 
     void            append_cells( PI beg_n, PI end_n, TF beg_y, TF len_y );
+    TF              cdf_value   ( TF x ) const; ///> for debug purpose
 
     const Vec<TF>&  seed_coords;
     const Vec<TF>&  mass_ratios;

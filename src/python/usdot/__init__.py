@@ -21,8 +21,6 @@ def d2cap( dirac_positions, density_positions, density_values, mass_ratio = None
     dv[ :, 0 ] = density_values[ :-1 ]
     dv[ :, 1 ] = density_values[ 1: ] - density_values[ :-1 ]
 
-    print( density_positions, dv )
-
     return d2p( dirac_positions, density_positions, dv, mass_ratio = mass_ratio, dirac_mass_ratios = dirac_mass_ratios, ot_parms = ot_parms )
 
 
@@ -52,11 +50,10 @@ def plot( ot_result ):
     """ plot the optimal transport result """
     import matplotlib.pyplot as plt
 
-    dx = max( ot_result.boundaries ) - min( ot_result.boundaries )
+    dx = np.ptp( ot_result.boundaries )
     y0 = - dx / 30
     y1 = + dx / 30
-    for n in range( 0, ot_result.boundaries.size, 2 ):
-        x0, x1 = ot_result.boundaries[ n + 0 ], ot_result.boundaries[ n + 1 ]
+    for x0, x1 in ot_result.boundaries:
         xs = [ x0, x1, x1, x0, x0 ]
         ys = [ y1, y1, y0, y0, y1 ]
         plt.plot( xs, ys )

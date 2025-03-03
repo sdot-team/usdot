@@ -10,36 +10,34 @@ class PiecewiseAffineDensityIterator : public DensityIterator<TF> {
 public:
     virtual void barycenter( TF &pint, TF &area, TF l0, TF l1 ) const override {
         using namespace std;
-        // v = y0 - y1 * x0 / ( x1 - x0 ) * x 
-        //   + y1 / ( x1 - x0 ) * x^2
-        // i = ( y0 - y1 * x0 / ( x1 - x0 ) ) * ( l1^2 - l0^2 ) / 2
-        //   + y1 / ( x1 - x0 ) * ( l1^3 - l0^3 ) / 3
-        // i = ( y0 - dy * x0 ) * ( l1^2 - l0^2 ) / 2
-        //   + dy * ( l1^3 - l0^3 ) / 3
-        const TF x0 = cl->xs[ i + 0 ];
-        const TF x1 = cl->xs[ i + 1 ];
+        // i = integrate( ( y0 + y1 * ( x - x0 ) / ( x1 - x0 ) ) * x, x in [ l0, l1 ] )
+        // i = integrate( ( y0 - y1 / ( x1 - x0 ) * x0 ) * x + y1 / ( x1 - x0 ) * x * x, x in [ l0, l1 ] )
+        // i = ( y0 - y1 / ( x1 - x0 ) * x0 ) * ( l1^2 - l0^2 ) / 2 + y1 / ( x1 - x0 ) * ( l1^3 - l0^3 ) / 3
         const TF y0 = cl->ys[ i ][ 0 ];
         const TF y1 = cl->ys[ i ][ 1 ];
-        const TF dy = y1 / ( x1 - x0 );
-        if ( x1 == x0 )
-            return;
-        area += ( l1 - l0 ) * ( y0 + dy * ( ( l1 + l0 ) / 2 - x0 ) );
-        pint += ( y0 - dy * x0 ) * ( pow( l1, 2 ) - pow( l0, 2 ) ) / 2
-              + dy * ( pow( l1, 3 ) - pow( l0, 3 ) ) / 3;
+        const TF x0 = cl->xs[ i + 0 ];
+        const TF x1 = cl->xs[ i + 1 ];
+        if ( const TF dx = x1 - x0 ) {
+            pint += ( y0 - y1 / ( x1 - x0 ) * x0 ) * ( pow( l1, 2 ) - pow( l0, 2 ) ) / 2 
+                         + y1 / ( x1 - x0 )        * ( pow( l1, 3 ) - pow( l0, 3 ) ) / 3;
+            area += ( l1 - l0 ) * ( y0 + y1 / dx * ( ( l1 + l0 ) / 2 - x0 ) );
+        }
     }
     
     virtual TF integral( TF l0, TF l1 ) const override {
-        // v = y0 + y1 * ( x - x0 ) / ( x1 - x0 )
-        // v = y0 - y1 * x0 / ( x1 - x0 ) + x * y1 / ( x1 - x0 )
-        // p = ( y0 - y1 * x0 / ( x1 - x0 ) ) * x + y1 / ( x1 - x0 ) * x^2 / 2
-        // i = ( y0 - y1 * x0 / ( x1 - x0 ) ) * ( l1 - l0 ) + y1 / ( x1 - x0 ) * ( l1^2 - l0^2 ) / 2
-        // i = ( y0 - y1 * x0 / ( x1 - x0 ) ) * ( l1 - l0 ) + y1 / ( x1 - x0 ) * ( l1 - l0 ) * ( l1 + l0 ) / 2
-        // i = ( l1 - l0 ) * ( y0 + y1 / ( x1 - x0 ) * ( ( l1 + l0 ) / 2 - x0 ) )
+        // i = integrate( y0 + y1 * ( t - x0 ) / ( x1 - x0 ), t in [ l0, l1 ] )
+        // i = integrate( y0 - y1 / ( x1 - x0 ) * x0 + y1 / ( x1 - x0 ) * t, t in [ l0, l1 ] )
+        // i = ( y0 - y1 / ( x1 - x0 ) * x0 ) * ( l1 - l0 ) + y1 / ( x1 - x0 ) * ( l1^2 - l0^2 ) / 2
+        // i = ( y0 - y1 / ( x1 - x0 ) * x0 ) * ( l1 - l0 )
+        //        +   y1 / ( x1 - x0 )        * ( l1 - l0 ) * ( l1 + l0 ) / 2
+        // i = ( l1 - l0 ) * (
+        //      y0 + y1 / ( x1 - x0 ) * ( ( l1 + l0 ) / 2 - x0 )
+        // )
         const TF x0 = cl->xs[ i + 0 ];
         const TF x1 = cl->xs[ i + 1 ];
         const TF y0 = cl->ys[ i ][ 0 ];
         const TF y1 = cl->ys[ i ][ 1 ];
-        return x1 == x0 ? 0 : ( l1 - l0 ) * ( y0 + y1 * ( ( l1 + l0 ) / 2 - x0 ) / ( x1 - x0 ) );
+        return x1 == x0 ? 0 : ( l1 - l0 ) * ( y0 + y1 / ( x1 - x0 ) * ( ( l1 + l0 ) / 2 - x0 ) );
     }
 
     virtual void display( Displayer &ds ) const override {
@@ -91,20 +89,23 @@ DTP CdfApproximation<TF> UTP::cdf_approximation( TF epsilon ) const {
 
     TF y = 0;
     for( PI i = 0; i < ys.size(); ++i ) {
+        // v = y0 + y1 * x
+        // i = y0 * x + y1 * x^2 / 2
+        // d = i( 0.5 ) - i( 1 ) / 2
+        // d = y0 / 2 + y1 / 8 - ( y0 + y1 / 2 ) / 2 
+        // d = - y1 / 8
         const TF y0 = ys[ i ][ 0 ];
         const TF y1 = ys[ i ][ 1 ];
         const TF x0 = xs[ i + 0 ];
         const TF x1 = xs[ i + 1 ];
-        const TF m = y1 / 3;
+        const TF dx = x1 - x0;
 
-        y += ( x1 - x0 ) * ( y0 + y1 / 2 );
+        y += dx * ( y0 + y1 / 2 );
 
+        rzs << - dx * y1 / 8;
         rxs << xs[ i + 1 ];
         rys << y;
-        rzs << m;
     }
-
-    P( rxs, rys, rzs );
 
     return { rxs, rys, rzs };
 }

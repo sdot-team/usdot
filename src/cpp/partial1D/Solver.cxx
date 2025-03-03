@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <tl/support/operators/norm_inf.h>
 #include <tl/support/operators/norm_2.h>
 #include <tl/support/operators/sum.h>
@@ -79,7 +80,7 @@ DTP void UTP::set_state( const State &state ) {
     power_diagram->sorted_seed_weights = state.weights;
 }
 
-DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
+DTP int UTP::update_weights( UpdateWeightsPrm parms ) {
     using namespace std;
 
     // _convoluted_density
@@ -114,7 +115,14 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
     PI nb_arcs;
 
     // until convergence
-    for( PI nb_iter = 0; nb_iter < parms.max_newton_iterations; ++nb_iter ) {
+    Vec<TF> old_sorted_seed_weights;
+    for( PI nb_iter = 0; ; ++nb_iter ) {
+        if ( nb_iter == parms.max_newton_iterations ) {
+            if ( verbosity )
+                P( "max_newton_iterations reached" );
+            return false;
+        }
+
         // the the newton system
         V = target_mass_ratios;
         M.fill_with( 0 );
@@ -124,24 +132,42 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
             power_diagram->get_newton_system( M, V, nb_arcs, *_convex_hull_density, convex_hull_density_ratio / mass_convex_hull_density );
         power_diagram->get_newton_system( M, V, nb_arcs, *_convoluted_density, ( 1 - convex_hull_density_ratio ) / mass_convoluted_density );
 
-        SymmetricBandMatrix<TF> Ma( FromSize(), power_diagram->nb_cells() );
-        Vec<TF> Va = target_mass_ratios;
-        Ma.fill_with( 0 );
-        power_diagram->get_newton_system_ap( Ma, Va, nb_arcs, *_convoluted_density );
+        // SymmetricBandMatrix<TF> Ma( FromSize(), power_diagram->nb_cells() );
+        // Vec<TF> Va = target_mass_ratios;
+        // Ma.fill_with( 0 );
+        // power_diagram->get_newton_system_ap( Ma, Va, nb_arcs, *_convoluted_density );
 
         // check the system
+        TF norm_2_rhs = norm_2( V );
         TF mid = M( 0, 0 );
         TF mad = mid;
+        // TF mav = -1;
         for( PI i = 0; i < power_diagram->nb_cells(); ++i ) {
+            // mav = std::max( mav, V[ i ] - target_mass_ratios[ i ] );
             mid = std::min( mid, M( i, i ) );
             mad = std::max( mad, M( i, i ) );
+            if ( std::isnan( M( i, i ) ) )
+                mid = 0;
         }
 
+        // P( V - target_mass_ratios );
+        // P( mav );
+
+        if ( verbosity >= 2 )
+            P( norm_2_rhs_history );
+
         // stop if system is in bad shape
-        if ( mid == 0 || mid / mad <= std::numeric_limits<TF>::epsilon() * power_diagram->nb_cells() ) { // TODO: a more precise criterion
-            P( "bim", mid, mad );
-            ++nb_errors;
-            return;
+        if ( mid == 0 /*|| mav >= 0*/ || ( norm_2_rhs_history.size() && norm_2_rhs > norm_2_rhs_history.back() ) ) { // || mid / mad <= std::numeric_limits<TF>::epsilon() * power_diagram->nb_cells() TODO: a more precise criterion
+            if ( nb_iter == 0 ) {
+                if ( verbosity )
+                    P( "bad initialization" );
+                return 1;
+            }
+
+            if ( verbosity >= 2 ) 
+                P( "backtracking", mid, mad );
+            power_diagram->sorted_seed_weights = 0.5 * old_sorted_seed_weights + 0.5 * power_diagram->sorted_seed_weights;
+            continue;
         }
 
         //
@@ -152,11 +178,23 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
         Vec<TF> R = M.solve( V );
         
         // update weights
+        old_sorted_seed_weights = power_diagram->sorted_seed_weights;
         power_diagram->sorted_seed_weights += R;
 
         // history
-        max_mass_ratio_error_history << norm_inf( V / target_mass_ratios );
-        norm_2_residual_history << norm_2( R );
+        TF max_mass_ratio_error = norm_inf( V / target_mass_ratios );
+        TF norm_2_residual = norm_2( R );
+
+        max_mass_ratio_error_history << max_mass_ratio_error;
+        norm_2_residual_history << norm_2_residual;
+        norm_2_rhs_history << norm_2_rhs;
+
+        // if ( std::isnan( norm_2_residual ) ) {
+            // P( power_diagram->sorted_seed_weights );
+            // P( M );
+            // P( V );
+            // P( M.cholesky() );
+        // }
 
         // log
         if ( iteration_callback )
@@ -164,9 +202,10 @@ DTP void UTP::update_weights( UpdateWeightsPrm parms ) {
 
         //
         if ( nb_iter >= parms.min_newton_iterations && converged() )
-            break;
+            break;     
     }
 
+    return 0;
 }
 
 #undef DTP

@@ -31,7 +31,7 @@ public:
      
     // computations
     void               get_newton_system        ( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_arcs, const Density<TF> &density, TF coeff = 1 ) const;
-    Vec<TF>            cell_boundaries          ( bool sorted_nums = true ) const; ///< left and right boundary for each cell
+    Vec<Vec<TF,2>>     cell_boundaries          ( bool sorted_nums = true ) const; ///< left and right boundary for each cell
     Vec<TF>            barycenters              ( const Density<TF> &density, bool sorted_nums = true ) const;
     Vec<TF>            masses                   ( const Density<TF> &density, bool sorted_nums = true ) const;
     

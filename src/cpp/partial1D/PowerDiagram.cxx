@@ -243,19 +243,19 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
 //     return res;
 // }
 
-DTP Vec<TF> UTP::cell_boundaries( bool sorted_nums ) const {
-    Vec<TF> res( FromSize(), 2 * nb_cells() );
+DTP Vec<Vec<TF,2>> UTP::cell_boundaries( bool sorted_nums ) const {
+    Vec<Vec<TF,2>> res( FromSize(), nb_cells() );
 
     if ( sorted_nums ) {
         for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
-            res[ 2 * num_cell + 0 ] = interval.x0;
-            res[ 2 * num_cell + 1 ] = interval.x1;
+            res[ num_cell ][ 0 ] = interval.x0;
+            res[ num_cell ][ 1 ] = interval.x1;
         } );
     } else {
         for_each_cell( [&]( PI num_cell, Interval<TF> interval ) {
             PI n = sorted_seed_nums[ num_cell ];
-            res[ 2 * n + 0 ] = interval.x0;
-            res[ 2 * n + 1 ] = interval.x1;
+            res[ n ][ 0 ] = interval.x0;
+            res[ n ][ 1 ] = interval.x1;
         } );
     }
 

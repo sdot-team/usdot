@@ -29,6 +29,7 @@ public:
     PI       nb_cols            () const { return nb_rows(); }
    
     void     fill_with          ( T value ) { data.fill_with( value ); }
+    auto     cholesky           () const -> SymmetricBandMatrix;
     TV       solve              ( const TV &x ) const;
     TV       mul                ( const TV &x ) const;
 
@@ -55,9 +56,7 @@ inline Vec<T> SymmetricBandMatrix<T>::mul( const Vec<T> &x ) const {
 }
 
 template<class T>
-inline SymmetricBandMatrix<T>::TV SymmetricBandMatrix<T>::solve( const TV &x ) const {
-    using std::pow;
-
+SymmetricBandMatrix<T> SymmetricBandMatrix<T>::cholesky() const {
     const PI n = nb_rows();
     if ( n == 0 )
         return {};
@@ -72,6 +71,20 @@ inline SymmetricBandMatrix<T>::TV SymmetricBandMatrix<T>::solve( const TV &x ) c
         chol.data[ i + 0 ] = l;
         chol.data[ i + 1 ] = data[ i + 1 ] - pow( l, 2 ) * p;
     }
+
+    return chol;
+}
+
+template<class T>
+inline SymmetricBandMatrix<T>::TV SymmetricBandMatrix<T>::solve( const TV &x ) const {
+    using std::pow;
+
+    const PI n = nb_rows();
+    if ( n == 0 )
+        return {};
+
+    // decomposition
+    SymmetricBandMatrix chol = cholesky();
 
     // solve with L
     TV res( FromSize(), n );
