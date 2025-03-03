@@ -76,6 +76,8 @@ DTP void UTP::for_each_cell( auto &&func ) const {
         TF x1 = ( d1 + d0 - ( w1 - w0 ) / ( d1 - d0 ) ) / 2;
         Bt t1 = Bt::Cell;
 
+        P( x0, x1, d0, d1, w0, w1 );
+
         call_with_ball_cut( i - 1, t0, t1, x0, x1 );
 
         x0 = x1;

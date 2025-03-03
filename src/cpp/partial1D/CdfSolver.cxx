@@ -105,11 +105,12 @@ DTP void UTP::solve( Vec<TF> &seed_weights ) {
         TF end_y = item->end_y(), beg_y = end_y - mass_ratios[ n ];
         TF end_x = get_x( end_y ), beg_x = get_x( beg_y );
 
-        P( beg_x, end_x, c );
-
+        
         // compute the weight from the required radius
         TF w = max( pow( end_x - c, 2 ), pow( c - beg_x, 2 ) );
         seed_weights[ item->end_n - 1 ] = w;
+        
+        P( beg_x, end_x, c, w );
 
         //  
         TF w_to_add = 0;
@@ -122,7 +123,7 @@ DTP void UTP::solve( Vec<TF> &seed_weights ) {
             TF d = std::exchange( c, seed_coords[ n - 1 ] );
             w -= ( d + c - 2 * end_x ) * ( d - c );
             
-            P( beg_x, end_x, c, d );
+            P( beg_x, end_x, c, d, w );
             
             const TF min_w = max( pow( c - beg_x, 2 ), pow( end_x - c, 2 ) );
             if ( min_w > w )
@@ -131,8 +132,6 @@ DTP void UTP::solve( Vec<TF> &seed_weights ) {
             // store the result
             seed_weights[ n - 1 ] = w;
         }
-        
-        P( w_to_add );
 
 
         if ( w_to_add )
