@@ -197,6 +197,7 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
                 case BndType::Ball: {
                     const TF value = diter->value( interval.x0 ) / sqrt( sorted_seed_weights[ num_cell + 0 ] ) / 2;
                     dmass_dM += value;
+                    ++nb_arcs;
                     break;
                 }
                 default:
@@ -212,6 +213,7 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
                 case BndType::Ball: {
                     const TF value = diter->value( interval.x0 ) / sqrt( sorted_seed_weights[ num_cell + 0 ] ) / 2;
                     dmass_dM += value;
+                    ++nb_arcs;
                     break;
                 }
                 default:
@@ -226,22 +228,6 @@ DTP void UTP::get_newton_system( SymmetricBandMatrix<TF> &M, Vec<TF> &V, PI &nb_
         V[ num_cell ] -= coeff * mass;
     } );
 }
-
-// DTP TF UTP::integral_ap( const Density<TF> &density, TF x0, TF x1, PI ni ) const {
-//     TF res = 0;
-//     for( PI i = 0; i < ni; ++i )
-//         res += density_value( x0 + ( x1 - x0 ) * ( i + 0.5 ) / ni );
-//     return res * ( x1 - x0 ) / ni;
-// }
-
-// DTP TF UTP::integral( const Density<TF> &density, TF x0, TF x1 ) const {
-//     TF res = 0;
-//     RcPtr<DensityIterator<TF>> iter = density->iterator();
-//     for_each_sub_interval( *iter, { BndType::Density, BndType::Density, x0, x1 }, [&]( Interval<TF> interval ) {
-//         res += iter->integral( interval.x0, interval.x1 );
-//     } );
-//     return res;
-// }
 
 DTP Vec<Vec<TF,2>> UTP::cell_boundaries( bool sorted_nums ) const {
     Vec<Vec<TF,2>> res( FromSize(), nb_cells() );

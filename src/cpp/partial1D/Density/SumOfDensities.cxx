@@ -45,6 +45,9 @@ public:
         // try find the previous "event" (i.e. the previous bnd of interval < this->x0)
         TF new_x0 = numeric_limits<TF>::lowest();
         for( const auto &sd : iterators ) {
+            while ( sd.second->x0 >= this->x0 )
+                if ( ! sd.second->move_backward() )
+                    break;
             if ( sd.second->x0 < this->x0 && sd.second->x0 > new_x0 )
                 new_x0 = sd.second->x0;
             if ( sd.second->x1 < this->x0 && sd.second->x1 > new_x0 )
@@ -67,6 +70,9 @@ public:
         // try find the next "event" (i.e. the next bnd of interval > this->x1)
         TF new_x1 = numeric_limits<TF>::max();
         for( const auto &sd : iterators ) {
+            while ( sd.second->x1 <= this->x1 )
+                if ( ! sd.second->move_forward() )
+                    break;
             if ( sd.second->x0 > this->x1 && sd.second->x0 < new_x1 )
                 new_x1 = sd.second->x0;
             if ( sd.second->x1 > this->x1 && sd.second->x1 < new_x1 )
@@ -108,6 +114,8 @@ DTP RcPtr<DensityIterator<TF>> UTP::iterator() const {
     // get valid iterators + x0 (first event)
     res->x0 = numeric_limits<TF>::max();
     for( const auto &sd : sub_densities ) {
+        if ( sd.first == 0 )
+            continue;
         if ( RcPtr<DensityIterator<TF>> iterator = sd.second->iterator() ) {
             res->iterators.push_back( sd.first, iterator );
             res->x0 = min( res->x0, iterator->x0 );
@@ -123,7 +131,8 @@ DTP RcPtr<DensityIterator<TF>> UTP::iterator() const {
     for( const auto &sd : res->iterators ) {
         if ( sd.second->x0 > res->x0 )
             res->x1 = min( res->x1, sd.second->x0 );
-        res->x1 = min( res->x1, sd.second->x1 );
+        if ( sd.second->x1 > res->x0 )
+           res->x1 = min( res->x1, sd.second->x1 );
     }
 
     return res;

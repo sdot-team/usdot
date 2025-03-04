@@ -278,6 +278,8 @@ DTP void UTP::solve() {
     }
 
     // else, try with approx cdf + newton steps
+    convex_hull_density_ratio = 0;
+    convolution_width = 0;
     find_approx_weights_using_cdf();
     int res = update_weights_using_newton();
     if ( res == 0 )
@@ -290,8 +292,9 @@ DTP void UTP::solve() {
         throw std::runtime_error( "not expected to fail here" );
 
     // then make a blend toward the required density
-    for( TF ratio = 1; ratio > 1e-20; ) {
-        P( ratio );
+    for( TF ratio = 1, nb_iters = 0; ratio > 1e-19 ; ++nb_iters ) {
+        if ( nb_iters == 500 )
+            throw std::runtime_error( "slow ratio convergence" );
 
         // try 0, then 0.5, 0.25, ...
         Vec<TF> old_weights = power_diagram->sorted_seed_weights;
@@ -308,6 +311,17 @@ DTP void UTP::solve() {
             power_diagram->sorted_seed_weights = old_weights;
         }
     }
+
+    // SymmetricBandMatrix<TF> M( FromSize(), power_diagram->nb_cells() );
+    // Vec<TF> V( FromSize(), power_diagram->nb_cells() );
+    // PI nb_arcs;
+
+    // V = global_mass_ratio * relative_mass_ratios / sum( relative_mass_ratios );
+    // M.fill_with( 0 );
+    // nb_arcs = 0;
+
+    // power_diagram->get_newton_system( M, V, nb_arcs, *current_density(), 1 / current_density()->mass() );
+    // P( M, V, nb_arcs );
 }
 
 #undef DTP
