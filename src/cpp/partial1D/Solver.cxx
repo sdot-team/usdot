@@ -1,17 +1,17 @@
 #pragma once
 
-#include <cmath>
 #include <tl/support/operators/norm_inf.h>
 #include <tl/support/operators/norm_2.h>
 #include <tl/support/operators/sum.h>
+#include <tl/support/operators/pow.h>
 #include <tl/support/operators/abs.h>
 #include <tl/support/operators/max.h>
 
 #include <tl/support/string/va_string.h>
-
 #include <tl/support/P.h>
 
 #include "Convolution/InvX2Convolution.h"
+#include "Density/SumOfDensities.h"
 #include "Density/BoundedDensity.h"
 #include "Density/Lebesgue.h"
 #include "Extrapolation.h"
@@ -100,6 +100,7 @@ DTP bool UTP::converged() const {
 DTP void UTP::update_convex_hull_density_ratio( UpdateConvexHullDensityRatioPrm parms ) {
     if ( parms.target_value && *parms.target_value == convex_hull_density_ratio )
         return;
+
     if ( parms.epsilon ) {
         TF base_convex_hull_density_ratio = convex_hull_density_ratio;
         Vec<Vec<TF>> weights;
@@ -117,6 +118,9 @@ DTP void UTP::update_convex_hull_density_ratio( UpdateConvexHullDensityRatioPrm 
         convex_hull_density_ratio = *parms.target_value;
         return;
     }
+
+    ASSERT( parms.target_value );
+    convex_hull_density_ratio = *parms.target_value;
 }
 
 DTP void UTP::update_convolution_width( UpdateConvolutionWidthPrm parms ) {
@@ -137,10 +141,8 @@ DTP void UTP::set_state( const State &state ) {
     power_diagram->sorted_seed_weights = state.weights;
 }
 
-DTP int UTP::update_weights_using_newton( UpdateWeightsPrm parms ) {
-    using namespace std;
-
-    // _convoluted_density
+DTP RcPtr<Density<TF>> UTP::current_density() {
+    // convoluted
     if ( _convoluted_density_width != convolution_width || ! _convoluted_density ) {
         if ( convolution_width ) {
             TF min_x = min( power_diagram->sorted_seed_coords.front(), density->min_x() );
@@ -155,70 +157,73 @@ DTP int UTP::update_weights_using_newton( UpdateWeightsPrm parms ) {
             _convoluted_density = density;
     }
 
-    // _convex_hull_density. TODO: update if mod of positions
-    if ( convex_hull_density_ratio && ! _convex_hull_density ) {
+    // 
+    if ( convex_hull_density_ratio ) {
         TF min_x = min( power_diagram->sorted_seed_coords.front(), _convoluted_density->min_x() );
         TF max_x = min( power_diagram->sorted_seed_coords.back(), _convoluted_density->max_x() );
-        _convex_hull_density = new Lebesgue<TF>( min_x, max_x );
+        return new SumOfDensities<TF>( { 
+            { convex_hull_density_ratio, new Lebesgue<TF>( min_x, max_x ) },
+            { 1 - convex_hull_density_ratio, _convoluted_density }
+        } );            
     }
 
-    // masses
-    const TF mass_convex_hull_density = _convex_hull_density ? _convex_hull_density->mass() : 0;
-    const TF mass_convoluted_density = _convoluted_density->mass();
+    return _convoluted_density;
+}
+
+DTP int UTP::update_weights_using_newton( UpdateWeightsPrm parms ) {
+    using namespace std;
+
+    // used density
+    RcPtr<Density<TF>> de = current_density();
+    const TF mass_de = de->mass();
 
     // common variables
     SymmetricBandMatrix<TF> M( FromSize(), power_diagram->nb_cells() );
     Vec<TF> V( FromSize(), power_diagram->nb_cells() );
     PI nb_arcs;
 
+    // history
+    norm_2_rhs_history.clear();
+
     // until convergence
     Vec<TF> old_sorted_seed_weights;
     for( PI nb_iter = 0; ; ++nb_iter ) {
         if ( nb_iter == parms.max_newton_iterations ) {
-            if ( verbosity )
+            if ( verbosity >= 2 )
                 P( "max_newton_iterations reached" );
-            return false;
+            return 1;
         }
 
         // the the newton system
-        V = relative_mass_ratios;
+        V = global_mass_ratio * relative_mass_ratios / sum( relative_mass_ratios );
         M.fill_with( 0 );
         nb_arcs = 0;
 
-        if ( convex_hull_density_ratio )
-            power_diagram->get_newton_system( M, V, nb_arcs, *_convex_hull_density, convex_hull_density_ratio / mass_convex_hull_density );
-        power_diagram->get_newton_system( M, V, nb_arcs, *_convoluted_density, ( 1 - convex_hull_density_ratio ) / mass_convoluted_density );
+        power_diagram->get_newton_system( M, V, nb_arcs, *de, 1 / mass_de );
 
-        // SymmetricBandMatrix<TF> Ma( FromSize(), power_diagram->nb_cells() );
-        // Vec<TF> Va = target_mass_ratios;
-        // Ma.fill_with( 0 );
-        // power_diagram->get_newton_system_ap( Ma, Va, nb_arcs, *_convoluted_density );
+        //
+        TF norm_2_rhs = norm_2( V );
+        if ( verbosity >= 2 )
+            P( norm_2_rhs );
 
         // check the system
-        TF norm_2_rhs = norm_2( V );
         TF mid = M( 0, 0 );
         TF mad = mid;
-        // TF mav = -1;
         for( PI i = 0; i < power_diagram->nb_cells(); ++i ) {
             // mav = std::max( mav, V[ i ] - target_mass_ratios[ i ] );
-            mid = std::min( mid, M( i, i ) );
-            mad = std::max( mad, M( i, i ) );
-            if ( std::isnan( M( i, i ) ) )
+            mid = min( mid, abs( M( i, i ) ) );
+            mad = max( mad, abs( M( i, i ) ) );
+            if ( isnan( M( i, i ) ) )
                 mid = 0;
         }
 
-        // P( V - target_mass_ratios );
-        // P( mav );
-
-        if ( verbosity >= 2 )
-            P( norm_2_rhs_history );
-
+        
         // stop if system is in bad shape
-        if ( mid == 0 /*|| mav >= 0*/ || ( norm_2_rhs_history.size() && norm_2_rhs > norm_2_rhs_history.back() ) ) { // || mid / mad <= std::numeric_limits<TF>::epsilon() * power_diagram->nb_cells() TODO: a more precise criterion
+        if ( mid == 0 || ( norm_2_rhs_history.size() && norm_2_rhs > norm_2_rhs_history.back() ) ) { // || mid / mad <= std::numeric_limits<TF>::epsilon() * power_diagram->nb_cells() TODO: a more precise criterion
             if ( nb_iter == 0 ) {
-                if ( verbosity )
+                if ( verbosity >= 2 )
                     P( "bad initialization" );
-                return 1;
+                return 2;
             }
 
             if ( verbosity >= 2 ) 
@@ -233,7 +238,7 @@ DTP int UTP::update_weights_using_newton( UpdateWeightsPrm parms ) {
 
         // solve
         Vec<TF> R = M.solve( V );
-        
+
         // update weights
         old_sorted_seed_weights = power_diagram->sorted_seed_weights;
         power_diagram->sorted_seed_weights += R;
@@ -246,12 +251,12 @@ DTP int UTP::update_weights_using_newton( UpdateWeightsPrm parms ) {
         norm_2_residual_history << norm_2_residual;
         norm_2_rhs_history << norm_2_rhs;
 
-        // if ( std::isnan( norm_2_residual ) ) {
-            // P( power_diagram->sorted_seed_weights );
-            // P( M );
-            // P( V );
-            // P( M.cholesky() );
-        // }
+        if ( isnan( norm_2_residual ) ) {
+            if ( verbosity >= 2 )
+                P( "nan in the residual" );
+            return 3;
+
+        }
 
         // log
         if ( iteration_callback )
@@ -272,11 +277,37 @@ DTP void UTP::solve() {
         return;
     }
 
-    // try with cdf
+    // else, try with approx cdf + newton steps
     find_approx_weights_using_cdf();
-    TODO;
-    // if ( solver.update_weights() )
-    //     P( "bad initialization" );
+    int res = update_weights_using_newton();
+    if ( res == 0 )
+        return;
+
+    // else, solve with the characteristic of a convex hull
+    convex_hull_density_ratio = 1;
+    find_approx_weights_using_cdf();
+    if ( update_weights_using_newton() )
+        throw std::runtime_error( "not expected to fail here" );
+
+    // then make a blend toward the required density
+    for( TF ratio = 1; ratio > 1e-20; ) {
+        P( ratio );
+
+        // try 0, then 0.5, 0.25, ...
+        Vec<TF> old_weights = power_diagram->sorted_seed_weights;
+        for( TF next_ratio = ratio / 1e3; ; next_ratio = ratio - ( ratio - next_ratio ) / 2 ) {
+            if ( next_ratio == ratio )
+                throw std::runtime_error( "stuck at ratio convex_hull" );
+
+            update_convex_hull_density_ratio( { .target_value = next_ratio, .epsilon = 0 } );
+            if ( update_weights_using_newton() == 0 ) {
+                ratio = next_ratio;
+                break;
+            }
+
+            power_diagram->sorted_seed_weights = old_weights;
+        }
+    }
 }
 
 #undef DTP

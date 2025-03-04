@@ -2,6 +2,7 @@
 
 // #include <tl/support/P.h>
 #include "Density.h"
+#include <stdexcept>
 
 namespace usdot {
 
@@ -9,8 +10,7 @@ namespace usdot {
 #define UTP Density<TF>
 
 DTP CdfApproximation<TF> UTP::cdf_approximation( TF epsilon ) const {
-    TODO;
-    return {};
+    throw std::runtime_error( "TODO" );
 }
 
 DTP TF UTP::integral( TF l0, TF l1 ) const {

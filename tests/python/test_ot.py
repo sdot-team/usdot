@@ -15,4 +15,15 @@ def test_affine():
 
     assert np.max( np.abs( res.barycenters - ref.barycenters ) ) < 3e6
 
-test_affine()
+def test_partial():
+    res = usdot.d2p( np.linspace( 0, 5, 20 ), [ 0, 1, 2, 3, 4, 5 ], [ 1, 0, 10, 0, 1 ], 0.85 )
+    # print( "re", res.norm_2_residual_history )
+    # print( "ba", res.barycenters )
+    print( "bo", res.boundaries )
+    # print( "we", res.weights )
+    print( "ma", res.masses )
+    usdot.plot( res )
+
+
+# test_affine()
+test_partial()

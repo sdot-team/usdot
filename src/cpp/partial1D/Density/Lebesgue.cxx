@@ -44,6 +44,14 @@ public:
 DTP UTP::Lebesgue( TF x0, TF x1, TF h ) : x0( x0 ), x1( x1 ), h( h ) {
 }
 
+DTP CdfApproximation<TF> UTP::cdf_approximation( TF epsilon ) const {
+    Vec<TF> rys{ 0, ( x1 - x0 ) * h };
+    Vec<TF> rxs{ x0, x1 };
+    Vec<TF> rzs{ 0, 0 };
+
+    return { rxs, rys, rzs };
+}
+
 DTP RcPtr<Density<TF>> UTP::convoluted( RcPtr<Convolution<TF>> convolution ) const {
     return new ConvolutedLebesgue{ x0, x1, h, convolution };
 }

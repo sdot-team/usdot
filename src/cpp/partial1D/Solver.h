@@ -38,6 +38,7 @@ public:
     void                    solve                           ();
 
     //
+    RcPtr<Density<TF>>      current_density                 ();
     State                   get_state                       () const;
     void                    set_state                       ( const State &state );
 
@@ -57,7 +58,6 @@ public:
              
     // intermediate data     
     TF                      _convoluted_density_width       = 0; ///< 
-    RcPtr<Density<TF>>      _convex_hull_density;           ///< 
     RcPtr<Density<TF>>      _convoluted_density;            ///< 
     SymmetricBandMatrix<TF> cholesky;                       ///<
    
