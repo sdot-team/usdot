@@ -25,8 +25,8 @@ As can be seen in `src/python/usdot/__init__.py`, they have in common a paramete
     * epsilon: the regularization parameter as explained in the upcoming publication...
 
 They also have parameters 
-    * mass_ratio, an optional scalar between 0 and 1 to defined the mass of the diracs divided by the mass of the density
-    * dirac_mass_ratios, an optional vector, that can be used to set individual dirac mass values (else, dirac masses are considered as uniform)
+    * global_mass_ratio, an optional scalar between 0 and 1 to define the mass of the diracs divided by the mass of the density
+    * relative_mass_ratios, an optional vector, that can be used to set individual dirac mass values (else, dirac masses are considered as uniform). This vector is automatically normalized (it does not change the global_mass_ratio).
 
 Currently, there are 2 solver procedures:
     * `usdot.d2cap( diracs, dens_p, dens_v, ... )` is made to compute ot plan between a set of diracs and continous piecewise affine density. `dens_p` are the "stops", `dens_v` are the values at the stops.

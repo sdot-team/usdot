@@ -3,4 +3,4 @@
 # mamba run -n vfs vfs_build run tests/applications/mumble_d2d.cpp
 
 all:
-	export PYTHONPATH=$$PYTHONPATH:$$PWD/src/python/; python tests/python/test_epsilon.py
+	export PYTHONPATH=$$PYTHONPATH:$$PWD/src/python/; python tests/python/test_ot.py

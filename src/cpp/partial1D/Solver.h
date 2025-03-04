@@ -22,12 +22,22 @@ public:
     struct                  Error                           {  };
                  
     /**/                    Solver                          ( RcPtr<PowerDiagram<TF>> power_diagram, RcPtr<Density<TF>> density, TF target_mass_ratio = 1 );
-             
+
+    // parameter update
     void                    update_convex_hull_density_ratio( UpdateConvexHullDensityRatioPrm parms = {} ); ///< must be done after an update_weights
     void                    update_convolution_width        ( UpdateConvolutionWidthPrm parms = {} ); ///< must be done after an update_weights
-    void                    initialize_weights              ( InitializeWeightsPrm parms = {} ); ///< using the i
-    int                     update_weights                  ( UpdateWeightsPrm parms = {} ); ///< newton
+    
+    // initialization
+    void                    find_approx_weights_using_cdf   ( InitializeWeightsPrm parms = {} ); ///< make a rough guess for the weight using the cdf or an approximation of the cdf
+    void                    find_exact_weights_using_cdf    ( InitializeWeightsPrm parms = {} ); ///< get the exact weights using cdf (easy to compute if global_mass_ratio == 1)
 
+    // iterative procedures
+    int                     update_weights_using_newton     ( UpdateWeightsPrm parms = {} ); ///< newton
+
+    // all-in-one procedures
+    void                    solve                           ();
+
+    //
     State                   get_state                       () const;
     void                    set_state                       ( const State &state );
 
@@ -56,7 +66,8 @@ public:
     TF                      convolution_width               = 0; ///<
              
     // input             
-    Vec<TF>                 target_mass_ratios              = {}; ///< mass ratio for each dirac
+    Vec<TF>                 relative_mass_ratios            = {}; ///< relative mass ratio for each dirac (each dirac mass = global_mass_ratios * relative_mass_ratios[ num_dirac ])
+    TF                      global_mass_ratio               = 1; ///< mass ratio for each dirac
     RcPtr<PowerDiagram<TF>> power_diagram;                  ///<
     RcPtr<Density<TF>>      density;                        ///<
 };

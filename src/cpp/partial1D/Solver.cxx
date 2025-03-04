@@ -24,14 +24,71 @@ namespace usdot {
 #define DTP template<class TF>
 #define UTP Solver<TF>
 
-DTP UTP::Solver( RcPtr<PowerDiagram<TF>> power_diagram, RcPtr<Density<TF>> density, TF target_mass_ratio ) : power_diagram( power_diagram ), density( density ) {
-    target_mass_ratios = { FromSizeAndItemValue(), power_diagram->nb_cells(), target_mass_ratio / power_diagram->nb_cells() };
+DTP UTP::Solver( RcPtr<PowerDiagram<TF>> power_diagram, RcPtr<Density<TF>> density, TF global_mass_ratio ) : global_mass_ratio( global_mass_ratio ), power_diagram( power_diagram ), density( density ) {
     convolution_factory = []( TF width ) -> RcPtr<Convolution<TF>> { return new InvX2Convolution<TF>( width ); };
+    relative_mass_ratios = { FromSizeAndItemValue(), power_diagram->nb_cells(), 1 };
 }
 
-DTP void UTP::initialize_weights( InitializeWeightsPrm parms ) {
-    CdfSolver cs( density->cdf_approximation( 1e-4 / power_diagram->nb_cells() ), power_diagram->sorted_seed_coords, target_mass_ratios );
+DTP void UTP::find_approx_weights_using_cdf( InitializeWeightsPrm parms ) {
+    Vec<TF> mass_ratios = global_mass_ratio / sum( relative_mass_ratios ) * relative_mass_ratios;
+    CdfSolver cs( density->cdf_approximation( 1e-4 / power_diagram->nb_cells() ), power_diagram->sorted_seed_coords, mass_ratios );
     cs.solve( power_diagram->sorted_seed_weights );
+}
+
+DTP void UTP::find_exact_weights_using_cdf( InitializeWeightsPrm parms ) {
+    if ( power_diagram->nb_cells() == 0 )
+        return;
+    
+        // for nown this procedure only works with global_mass_ratio == 1
+    if ( global_mass_ratio < 1 ) {
+        TODO;
+    }
+
+    // variables used to find boundaries
+    const auto mass_coeff = density->mass() / sum( relative_mass_ratios ) * global_mass_ratio;
+    auto diter = density->iterator();
+    TF c1 = diter->mass();
+    TF y0 = 0;
+    TF c0 = 0;
+ 
+    // find boundaries
+    Vec<TF> bnds;
+    bnds << diter->x0;
+    for( PI n = 0; n < power_diagram->nb_cells(); ++n ) {
+        TF y1 = y0 + relative_mass_ratios[ power_diagram->sorted_seed_nums[ n ] ] * mass_coeff;
+        while ( c1 < y1 ) {
+            diter->move_forward();
+            c0 = std::exchange( c1, c1 + diter->mass() );
+        }
+
+        bnds << diter->inv_cdf( y1 - c0 );
+
+        y0 = y1;
+    }
+
+    // first cell
+    power_diagram->sorted_seed_weights[ 0 ] = 0;
+    TF w = 0;
+    
+    // dc = current seed coord
+    TF dc = power_diagram->sorted_seed_coords[ 0 ];
+    TF w_to_add = 2 * max( pow( bnds[ 1 ] - dc, 2 ), pow( dc - bnds[ 0 ], 2 ) );
+    for( PI n = 1; n < power_diagram->nb_cells(); ++n ) {
+        // update w (dp = previous seed coord)
+        TF dp = std::exchange( dc, power_diagram->sorted_seed_coords[ n ] );
+        w += ( dp + dc - 2 * bnds[ n ] ) * ( dc - dp );
+        
+        // check that the ball is not goind to cut the cell
+        const TF min_w = 2 * max( pow( bnds[ n ] - dc, 2 ), pow( dc - bnds[ n - 1 ], 2 ) );
+        w_to_add = max( w_to_add, min_w - w );
+
+        // store the result
+        power_diagram->sorted_seed_weights[ n ] = w;
+    }
+
+    if ( w_to_add > 0 )
+        for( PI n = 0; n < power_diagram->nb_cells(); ++n )
+            power_diagram->sorted_seed_weights[ n ] += w_to_add;
 }
 
 DTP bool UTP::converged() const {
@@ -49,7 +106,7 @@ DTP void UTP::update_convex_hull_density_ratio( UpdateConvexHullDensityRatioPrm 
         weights << power_diagram->sorted_seed_weights;
         for( PI i = 1; i <= parms.polynomial_order; ++i ) {
             convex_hull_density_ratio = base_convex_hull_density_ratio - i * parms.epsilon;
-            update_weights();
+            update_weights_using_newton();
 
             weights << power_diagram->sorted_seed_weights;
         }
@@ -80,7 +137,7 @@ DTP void UTP::set_state( const State &state ) {
     power_diagram->sorted_seed_weights = state.weights;
 }
 
-DTP int UTP::update_weights( UpdateWeightsPrm parms ) {
+DTP int UTP::update_weights_using_newton( UpdateWeightsPrm parms ) {
     using namespace std;
 
     // _convoluted_density
@@ -124,7 +181,7 @@ DTP int UTP::update_weights( UpdateWeightsPrm parms ) {
         }
 
         // the the newton system
-        V = target_mass_ratios;
+        V = relative_mass_ratios;
         M.fill_with( 0 );
         nb_arcs = 0;
 
@@ -182,7 +239,7 @@ DTP int UTP::update_weights( UpdateWeightsPrm parms ) {
         power_diagram->sorted_seed_weights += R;
 
         // history
-        TF max_mass_ratio_error = norm_inf( V / target_mass_ratios );
+        TF max_mass_ratio_error = norm_inf( V / relative_mass_ratios );
         TF norm_2_residual = norm_2( R );
 
         max_mass_ratio_error_history << max_mass_ratio_error;
@@ -206,6 +263,20 @@ DTP int UTP::update_weights( UpdateWeightsPrm parms ) {
     }
 
     return 0;
+}
+
+DTP void UTP::solve() {
+    // not partial -> solve using cdf and that's it
+    if ( global_mass_ratio == 1 ) {
+        find_exact_weights_using_cdf();
+        return;
+    }
+
+    // try with cdf
+    find_approx_weights_using_cdf();
+    TODO;
+    // if ( solver.update_weights() )
+    //     P( "bad initialization" );
 }
 
 #undef DTP

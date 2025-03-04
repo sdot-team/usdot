@@ -27,6 +27,10 @@ public:
         return cl->ys[ i ];
     }
 
+    virtual TF inv_cdf( TF dy ) const override {
+        return this->x0 + dy / cl->ys[ i ];
+    }
+
     virtual bool move_backward() override {
         if ( i == 0 )
             return false;

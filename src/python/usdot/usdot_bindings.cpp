@@ -69,7 +69,7 @@ static Vec<Vec<TF,N>> vec_of_vec_from_array( const Array &array ) {
     return res;
 }
 
-OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Density<TF>> de, OtParms &parms ) {
+OtResult ot_solve( Array &dirac_positions, TF global_mass_ratio, Array &relative_mass_ratios, RcPtr<Density<TF>> de, OtParms &parms ) {
     // init power diagram
     auto pd = RcPtr<PowerDiagram<TF>>::New( vec_from_array( dirac_positions ), Vec<TF>::fill( dirac_positions.size(), 1 ) );
     pd->epsilon = parms.epsilon;
@@ -77,13 +77,12 @@ OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Dens
     // init solver
     Solver<TF> solver( pd, de );
     solver.max_mass_ratio_error_target = parms.max_mass_ratio_error_target;
-    solver.target_mass_ratios = vec_from_array( target_mass_ratios );
+    solver.relative_mass_ratios = vec_from_array( relative_mass_ratios );
+    solver.global_mass_ratio = global_mass_ratio;
     solver.verbosity = parms.verbosity;
 
     // run
-    solver.initialize_weights();
-    // if ( solver.update_weights() )
-    //     P( "bad initialization" );
+    solver.solve();
 
     // result summary
     Vec<Vec<TF,2>> bnds = pd->cell_boundaries( false );
@@ -103,7 +102,7 @@ OtResult ot_solve( Array &dirac_positions, Array &target_mass_ratios, RcPtr<Dens
     return res;
 }
 
-OtResult ot_diracs_to_piecewise_polynomial( Array &dirac_positions, Array &target_mass_ratios, Array &density_positions, Array &density_values, OtParms &parms ) {
+OtResult ot_diracs_to_piecewise_polynomial( Array &dirac_positions, TF global_mass_ratio, Array &target_mass_ratios, Array &density_positions, Array &density_values, OtParms &parms ) {
     PI nc = density_values.ndim() >= 2 ? density_values.shape( 1 ) : 1;
     RcPtr<Density<TF>> de;
     if ( nc == 1 ) {
@@ -120,7 +119,7 @@ OtResult ot_diracs_to_piecewise_polynomial( Array &dirac_positions, Array &targe
         throw std::runtime_error( "TODO: high order polynomials" );
     }
 
-    return ot_solve( dirac_positions, target_mass_ratios, de, parms );
+    return ot_solve( dirac_positions, global_mass_ratio, target_mass_ratios, de, parms );
 }
 
 PYBIND11_MODULE( usdot_bindings, m ) {

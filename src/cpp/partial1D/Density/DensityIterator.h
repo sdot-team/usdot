@@ -17,8 +17,10 @@ public:
 
     virtual void barycenter     ( TF &pint, TF &area, TF x0, TF x1 ) const = 0;
     virtual TF   integral       ( TF x0, TF x1 ) const = 0;
+    virtual TF   inv_cdf        ( TF dy ) const { TODO; return 0; }
     virtual void display        ( Displayer &ds ) const = 0;
     virtual TF   value          ( TF pos ) const = 0;
+    virtual TF   mass           () const { return integral( x0, x1 ); }
      
     TF           x0;            ///<
     TF           x1;            ///<
