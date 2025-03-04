@@ -48,6 +48,18 @@ public:
         return cl->ys[ i ][ 0 ] + cl->ys[ i ][ 1 ] * ( pos - cl->xs[ i + 0 ] ) / ( cl->xs[ i + 1 ] - cl->xs[ i + 0 ] );
     }
 
+    virtual TF inv_cdf( TF dy ) const override {
+        // ( x - x0 ) * ( y0 + y1 / ( x1 - x0 ) * ( ( x + x0 ) / 2 - x0 ) ) - dy;
+        using namespace std;
+        const TF x0 = cl->xs[ i + 0 ];
+        const TF x1 = cl->xs[ i + 1 ];
+        const TF y0 = cl->ys[ i ][ 0 ];
+        const TF y1 = cl->ys[ i ][ 1 ];
+        if ( y1 ) 
+            return ( y1 * x0 + y0 * ( x0 - x1 ) + sqrt( ( x1 - x0 ) * ( 2 * dy * y1 + ( x1 - x0 ) * y0 * y0 ) ) ) / y1;
+        return this->x0 + dy / y0;
+    }
+
     virtual bool move_backward() override {
         if ( i == 0 )
             return false;
