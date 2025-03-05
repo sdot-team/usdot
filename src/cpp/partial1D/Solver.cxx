@@ -10,6 +10,8 @@
 #include <tl/support/string/va_string.h>
 #include <tl/support/P.h>
 
+#include <iomanip>
+
 #include "Convolution/InvX2Convolution.h"
 #include "Density/SumOfDensities.h"
 #include "Density/BoundedDensity.h"
@@ -31,7 +33,8 @@ DTP UTP::Solver( RcPtr<PowerDiagram<TF>> power_diagram, RcPtr<Density<TF>> densi
 
 DTP void UTP::find_approx_weights_using_cdf( InitializeWeightsPrm parms ) {
     Vec<TF> mass_ratios = global_mass_ratio / sum( relative_mass_ratios ) * relative_mass_ratios;
-    CdfSolver cs( density->cdf_approximation( 1e-4 / power_diagram->nb_cells() ), power_diagram->sorted_seed_coords, mass_ratios );
+
+    CdfSolver cs( current_density()->cdf_approximation( 1e-4 / power_diagram->nb_cells() ), power_diagram->sorted_seed_coords, mass_ratios );
     cs.solve( power_diagram->sorted_seed_weights );
 }
 
@@ -162,7 +165,7 @@ DTP RcPtr<Density<TF>> UTP::current_density() {
         TF min_x = min( power_diagram->sorted_seed_coords.front(), _convoluted_density->min_x() );
         TF max_x = min( power_diagram->sorted_seed_coords.back(), _convoluted_density->max_x() );
         return new SumOfDensities<TF>( { 
-            { convex_hull_density_ratio, new Lebesgue<TF>( min_x, max_x ) },
+            { convex_hull_density_ratio, new Lebesgue<TF>( min_x, max_x, _convoluted_density->mass() / ( max_x - min_x ) ) },
             { 1 - convex_hull_density_ratio, _convoluted_density }
         } );            
     }
@@ -277,30 +280,46 @@ DTP void UTP::solve() {
         return;
     }
 
-    // else, try with approx cdf + newton steps
+    // reset solver changes
     convex_hull_density_ratio = 0;
     convolution_width = 0;
+    
+    // else, try with approx cdf + newton steps
     find_approx_weights_using_cdf();
     int res = update_weights_using_newton();
     if ( res == 0 )
         return;
 
+    //
+    auto error = [&]( Str msg ) {
+        // P( power_diagram->sorted_seed_weights );
+        for( auto c : power_diagram->sorted_seed_coords )
+            std::cout << std::setprecision( 16 ) << c << ",";
+        std::cout << std::endl;
+        // P( norm_2_rhs_history );
+        P( convex_hull_density_ratio );
+        P( global_mass_ratio );
+        P( current_density() );
+
+        throw std::runtime_error( msg );
+    };
+
     // else, solve with the characteristic of a convex hull
     convex_hull_density_ratio = 1;
     find_approx_weights_using_cdf();
     if ( update_weights_using_newton() )
-        throw std::runtime_error( "not expected to fail here" );
+        error( "not expected to fail here" );
 
-    // then make a blend toward the required density
+    // then blend toward the required density
     for( TF ratio = 1, nb_iters = 0; ratio > 1e-19 ; ++nb_iters ) {
         if ( nb_iters == 500 )
-            throw std::runtime_error( "slow ratio convergence" );
+            error( "slow ratio convergence" );
 
         // try 0, then 0.5, 0.25, ...
         Vec<TF> old_weights = power_diagram->sorted_seed_weights;
         for( TF next_ratio = ratio / 1e3; ; next_ratio = ratio - ( ratio - next_ratio ) / 2 ) {
             if ( next_ratio == ratio )
-                throw std::runtime_error( "stuck at ratio convex_hull" );
+                error( "stuck at ratio convex_hull" );
 
             update_convex_hull_density_ratio( { .target_value = next_ratio, .epsilon = 0 } );
             if ( update_weights_using_newton() == 0 ) {
@@ -311,17 +330,6 @@ DTP void UTP::solve() {
             power_diagram->sorted_seed_weights = old_weights;
         }
     }
-
-    // SymmetricBandMatrix<TF> M( FromSize(), power_diagram->nb_cells() );
-    // Vec<TF> V( FromSize(), power_diagram->nb_cells() );
-    // PI nb_arcs;
-
-    // V = global_mass_ratio * relative_mass_ratios / sum( relative_mass_ratios );
-    // M.fill_with( 0 );
-    // nb_arcs = 0;
-
-    // power_diagram->get_newton_system( M, V, nb_arcs, *current_density(), 1 / current_density()->mass() );
-    // P( M, V, nb_arcs );
 }
 
 #undef DTP

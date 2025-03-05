@@ -37,11 +37,11 @@ Pour faire correctement l'initialisation, il faudrait résoudre un nouveau probl
                     + I2( u ) * ( I2( u ) - 2 * c1 )
                     + I0( u ) * ( 2 * c0 - I0( u ) )
                     + 2 * I1( u ) * ( c1 - c0 )
-        Si on dit I1( u ) = I0( u ) + o1( u ) et I2( u ) = I0( u ) + o2( u ) 
-            E'( u ) = 
-                    + I2( u ) * ( I2( u ) - 2 * c1 )
-                    + I0( u ) * ( 2 * c0 - I0( u ) )
-                    + 2 * I1( u ) * ( c1 - c0 )
+        Si on dit I1( u ) = I0( u ) + l1( u ) et I2( u ) = I1( u ) + l2( u ) 
+            E'( u ) = 2*I0*l1 + 2*I0*l2 - 2*c0*l1 - 2*c0*l2 - 2*d1*l2 + l1**2 + 2*l1*l2 + l2**2
+            E'( u ) = I0*(2*l1 + 2*l2) + c0*(-2*l1 - 2*l2) - 2*d1*l2 + l1**2 + 2*l1*l2 + l2**2
+            E'( u ) = 2*I0*(l1 + l2) - 2*c0*(l1 + l2) - 2*d1*l2 + (l1+l2)**2
+            E'( u ) = ( 2*I0 - 2*c0 + l1 + l2 )*(l1 + l2) - 2*d1*l2
         On peut déjà dire que E'( u ) est croissante entre CDF( c0 ) et CDF( c1 )
         Si on met le bord gauche en c0, on a I0( u ) = c0. On peut proposer I1( u ) = c0 + o1 et I2( u ) = c0 + o2 avec o1 > 0 et o2 > o1
             E'( c0 ) = 
@@ -98,3 +98,5 @@ Calcul des dérivées par rapport à la largeur de convolution
     par exemple, on dirait que la densité d'une cellule, c'est la multiplication de fonctions step "douces"
 
 Prop intermédiaire: si 
+
+

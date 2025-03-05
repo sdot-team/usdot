@@ -14,7 +14,7 @@ namespace usdot {
 #define DTP template<class TF>
 #define UTP PowerDiagram<TF>
 
-DTP UTP::PowerDiagram( const Vec<TF> &seed_coords, const Vec<TF> &seed_weights ) {
+DTP UTP::PowerDiagram( const Vec<TF> &seed_coords, const Vec<TF> &seed_weights, TF sep_equ_coords ) {
     sorted_seed_nums = { FromSizeAndFunctionOnIndex(), seed_coords.size(), []( auto i ) { return i; } };
     std::sort( sorted_seed_nums.begin(), sorted_seed_nums.end(), [&]( PI a, PI b ) {
         return seed_coords[ a ] < seed_coords[ b ];
@@ -25,6 +25,31 @@ DTP UTP::PowerDiagram( const Vec<TF> &seed_coords, const Vec<TF> &seed_weights )
     for( PI i = 0; i < seed_coords.size(); ++i ) {
         sorted_seed_weights[ i ] = seed_weights[ sorted_seed_nums[ i ] ];
         sorted_seed_coords[ i ] = seed_coords[ sorted_seed_nums[ i ] ];
+    }
+
+    // for( PI i = 1; i < sorted_seed_coords.size(); ++i ) {
+    //     PI b = i - 1;
+    //     while ( i < sorted_seed_coords.size() && sorted_seed_coords[ i ] == sorted_seed_coords[ b ] )
+    //         ++i;
+    //     if ( i > b + 1 ) {
+    //         const TF pe = i < sorted_seed_coords.size() ? sorted_seed_coords[ i ]  : sorted_seed_coords[ i - 1 ];
+    //         const TF pb = b ? sorted_seed_coords[ b - 1 ]  : sorted_seed_coords[ b ];
+    //         for( PI j = b; j < i; ++j ) {
+    //             const TF t = 0.5 + sep_equ_coords / ( i - b ) * ( TF( j - b ) / ( i - 1 - b ) - 0.5 );
+    //             sorted_seed_coords[ j ] = pb + ( pe - pb ) * t;
+    //         }
+    //     }
+    // }
+
+    // 
+    if ( const PI s = sorted_seed_coords.size() ) {
+        const TF de = ( sorted_seed_coords.back() - sorted_seed_coords.front() ) / ( 1e3 * s );
+        TF px = sorted_seed_coords[ 0 ];
+        for( PI i = 1; i < sorted_seed_coords.size(); ++i ) {
+            if ( sorted_seed_coords[ i ] < px + de )
+                sorted_seed_coords[ i ] = px + de;
+            px = sorted_seed_coords[ i ];
+        }
     }
 }
 

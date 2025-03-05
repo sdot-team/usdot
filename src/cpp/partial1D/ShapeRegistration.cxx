@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Density/PiecewiseConstantDensity.h"
-#include <string>
+#include "Density/PiecewiseAffineDensity.h"
+#include <stdexcept>
 #include <tl/support/operators/sp.h>
 #include "ShapeRegistration.h"
 #include "Solver.h"
@@ -129,9 +130,23 @@ DTP Vec<typename UTP::Pt> UTP::projection_dirs() {
 }
 
 DTP RcPtr<Density<TF>> UTP::projected_density( Pt proj_dir ) {
+    if ( shape_triangles.size() ) {
+        ASSERT( shape_points.empty() );
+
+        struct Event { TF pos, slope; };
+        Vec<Event> events;
+        for( const Triangle &tr : shape_triangles ) {
+            TF x0 = sp( tr.points[ 0 ], proj_dir );
+            TF x1 = sp( tr.points[ 1 ], proj_dir );
+            TF x2 = sp( tr.points[ 2 ], proj_dir );
+        }
+
+        // return RcPtr<PiecewiseAffConstantDensity<TF>>::New( x, y );
+    }
+
+    // histogram
     TF max_pos = std::numeric_limits<TF>::lowest();
     TF min_pos = std::numeric_limits<TF>::max();
-
     for( const Pt &p : shape_points ) {
         TF v = sp( p, proj_dir );
         max_pos = max( max_pos, v );
@@ -145,7 +160,6 @@ DTP RcPtr<Density<TF>> UTP::projected_density( Pt proj_dir ) {
         PI ind = min( PI( pos ), nb_bins - 1 );
         y[ ind ] += 1;
     }
-
     return RcPtr<PiecewiseConstantDensity<TF>>::New( x, y );
 }
 
@@ -170,8 +184,7 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
 
     // solver
     Solver<TF> solver( pd, de, mass_ratio );
-    solver.initialize_weights();
-    // solver.update_weights();
+    solver.solve();
 
     // delta
     return pd->barycenters( *de, false ) - di;
@@ -183,6 +196,7 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
         new_diracs[ n ] = transformation.apply( diracs[ n ] );
 
     for( PI num_iter = 0; num_iter < nb_iter; ++num_iter ) {
+        P( num_iter );
         Vec<Pt> proj_dirs = projection_dirs();
 
         Vec<Pt,dim> M;
@@ -196,14 +210,21 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
                 v[ r ] = 0;
 
         for( Pt proj_dir : proj_dirs ) {
-            for( PI r = 0; r < dim; ++r )
-                for( PI c = 0; c < dim; ++c )
-                    M[ r ][ c ] += proj_dir[ r ] * proj_dir[ c ];
+            P( proj_dir );
 
-            Vec<TF> de = delta_for_dir( proj_dir );
-            for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac )
+            try {
+                Vec<TF> de = delta_for_dir( proj_dir );
+
                 for( PI r = 0; r < dim; ++r )
-                    V[ num_dirac ][ r ] += proj_dir[ r ] * de[ num_dirac ];
+                    for( PI c = 0; c < dim; ++c )
+                        M[ r ][ c ] += proj_dir[ r ] * proj_dir[ c ];
+    
+                for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac )
+                    for( PI r = 0; r < dim; ++r )
+                        V[ num_dirac ][ r ] += proj_dir[ r ] * de[ num_dirac ];
+            } catch ( std::runtime_error e ) {
+                P( e.what() );
+            }
         }
             
         // make matrix        
@@ -221,7 +242,7 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
             for( PI r = 0; r < dim; ++r )
                 eV[ r ] = V[ num_dirac ][ r ];
 
-            new_diracs[ num_dirac ] += 0.5 * Pt( lu.solve( eV ) );
+            new_diracs[ num_dirac ] += 0.95 * Pt( lu.solve( eV ) );
         }
     }
 }

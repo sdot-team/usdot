@@ -15,7 +15,7 @@ namespace usdot {
 template<class TF>
 class PowerDiagram : public WithRefCount {
 public:
-    /**/               PowerDiagram             ( const Vec<TF> &seed_coords, const Vec<TF> &seed_weights );
+    /**/               PowerDiagram             ( const Vec<TF> &seed_coords, const Vec<TF> &seed_weights, TF sep_equ_coords = 1e-6 );
 
     // 
     void               set_weights              ( const Vec<TF> &weights, bool sorted_nums = true ) const;

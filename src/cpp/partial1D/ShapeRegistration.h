@@ -44,8 +44,8 @@ public:
     TF            mass_ratio               = 1;
     Vec<Pt>       diracs;     
        
-    PI            nb_projection_dirs       = 400;
-    PI            nb_bins                  = 200;
+    PI            nb_projection_dirs       = 50;
+    PI            nb_bins                  = 50;
 };  
 
 

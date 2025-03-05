@@ -95,7 +95,19 @@ public:
 #define DTP template<class TF>
 #define UTP SumOfDensities<TF>
 
-DTP UTP::SumOfDensities( const SubDensities &sub_densities ) : sub_densities( sub_densities ) {
+DTP UTP::SumOfDensities( const SubDensities &sub_densities ) : sub_densities( sub_densities.filtered( []( const auto &sd ) { return sd.first; } ) ) {
+}
+
+DTP CdfApproximation<TF> UTP::cdf_approximation( TF epsilon ) const {
+    if ( sub_densities.size() == 1 ) {
+        CdfApproximation<TF> res = sub_densities[ 0 ].second->cdf_approximation( epsilon );
+        for( TF &v : res.ys )
+            v *= sub_densities[ 0 ].first;
+        for( TF &v : res.zs )
+            v *= sub_densities[ 0 ].first;
+        return res;
+    }
+    throw std::runtime_error( "TODO (sum of CdfApproximations)" );
 }
 
 DTP RcPtr<Density<TF>> UTP::convoluted( RcPtr<Convolution<TF>> convolution ) const {
@@ -125,6 +137,10 @@ DTP RcPtr<DensityIterator<TF>> UTP::iterator() const {
     // no valid sub-iterator ?
     if ( res->iterators.empty() )
         return {};
+
+    // 
+    if ( res->iterators.size() == 1 && res->iterators[ 0 ].first == 1 )
+        return res->iterators[ 0 ].second;
 
     // get x1
     res->x1 = numeric_limits<TF>::max();

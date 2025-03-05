@@ -102,18 +102,18 @@ DTP void UTP::solve( Vec<TF> &seed_weights ) {
 
         TF end_y = item->end_y(), beg_y = end_y - mass_ratios[ n ];
         TF end_x = get_x( end_y ), beg_x = get_x( beg_y );
-        
+
         // compute the weight from the required radius
-        TF w = max( pow( end_x - c, 2 ), pow( c - beg_x, 2 ) );
+        TF w = 0;
         seed_weights[ item->end_n - 1 ] = w;
 
         //  
-        TF w_to_add = 0;
+        TF w_to_add = max( pow( end_x - c, 2 ), pow( c - beg_x, 2 ) );
         for( PI n = item->end_n; --n > item->beg_n; ) {
             // update bounds
             end_y = std::exchange( beg_y, max( 0, beg_y - mass_ratios[ n ] ) );
             end_x = std::exchange( beg_x, get_x( beg_y ) );
-            
+
             // update w
             TF d = std::exchange( c, seed_coords[ n - 1 ] );
             w -= ( d + c - 2 * end_x ) * ( d - c );
