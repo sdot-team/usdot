@@ -43,7 +43,7 @@ DTP UTP::PowerDiagram( const Vec<TF> &seed_coords, const Vec<TF> &seed_weights, 
 
     // 
     if ( const PI s = sorted_seed_coords.size() ) {
-        const TF de = ( sorted_seed_coords.back() - sorted_seed_coords.front() ) / ( 1e3 * s );
+        const TF de = ( sorted_seed_coords.back() - sorted_seed_coords.front() ) / ( 1e2 * s );
         TF px = sorted_seed_coords[ 0 ];
         for( PI i = 1; i < sorted_seed_coords.size(); ++i ) {
             if ( sorted_seed_coords[ i ] < px + de )

@@ -29,11 +29,12 @@ public:
     auto          projected_density        ( Pt proj_dir ) -> RcPtr<Density<TF>>;
     Vec<Pt>       projection_dirs          (); ///<
       
-    void          compute_new_diracs       ( PI nb_iter = 100 ); ///<
+    void          compute_new_diracs       ( PI nb_iter = 50 ); ///<
     Vec<TF>       delta_for_dir            ( Pt dir );
   
     static void   glot                     ( Vec<TF> xs, auto &&...funcs );    
-  
+
+    Vec<PI>       solve_steps;
     Vec<Pt>       new_diracs;              ///< new dirac positions
        
     TF            shape_thickness          = 1e-6;
@@ -44,8 +45,8 @@ public:
     TF            mass_ratio               = 1;
     Vec<Pt>       diracs;     
        
-    PI            nb_projection_dirs       = 50;
-    PI            nb_bins                  = 50;
+    PI            nb_projection_dirs       = 25;
+    PI            nb_bins                  = 100;
 };  
 
 

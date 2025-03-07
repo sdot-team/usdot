@@ -55,6 +55,7 @@ public:
     Vec<TF>                 max_mass_ratio_error_history    = {};
     Vec<TF>                 norm_2_residual_history         = {};
     Vec<TF>                 norm_2_rhs_history              = {};
+    PI                      solve_step                      = 0;
              
     // intermediate data     
     TF                      _convoluted_density_width       = 0; ///< 

@@ -186,6 +186,9 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     Solver<TF> solver( pd, de, mass_ratio );
     solver.solve();
 
+    solve_steps << solver.solve_step;
+
+
     // delta
     return pd->barycenters( *de, false ) - di;
 }

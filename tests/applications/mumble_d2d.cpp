@@ -29,6 +29,8 @@ int main() {
     //  
     sr.compute_new_diracs();
 
+    P( sr.solve_steps );
+
     // ouptut
     sr.display_vtk( "results/mumble_sitting" );
 }

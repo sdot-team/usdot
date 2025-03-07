@@ -277,6 +277,7 @@ DTP void UTP::solve() {
     // not partial -> solve using cdf and that's it
     if ( global_mass_ratio == 1 ) {
         find_exact_weights_using_cdf();
+        solve_step = 1;
         return;
     }
 
@@ -287,8 +288,10 @@ DTP void UTP::solve() {
     // else, try with approx cdf + newton steps
     find_approx_weights_using_cdf();
     int res = update_weights_using_newton();
-    if ( res == 0 )
+    if ( res == 0 ) {
+        solve_step = 1;
         return;
+    }
 
     //
     auto error = [&]( Str msg ) {
@@ -320,6 +323,7 @@ DTP void UTP::solve() {
         for( TF next_ratio = ratio / 1e3; ; next_ratio = ratio - ( ratio - next_ratio ) / 2 ) {
             if ( next_ratio == ratio )
                 error( "stuck at ratio convex_hull" );
+            ++solve_step;
 
             update_convex_hull_density_ratio( { .target_value = next_ratio, .epsilon = 0 } );
             if ( update_weights_using_newton() == 0 ) {
@@ -329,6 +333,11 @@ DTP void UTP::solve() {
 
             power_diagram->sorted_seed_weights = old_weights;
         }
+    }
+
+    if ( solve_step == 182 ) {
+        P( power_diagram->sorted_seed_coords );
+        P( density );
     }
 }
 

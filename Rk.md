@@ -97,6 +97,8 @@ Calcul des dérivées par rapport à la largeur de convolution
     Est-ce qu'on pourrait couper des cellules avec des bords flous ?
     par exemple, on dirait que la densité d'une cellule, c'est la multiplication de fonctions step "douces"
 
-Prop intermédiaire: si 
+Prop: on part d'une ICDF avec ratio = 1 et on fait une frontière floue pour les boules.
+
+ON pourrait 
 
 
