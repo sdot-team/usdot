@@ -15,11 +15,17 @@ public:
     void                    set_density_contrast            ( TF max_ratio ); ///< 
     PI                      nb_diracs                       () const;
 
-    void                    solve                           (); ///< all in one
-
-    // helpers
     TF                      normalized_dirac_convolution    ( TF normalized_pos, TF convolution_width = 2e-2 ) const;
     TF                      normalized_density_value        ( TF normalized_pos ) const;
+    Vec<TF>                 normalized_integrals            (); ///<
+    TF                      normalized_error                (); ///<
+
+    auto                    newton_system_ap                ( TF eps = 1e-6 ) -> std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool>; ///<
+    auto                    newton_system                   () -> std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool>; ///<
+    Vec<TF>                 newton_dir                      (); ///<
+
+    bool                    update_weights                  (); ///<
+    void                    solve                           (); ///< all in one
 
     // directly modifiable inputs
     TF                      max_mass_ratio_error_target;
@@ -32,6 +38,17 @@ public:
     Vec<TF>                 norm_2_rhs_history;
 
 private:
+    enum {                  CUT                             = 0 };
+    enum {                  BALL                            = 1 };
+    enum {                  DENSITY                         = 2 };
+
+    void                    for_each_cell_mt                ( auto &&func ) const; ///< func( dirac_position, dirac_weight, rdist, b0, b1, num_thread )
+    void                    for_each_cell                   ( auto &&func ) const; ///< func( dirac_position, dirac_weight, rdist, b0, b1 )
+
+    TF                      density_primitive               ( TF x ) const;
+    TF                      density_integral                ( TF x0, TF x1 ) const;
+    TF                      density_value                   ( TF x ) const;
+
     // diracs
     Vec<TF>                 sorted_dirac_positions;         ///<
     Vec<TF>                 sorted_dirac_weights;           ///<
