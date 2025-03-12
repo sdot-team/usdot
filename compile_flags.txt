@@ -1,3 +1,4 @@
+-I/Users/hugo.leclerc/.vfs_build/ext/Catch2/install/include
 -I/opt/homebrew/Cellar/eigen/3.4.0_1/include/
 -I/opt/homebrew/Cellar/boost/1.87.0/include
 -I/opt/homebrew/Cellar/gmp/6.3.0/include/

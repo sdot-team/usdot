@@ -99,6 +99,29 @@ Calcul des dérivées par rapport à la largeur de convolution
 
 Prop: on part d'une ICDF avec ratio = 1 et on fait une frontière floue pour les boules.
 
-ON pourrait 
+Dérivées:
+  * M x = V 
+    M[ i, j ] = -rho( x_j ) * dist_diracs si i != j et ( rho( x_j ) + rho( x_i ) ) * dist_diracs
+    V[ i ] = integral( rho, x_i, x_j )
+    x_j = (d_(j-1)+d_j)/2 + (w_j-w_(j-1)) / (d_j-d_(j-1))/2
+  * M' x + M x' = V'
+    M'[ i, j ] = -( x_j' * drho/dx( x_j ) + drho/dc( x_j ) ) * dist_diracs
+      x_j' = (w_j'-w_(j-1)') / (d_j-d_(j-1))/2
+    V[ i ] = x_i' * rho( x_i ) - ... + integral( drho/dc, x_i, x_j )
+
+Ccl: c'est qd même un peu relou de trouver les dérivées...
+Rk: de toutes façons, ça ne résoud pas le pb de l'insensibilité à la valeur absolue des potentiels s'ils sont trop hauts... Sauf si on met de la convolution au dela du support
+
+Autre rk: dans le fond, on a un pb de contrôle.
+  Lorsqu'on avance trop vite dans les potentiels, on se retrouve avec une direction du newton qui change
+  On pourrait mettre une pénalisation non linéaire sur
+  * les cellules vides à cause des différences de potentiel (par exemple en se basant sur une taille min, calculée avec le max de la densité)
+  * les cellules vides à cause des potentiels négatifs
+  * les cellules en dehors du domaine ou dans 
+  A priori, la position des interfaces étant localement une fonction linéaire du potentiel, on peut trouver une limite.
+
+Rq: on peut envisager de dilater des intervalles pour décrire les densités. Ça pourrait marcher pour les interfaces
+
+
 
 
