@@ -16,8 +16,12 @@ public:
     PI                      nb_diracs                       () const;
 
     TF                      normalized_dirac_convolution    ( TF normalized_pos, TF convolution_width = 2e-2 ) const;
+
+    TF                      normalized_density_primitive    ( TF normalized_pos ) const;
+    TF                      normalized_density_integral     ( TF x0, TF x1 ) const;
     TF                      normalized_density_value        ( TF normalized_pos ) const;
-    Vec<TF>                 normalized_integrals            (); ///<
+
+    Vec<TF>                 normalized_cell_masses          (); ///<
     TF                      normalized_error                (); ///<
 
     auto                    newton_system_ap                ( TF eps = 1e-6 ) -> std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool>; ///<
@@ -45,25 +49,23 @@ private:
     void                    for_each_cell_mt                ( auto &&func ) const; ///< func( dirac_position, dirac_weight, rdist, b0, b1, num_thread )
     void                    for_each_cell                   ( auto &&func ) const; ///< func( dirac_position, dirac_weight, rdist, b0, b1 )
 
-    TF                      density_primitive               ( TF x ) const;
-    TF                      density_integral                ( TF x0, TF x1 ) const;
-    TF                      density_value                   ( TF x ) const;
-
     // diracs
     Vec<TF>                 sorted_dirac_positions;         ///<
     Vec<TF>                 sorted_dirac_weights;           ///<
     Vec<TF>                 sorted_dirac_masses;            ///<
-    TF                      sum_of_dirac_masses;            ///<
     Vec<PI>                 sorted_dirac_nums;              ///<
+
+    TF                      sum_of_dirac_masses;            ///<
 
     // density
     TF                      max_of_original_density_values; ///<
+    bool                    need_lower_contrast_ratio;      ///<
+    TF                      min_density_value;              ///<
+
     Vec<TF>                 original_density_values;        ///<
 
-    bool                    need_lower_contrast_ratio;      ///<
-    TF                      dirac_contrast_ratio;           ///<
-    Vec<TF>                 density_integrals;              ///<
-    Vec<TF>                 density_values;                 ///<
+    Vec<TF>                 normalized_density_integrals;   ///<
+    Vec<TF>                 normalized_density_values;      ///<
     TF                      add_right;                      ///<
     TF                      add_left;                       ///<
     TF                      beg_x;                          ///<

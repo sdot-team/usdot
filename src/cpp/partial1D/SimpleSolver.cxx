@@ -6,12 +6,12 @@
 // #include <tl/support/operators/abs.h>
 // #include <tl/support/string/va_string.h>
 
-#include <stdexcept>
 #include <tl/support/operators/norm_2.h>
 #include <tl/support/operators/max.h>
 #include <tl/support/operators/sum.h>
 #include <tl/support/ASSERT.h>
 #include <tl/support/P.h>
+#include <numbers>
 #include <limits>
 
 #include "SimpleSolver.h"
@@ -156,22 +156,29 @@ DTP void UTP::for_each_cell( auto &&func ) const {
     func( d0, w0, nb_diracs() - 1, od, numeric_limits<TF>::max(), i0, numeric_limits<TF>::max() );
 }
 
-DTP TF UTP::density_primitive( TF x ) const {
-    if ( x >= density_values.size() ) return density_integrals.back();
-    if ( x < 0 ) return 0;
+DTP TF UTP::normalized_density_primitive( TF x ) const {
+    PI s = normalized_density_values.size();
+    using namespace std;
+
+    if ( x >= s ) return normalized_density_integrals.back() + min_density_value * erf( ( x - s ) / s ) * s;
+    if ( x < 0 ) return min_density_value * erf( x / s ) * s;
 
     PI ix( x );
     TF fx = x - ix;
-    return density_integrals[ ix ] + fx * density_values[ ix ];
+    return normalized_density_integrals[ ix ] + fx * normalized_density_values[ ix ];
 }
 
-DTP TF UTP::density_integral( TF x0, TF x1 ) const {
-    return density_primitive( x1 ) - density_primitive( x0 );
+DTP TF UTP::normalized_density_integral( TF x0, TF x1 ) const {
+    return normalized_density_primitive( x1 ) - normalized_density_primitive( x0 );
 }
 
-DTP TF UTP::density_value( TF x ) const {
-    if ( x < 0 || x >= density_values.size() ) return 0;
-    return density_values[ x ];
+DTP TF UTP::normalized_density_value( TF x ) const {
+    PI s = normalized_density_values.size();
+    using namespace std;
+
+    if ( x >= s ) return min_density_value * 2 / sqrt( numbers::pi_v<TF> ) * exp( - pow( ( x - normalized_density_values.size() ) / s, 2 ) );
+    if ( x < 0 ) return min_density_value * 2 / sqrt( numbers::pi_v<TF> ) * exp( - pow( x / s, 2 ) );
+    return normalized_density_values[ x ];
 }
 
 DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool> UTP::newton_system_ap( TF eps ) {
@@ -180,13 +187,13 @@ DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool> UTP::newton_system_ap( T
 
     // M
     SymmetricBandMatrix<TF> M( FromSize(), nb_diracs() );    
-    Vec<TF> R = normalized_integrals();
+    Vec<TF> R = normalized_cell_masses();
     for( PI n = 0; n < nb_diracs(); ++n ) {
         TF &ref_weight = sorted_dirac_weights[ n ];
         TF old_weight = ref_weight;
         ref_weight += eps;
 
-        Vec<TF> A = normalized_integrals();
+        Vec<TF> A = normalized_cell_masses();
         for( PI m = max( n, 1ul ) - 1; m <= n; ++m )
             M( m, n ) += 2 * ( A[ m ] - R[ m ] ) / eps;
 
@@ -286,7 +293,7 @@ DTP Vec<TF> UTP::newton_dir() {
     return M.solve( V );
 }
 
-DTP Vec<TF> UTP::normalized_integrals() {
+DTP Vec<TF> UTP::normalized_cell_masses() {
     using namespace std;
     Vec<TF> res( FromSize(), nb_diracs() );
     for_each_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1 ) {
@@ -313,6 +320,11 @@ DTP TF UTP::normalized_error() {
     const PI nb_threads = thread_pool.nb_threads();
     auto res = Vec<TF>::fill( mul_thread * nb_threads, 0 );
     for_each_cell_mt( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1, PI num_thread ) {
+        if ( dirac_weight <= 0 || c0 >= c1 ) {
+            res[ mul_thread * num_thread ] += numeric_limits<TF>::max();
+            return;
+        }
+
         const TF rd = sqrt( dirac_weight );
         TF loc;
         if ( c0 > c1 ) {
@@ -325,7 +337,8 @@ DTP TF UTP::normalized_error() {
                 max( dirac_position - rd, c0 ),
                 min( dirac_position + rd, c1 ) 
             );
-        }        
+        }
+
         res[ mul_thread * num_thread ] += pow( sorted_dirac_masses[ num_dirac ] - loc, 2 );
     } );
     return sum( res );
@@ -339,7 +352,7 @@ DTP bool UTP::update_weights() {
 
 DTP void UTP::solve() {
     //
-    for( PI num_iter = 0; num_iter < 30; ++num_iter ) {        
+    for( PI num_iter = 0; num_iter < 10; ++num_iter ) {
         Vec<TF> olw = sorted_dirac_weights;
 
         P( num_iter );
@@ -380,50 +393,50 @@ DTP TF UTP::normalized_dirac_convolution( TF normalized_pos, TF convolution_widt
     return res;
 }
 
-DTP TF UTP::normalized_density_value( TF normalized_pos ) const {
-    return normalized_pos >= 0 && normalized_pos < density_values.size() ? density_values[ normalized_pos ] : 0;
-}
-
 DTP void UTP::set_density_contrast( TF max_ratio ) {
     // first take
     const PI total_size = add_left + original_density_values.size() + add_right;
-    const TF min_value = max_of_original_density_values * max_ratio;
+    min_density_value = max_of_original_density_values * max_ratio;
     need_lower_contrast_ratio = add_left || add_right;
-    density_integrals.resize( total_size + 1 );
-    density_values.resize( total_size );
+    normalized_density_integrals.resize( total_size + 1 );
+    normalized_density_values.resize( total_size );
 
     TF sum_of_density_values = 0;
     for( PI i = 0; i < add_left; ++i ) {
-        density_integrals[ i ] = sum_of_density_values;
-        sum_of_density_values += min_value;
-        density_values[ i ] = min_value;
+        normalized_density_integrals[ i ] = sum_of_density_values;
+        sum_of_density_values += min_density_value;
+        normalized_density_values[ i ] = min_density_value;
     }
 
     for( PI i = 0; i < original_density_values.size(); ++i ) {
         TF dv = original_density_values[ i ];
-        if ( dv < min_value ) {
+        if ( dv < min_density_value ) {
             need_lower_contrast_ratio = true;
-            dv = min_value;
+            dv = min_density_value;
         }
 
-        density_integrals[ add_left + i ] = sum_of_density_values;
-        density_values[ add_left + i ] = dv;
+        normalized_density_integrals[ add_left + i ] = sum_of_density_values;
+        normalized_density_values[ add_left + i ] = dv;
         sum_of_density_values += dv;
     }
 
     for( PI i = add_left + original_density_values.size(); i < total_size; ++i ) {
-        density_integrals[ i ] = sum_of_density_values;
-        sum_of_density_values += min_value;
-        density_values[ i ] = min_value;
+        normalized_density_integrals[ i ] = sum_of_density_values;
+        sum_of_density_values += min_density_value;
+        normalized_density_values[ i ] = min_density_value;
     }
 
-    density_integrals.back() = sum_of_density_values;
+    normalized_density_integrals.back() = sum_of_density_values;
+
+    // erf on the left and on the right
+    sum_of_density_values += 2 * min_density_value * normalized_density_values.size();
 
     // normalization
     const TF coeff = sum_of_dirac_masses / ( sum_of_density_values * global_mass_ratio );
-    for( TF &v : density_integrals )
+    min_density_value *= coeff;
+    for( TF &v : normalized_density_integrals )
         v *= coeff;
-    for( TF &v : density_values )
+    for( TF &v : normalized_density_values )
         v *= coeff;
 }
 
