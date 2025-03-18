@@ -147,17 +147,20 @@ PYBIND11_MODULE( usdot_bindings, m ) {
                 return "{ max_mass_ratio_error_target: " + std::to_string( a.max_mass_ratio_error_target ) + " }";
             }
         )
-        ;
+        ;;
 
     m.def( "ot_diracs_to_piecewise_polynomial", &ot_diracs_to_piecewise_polynomial );
-}
-/*
+} 
+/* 
 <%
 setup_pybind11(cfg)
 cfg['include_dirs'] += [ '../../../ext' ]
-cfg['extra_compile_args'] += ['-std=c++20']
+cfg['extra_compile_args'] = ['-std=c++20']
 
 # cfg['sources'] = ['extra_source1.cpp', 'extra_source2.cpp']
+
+import logging
+logging.basicConfig()
 
 cfg['dependencies'] = [
     '../../cpp/partial1D/PowerDiagram.cxx',

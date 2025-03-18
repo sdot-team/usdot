@@ -18,7 +18,8 @@ struct SimpleSolverInput {
 
     TF      max_mass_ratio_error_target     = 1e-5;
     TF      relative_dirac_separation       = 1e-6;
-    TF      starting_contrast_ratio         = 1e-2;
+    TF      starting_contrast_ratio         = 1e-6;
+    TF      target_contrast_ratio           = 1e-6;
     bool    throw_if_error                  = 1;
     int     verbosity                       = 1;
 };

@@ -61,7 +61,6 @@ SymmetricBandMatrix<T> SymmetricBandMatrix<T>::cholesky() const {
     if ( n == 0 )
         return {};
 
-    // decomposition
     SymmetricBandMatrix<T> chol( FromSize(), n );
     chol.data[ 0 ] = data[ 0 ];
     for( PI i = 1; i < data.size(); i += 2 ) {

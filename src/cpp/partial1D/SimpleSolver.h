@@ -10,6 +10,8 @@ namespace usdot {
 template<class TF>
 class SimpleSolver {
 public:
+    struct                  Errors                           { TF n2_residual, ni_residual; bool bad_cell = false; };
+
     /**/                    SimpleSolver                     ( const SimpleSolverInput<TF> &input );
  
     void                    set_density_contrast             ( TF max_ratio ); ///< 
@@ -25,19 +27,26 @@ public:
  
     Vec<TF>                 normalized_cell_barycenters      () const;
     Vec<TF>                 normalized_cell_masses           () const; ///<
-    TF                      normalized_error                 () const; ///<
- 
-    auto                    newton_system_ap                 ( TF eps = 1e-6 ) -> std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool>; ///<
-    auto                    newton_system                    () -> std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool>; ///<
+    
+    auto                    newton_system_ap                 ( TF eps = 1e-6 ) -> std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,Errors,bool>; ///<
+    auto                    newton_system                    () -> std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,Errors,bool>; ///<
     Vec<TF>                 newton_dir                       (); ///<
+    Errors                  errors                           () const; ///<
  
     bool                    update_weights                   (); ///<
+    bool                    converged                        ( const Errors &er ) const;
     void                    solve                            (); ///< all in one
 
+    void                    for_each_cell_mt                 ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1, num_thread )
+    void                    for_each_cell                    ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1 )
     void                    plot                             ( Str filename = "glot.py" ) const;
 
     // directly modifiable inputs
-    TF                      max_mass_ratio_error_target;
+    TF                      max_mass_ratio_error_target      = 1e-4;
+    TF                      current_contrast_ratio           = 1e-9;
+    TF                      target_contrast_ratio            = 1e-9;
+    Vec<TF>                 sorted_dirac_weights;            ///<
+    Vec<TF>                 sorted_dirac_masses;             ///<
     bool                    throw_if_error;
     int                     verbosity;
 
@@ -51,13 +60,9 @@ private:
     enum {                  BALL                             = 1 };
     enum {                  DENSITY                          = 2 };
  
-    void                    for_each_cell_mt                 ( auto &&func ) const; ///< func( dirac_position, dirac_weight, rdist, b0, b1, num_thread )
-    void                    for_each_cell                    ( auto &&func ) const; ///< func( dirac_position, dirac_weight, rdist, b0, b1 )
  
     // diracs 
     Vec<TF>                 sorted_dirac_positions;          ///<
-    Vec<TF>                 sorted_dirac_weights;            ///<
-    Vec<TF>                 sorted_dirac_masses;             ///<
     Vec<PI>                 sorted_dirac_nums;               ///<
  
     TF                      sum_of_dirac_masses;             ///<

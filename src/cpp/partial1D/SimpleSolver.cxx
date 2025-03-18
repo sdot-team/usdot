@@ -6,6 +6,7 @@
 // #include <tl/support/operators/abs.h>
 // #include <tl/support/string/va_string.h>
 
+#include <tl/support/operators/self_max.h>
 #include <tl/support/operators/norm_2.h>
 #include <tl/support/operators/max.h>
 #include <tl/support/operators/sum.h>
@@ -45,7 +46,7 @@ DTP UTP::SimpleSolver( const SimpleSolverInput<TF> &input ) {
     const SI int_left = floor( flt_left / step_size );
     
     const TF flt_right = input.dirac_positions[ sorted_dirac_nums.back() ] - beg_x_density;
-    const SI int_right = floor( flt_right / step_size + 1 );
+    const SI int_right = ceil( flt_right / step_size );
 
     add_right = max( input.density_values.size(), int_right ) - input.density_values.size();
     add_left = max( SI( 0 ), - int_left );
@@ -75,6 +76,10 @@ DTP UTP::SimpleSolver( const SimpleSolverInput<TF> &input ) {
     // sorted_dirac_weights
     sorted_dirac_weights = Vec<TF>::fill( input.dirac_positions.size(), 1 );
 
+    //
+    max_mass_ratio_error_target = input.max_mass_ratio_error_target;
+    target_contrast_ratio = input.target_contrast_ratio;
+
     // original_density_values
     max_of_original_density_values = max( input.density_values );
     original_density_values = input.density_values;
@@ -95,6 +100,8 @@ DTP void UTP::for_each_cell_mt( auto &&func ) const {
     thread_pool.execute( nb_jobs, [&]( PI num_job, PI num_thread ) {
         const PI beg = ( num_job + 0 ) * nb_diracs() / nb_jobs;
         const PI end = ( num_job + 1 ) * nb_diracs() / nb_jobs;
+        if ( beg == end )
+            return;
 
         //
         TF i0 = numeric_limits<TF>::lowest(); // previous interface
@@ -182,8 +189,8 @@ DTP TF UTP::normalized_density_primitive( TF x ) const {
     PI s = normalized_density_values.size();
     using namespace std;
 
-    if ( x >= s ) return normalized_density_primitives.back() + min_density_value * erf( ( x - s ) / s ) * s;
-    if ( x < 0 ) return min_density_value * erf( x / s ) * s;
+    if ( x >= s ) return normalized_density_primitives.back() + min_density_value * erf( ( x - s ) / s ) * s * sqrt( numbers::pi_v<TF> ) / 2;
+    if ( x < 0 ) return min_density_value * erf( x / s ) * s * sqrt( numbers::pi_v<TF> ) / 2;
 
     PI ix( x );
     TF fx = x - ix;
@@ -198,12 +205,12 @@ DTP TF UTP::normalized_density_value( TF x ) const {
     PI s = normalized_density_values.size();
     using namespace std;
 
-    if ( x >= s ) return min_density_value * 2 / sqrt( numbers::pi_v<TF> ) * exp( - pow( ( x - normalized_density_values.size() ) / s, 2 ) );
-    if ( x < 0 ) return min_density_value * 2 / sqrt( numbers::pi_v<TF> ) * exp( - pow( x / s, 2 ) );
+    if ( x >= s ) return min_density_value * exp( - pow( ( x - normalized_density_values.size() ) / s, 2 ) );
+    if ( x < 0 ) return min_density_value * exp( - pow( x / s, 2 ) );
     return normalized_density_values[ x ];
 }
 
-DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool> UTP::newton_system_ap( TF eps ) {
+DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,typename UTP::Errors,bool> UTP::newton_system_ap( TF eps ) {
     using std::max;
     using std::min;
 
@@ -225,75 +232,133 @@ DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool> UTP::newton_system_ap( T
     // V
     Vec<TF> V = 2 * ( sorted_dirac_masses - R );
 
-    return { M, V, norm_2_p2( V ), false };
+    return { M, V, errors(), false };
 }
 
 
-DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,TF,bool> UTP::newton_system() {
+DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,typename UTP::Errors,bool> UTP::newton_system() {
     using namespace std;
 
     const PI mul_thread = max( 1, 32 / sizeof( TF ) );
     const PI nb_threads = thread_pool.nb_threads();
 
-    Vec<TF> has_arc = Vec<TF>::fill( mul_thread * nb_threads, 0 );
-    Vec<TF> R = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+    auto n2_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+    auto ni_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+    auto has_arc = Vec<TF>::fill( mul_thread * nb_threads, 0 );
     SymmetricBandMatrix<TF> M( FromSize(), nb_diracs() );
     Vec<TF> V( FromSize(), nb_diracs() );
-    for_each_cell_mt( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF ldist, TF rdist, TF c0, TF c1, PI num_thread ) {
+    Errors errors;
+    for_each_cell_mt( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF d0, TF d1, TF c0, TF c1, PI num_thread ) {
+        TF v = sorted_dirac_masses[ num_dirac ];
+        if ( dirac_weight <= 0 ) { // || c0 >= c1
+            if ( num_dirac + 1 < nb_diracs() )
+                M( num_dirac, num_dirac + 1 ) = 0;
+            M( num_dirac, num_dirac ) = 0;
+            V[ num_dirac ] = v;
+            errors.bad_cell = true;
+            return;
+        }
+
         const TF rd = sqrt( dirac_weight );
         const TF b0 = dirac_position - rd;
         const TF b1 = dirac_position + rd;
 
-        TF v = sorted_dirac_masses[ num_dirac ];
         TF mc, mr;
         if ( c0 > c1 ) {
-            TODO;
-        } else {
-            if ( b0 > c0 ) { // ball cut on the left
-                const TF sqrtw = sqrt( dirac_weight );
-                if ( b1 < c1 ) { // ball cut on the right
-                    mc = ( normalized_density_value( b0 ) + normalized_density_value( b1 ) ) / sqrtw;
-                    mr = 0;
-
-                    v -= normalized_density_integral( b0, b1 );
-                } else { // interface on the right
-                    const TF cr = normalized_density_value( c1 ) / rdist;
-                    mc = normalized_density_value( b0 ) / sqrtw + cr;
-                    mr = - cr;
-                    
-                    v -= normalized_density_integral( b0, c1 );
-                }
-                has_arc[ mul_thread * num_thread ] = true;
-            } else { // interface on the left
-                if ( b1 < c1 ) { // ball cut on the right
-                    const TF cl = normalized_density_value( c0 ) / ldist;
+            if ( c0 < b0 || c1 > b1 ) {
+                errors.bad_cell = true;
+                mc = 0;
+                mr = 0;
+            } else {
+                if ( b0 > c1 ) { // ball cut on the left
                     const TF sqrtw = sqrt( dirac_weight );
-                    mc = cl + normalized_density_value( b1 ) / sqrtw;
-                    mr = 0;
-                    
-                    v -= normalized_density_integral( c0, b1 );
-                    has_arc[ mul_thread * num_thread ] = true;
-                } else { // interface on the right
-                    const TF cl = normalized_density_value( c0 ) / ldist;
-                    const TF cr = normalized_density_value( c1 ) / rdist;
-                    mc = cl + cr;
-                    mr = - cr;
+                    if ( b1 < c0 ) { // ball cut on the right
+                        mc = ( normalized_density_value( b0 ) + normalized_density_value( b1 ) ) / sqrtw;
+                        mr = 0;
 
-                    v -= normalized_density_integral( c0, c1 );
+                        v += normalized_density_integral( b0, b1 );
+                    } else { // interface on the right
+                        const TF cr = normalized_density_value( c0 ) / d0;
+                        mc = cr - normalized_density_value( b0 ) / sqrtw;
+                        mr = 0;
+                        
+                        v += normalized_density_integral( b0, c0 );
+                    }
+                    has_arc[ mul_thread * num_thread ] = true;
+                } else { // interface on the left
+                    if ( b1 < c0 ) { // ball cut on the right
+                        const TF cl = normalized_density_value( c1 ) / d1;
+                        const TF sqrtw = sqrt( dirac_weight );
+                        mc = ( cl - normalized_density_value( b1 ) / sqrtw );
+                        mr = - cl;
+                        
+                        v += normalized_density_integral( c1, b1 );
+                        has_arc[ mul_thread * num_thread ] = true;
+                    } else { // interface on the right
+                        const TF cl = normalized_density_value( c1 ) / d1;
+                        const TF cr = normalized_density_value( c0 ) / d0;
+                        mc = - ( cl + cr );
+                        mr = + cr;
+
+                        v += normalized_density_integral( c1, c0 );
+                    }
+                }
+            }
+        } else {
+            if ( c1 < b0 || c0 > b1 ) {
+                errors.bad_cell = true;
+                mc = 0;
+                mr = 0;
+            } else {
+                if ( b0 > c0 ) { // ball cut on the left
+                    const TF sqrtw = sqrt( dirac_weight );
+                    if ( b1 < c1 ) { // ball cut on the right
+                        mc = ( normalized_density_value( b0 ) + normalized_density_value( b1 ) ) / sqrtw;
+                        mr = 0;
+
+                        v -= normalized_density_integral( b0, b1 );
+                    } else { // interface on the right
+                        const TF cr = normalized_density_value( c1 ) / d1;
+                        mc = normalized_density_value( b0 ) / sqrtw + cr;
+                        mr = - cr;
+                        
+                        v -= normalized_density_integral( b0, c1 );
+                    }
+                    has_arc[ mul_thread * num_thread ] = true;
+                } else { // interface on the left
+                    if ( b1 < c1 ) { // ball cut on the right
+                        const TF cl = normalized_density_value( c0 ) / d0;
+                        const TF sqrtw = sqrt( dirac_weight );
+                        mc = cl + normalized_density_value( b1 ) / sqrtw;
+                        mr = 0;
+                        
+                        v -= normalized_density_integral( c0, b1 );
+                        has_arc[ mul_thread * num_thread ] = true;
+                    } else { // interface on the right
+                        const TF cl = normalized_density_value( c0 ) / d0;
+                        const TF cr = normalized_density_value( c1 ) / d1;
+                        mc = cl + cr;
+                        mr = - cr;
+
+                        v -= normalized_density_integral( c0, c1 );
+                    }
                 }
             }
         }        
 
-        v *= 2;
-
         if ( num_dirac + 1 < nb_diracs() )
             M( num_dirac, num_dirac + 1 ) = mr;
         M( num_dirac, num_dirac ) = mc;
-        V[ num_dirac ] = v;
-        R[ mul_thread * num_thread ] += v * v;
+        V[ num_dirac ] = 2 * v;
+
+        self_max( ni_residuals[ mul_thread * num_thread ], abs( v ) );
+        n2_residuals[ mul_thread * num_thread ] += pow( v, 2 );
     } );
 
-    return { M, V, sum( R ), sum( has_arc ) };
+    errors.n2_residual = sqrt( sum( n2_residuals ) );
+    errors.ni_residual = max( ni_residuals );
+
+    return { M, V, errors, sum( has_arc ) };
 }
 
 DTP Vec<TF> UTP::newton_dir() {
@@ -303,7 +368,6 @@ DTP Vec<TF> UTP::newton_dir() {
     auto &V = std::get<1>( sys );
     bool ha = std::get<3>( sys );
 
-    // P( M, V );
     M( 0, 0 ) += 1;
 
     if ( ! ha ) {
@@ -320,89 +384,103 @@ DTP Vec<TF> UTP::normalized_cell_masses() const {
     Vec<TF> res( FromSize(), nb_diracs() );
     for_each_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1 ) {
         const TF rd = sqrt( dirac_weight );
+        const TF b0 = dirac_position - rd;
+        const TF b1 = dirac_position + rd;
         if ( c0 > c1 ) {
-            res[ num_dirac ] = - normalized_density_integral(
-                max( dirac_position - rd, c1 ),
-                min( dirac_position + rd, c0 ) 
-            );
+            const TF a0 = min( b1, c0 );
+            const TF a1 = max( b0, c1 );
+            res[ num_dirac ] = a1 <= a0 ? normalized_density_integral( a0, a1 ) : 0;
         } else {
-            res[ num_dirac ] = normalized_density_integral(
-                max( dirac_position - rd, c0 ),
-                min( dirac_position + rd, c1 ) 
-            );
-        }        
+            const TF a0 = max( b0, c0 );
+            const TF a1 = min( b1, c1 );
+            res[ num_dirac ] = a0 <= a1 ? normalized_density_integral( a0, a1 ) : 0;
+        }
     } );
     return res;
 }
 
-DTP TF UTP::normalized_error() const {
+DTP typename UTP::Errors UTP::errors() const {
     using namespace std;
 
     const PI mul_thread = max( 1, 32 / sizeof( TF ) );
     const PI nb_threads = thread_pool.nb_threads();
-    auto res = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+
+    auto n2_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+    auto ni_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+    Errors res;
     for_each_cell_mt( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1, PI num_thread ) {
-        if ( dirac_weight <= 0 || c0 >= c1 ) {
-            res[ mul_thread * num_thread ] += numeric_limits<TF>::max();
+        if ( dirac_weight <= 0 ) { // || c0 >= c1
+            res.bad_cell = true;
             return;
         }
 
         const TF rd = sqrt( dirac_weight );
-        TF loc;
+        const TF b0 = dirac_position - rd;
+        const TF b1 = dirac_position + rd;
+        
         if ( c0 > c1 ) {
-            loc = - normalized_density_integral(
-                max( dirac_position - rd, c1 ),
-                min( dirac_position + rd, c0 ) 
-            );
+            const TF a0 = min( b1, c0 );
+            const TF a1 = max( b0, c1 );
+            if ( a1 <= a0 ) {
+                const TF delta = sorted_dirac_masses[ num_dirac ] - normalized_density_integral( a0, a1 );
+                self_max( ni_residuals[ mul_thread * num_thread ], abs( delta ) );
+                n2_residuals[ mul_thread * num_thread ] += pow( delta, 2 );
+            } else
+                res.bad_cell = true;
         } else {
-            loc = normalized_density_integral(
-                max( dirac_position - rd, c0 ),
-                min( dirac_position + rd, c1 ) 
-            );
+            const TF a0 = max( b0, c0 );
+            const TF a1 = min( b1, c1 );
+            if ( a0 <= a1 ) {
+                const TF delta = sorted_dirac_masses[ num_dirac ] - normalized_density_integral( a0, a1 );
+                self_max( ni_residuals[ mul_thread * num_thread ], abs( delta ) );
+                n2_residuals[ mul_thread * num_thread ] += pow( delta, 2 );
+             } else
+                res.bad_cell = true;
         }
-
-        res[ mul_thread * num_thread ] += pow( sorted_dirac_masses[ num_dirac ] - loc, 2 );
     } );
-    return sum( res );
+
+    res.n2_residual = sqrt( sum( n2_residuals ) );
+    res.ni_residual = max( ni_residuals );
+
+    return res;
 }
 
 DTP bool UTP::update_weights() {
     using namespace std;
-
-    return true;
-}
-
-DTP void UTP::solve() {
-    //
     for( PI num_iter = 0; num_iter < 50; ++num_iter ) {
         Vec<TF> olw = sorted_dirac_weights;
 
         // newton system
         auto sys = newton_system();
-        auto &M = std::get<0>( sys );
-        auto &V = std::get<1>( sys );
-        auto er = std::get<2>( sys );
-        bool ha = std::get<3>( sys );
-    
+
+        auto &M = get<0>( sys );
+        auto &V = get<1>( sys );
+        Errors er = get<2>( sys );
+        if ( er.bad_cell )
+            throw runtime_error( "bad initial guess" );
+   
         // find a search dir
         Vec<TF> dir = M.solve( V );
 
         // find a first relaxation coeff
         for( TF a = 1; ; a /= 2 ) {
-            if ( a == 1e-20 )
-                throw std::runtime_error( "bad direction" );
+            if ( a <= 1e-20 )
+                throw runtime_error( "bad direction" );
             sorted_dirac_weights = olw + a * dir;
-            TF nr = normalized_error();
-            if ( nr < er ) {
-                P( a, er, nr );
-                if ( nr < 1e-8 )
-                    return;
+            Errors nr = errors();
+            if ( nr.bad_cell )
+                continue;
+
+            if ( nr.n2_residual < er.n2_residual ) {
+                P( num_iter, a, er.n2_residual, nr.n2_residual, nr.ni_residual );
+                if ( converged( nr ) )
+                    return true;
                 break;
             }
         }
     }
 
-    // set_density_contrast( 1e-6 );
+    return false;
 }
 
 DTP void UTP::plot( Str filename ) const {
@@ -414,9 +492,6 @@ DTP void UTP::plot( Str filename ) const {
 
     Vec<TF> bx = normalized_cell_barycenters();
     Vec<TF> by = bx * 0;
-
-    P( xs );
-    P( bx );
 
     fs << "from matplotlib import pyplot\n";
     fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
@@ -453,6 +528,8 @@ DTP Vec<TF> UTP::normalized_cell_barycenters() const {
 }
 
 DTP void UTP::set_density_contrast( TF max_ratio ) {
+    current_contrast_ratio = max_ratio;
+
     // first take
     const PI total_size = add_left + original_density_values.size() + add_right;
     min_density_value = max_of_original_density_values * max_ratio;
@@ -512,6 +589,19 @@ DTP void UTP::set_density_contrast( TF max_ratio ) {
         v *= coeff;
     for( TF &v : normalized_density_values )
         v *= coeff;
+}
+
+DTP bool UTP::converged( const Errors &er ) const {
+    return er.ni_residual < max_mass_ratio_error_target;
+}
+
+DTP void UTP::solve() {
+    update_weights();
+
+    if ( target_contrast_ratio != current_contrast_ratio ) {
+        set_density_contrast( target_contrast_ratio );
+        update_weights();
+    }
 }
 
 #undef DTP
