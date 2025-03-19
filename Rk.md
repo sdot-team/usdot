@@ -122,6 +122,3 @@ Autre rk: dans le fond, on a un pb de contrôle.
 
 Rq: on peut envisager de dilater des intervalles pour décrire les densités. Ça pourrait marcher pour les interfaces
 
-
-
-

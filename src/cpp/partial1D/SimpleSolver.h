@@ -48,6 +48,7 @@ public:
     Vec<TF>                 sorted_dirac_weights;            ///<
     Vec<TF>                 sorted_dirac_masses;             ///<
     bool                    throw_if_error;
+    bool                    multithread;                     ///<
     int                     verbosity;
 
     // outputs

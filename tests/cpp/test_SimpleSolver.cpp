@@ -1,5 +1,6 @@
 #include <partial1D/SimpleSolver.h>
 #include "catch_main.h"
+#include "partial1D/ThreadPool.h"
 #include <chrono>
 
 using namespace usdot;
@@ -20,6 +21,18 @@ void glot( Vec<TF> xs, auto &&...funcs ) {
 }
  
 TEST_CASE( "Simple solver prog", "" ) {
+    // thread_pool.init( 1 ); 
+    /// 
+    // Time difference = 11183[µs]
+    // Time difference = 2320[µs]
+    // Time difference = 686[µs]
+
+    // Time difference = 16159[µs]
+    // Time difference = 5993[µs]
+    // Time difference = 3001[µs]
+
+    // Time difference = 2712[µs]
+
     SimpleSolverInput<TF> si;
     si.dirac_positions = Vec<TF>::linspace( 0.01, 0.99, 800000 );
     si.starting_contrast_ratio = 1e-6;
@@ -33,6 +46,7 @@ TEST_CASE( "Simple solver prog", "" ) {
     si.end_x_density = 1;
  
     SimpleSolver<TF> solver( si );
+    solver.multithread = false;
 
     // solver.sorted_dirac_weights = solver.sorted_dirac_weights * 0 + 1.5;
     // solver.sorted_dirac_weights[ 5 ] = 4;

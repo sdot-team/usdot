@@ -74,11 +74,12 @@ DTP UTP::SimpleSolver( const SimpleSolverInput<TF> &input ) {
     }
 
     // sorted_dirac_weights
-    sorted_dirac_weights = Vec<TF>::fill( input.dirac_positions.size(), 1 );
+    sorted_dirac_weights = Vec<TF>::fill( input.dirac_positions.size(), 2 * pow( TF( input.density_values.size() ) / nb_diracs, 2 ) );
 
     //
     max_mass_ratio_error_target = input.max_mass_ratio_error_target;
     target_contrast_ratio = input.target_contrast_ratio;
+    multithread = true;
 
     // original_density_values
     max_of_original_density_values = max( input.density_values );
@@ -234,7 +235,6 @@ DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,typename UTP::Errors,bool> UTP::n
 
     return { M, V, errors(), false };
 }
-
 
 DTP std::tuple<SymmetricBandMatrix<TF>,Vec<TF>,typename UTP::Errors,bool> UTP::newton_system() {
     using namespace std;
@@ -402,14 +402,55 @@ DTP Vec<TF> UTP::normalized_cell_masses() const {
 DTP typename UTP::Errors UTP::errors() const {
     using namespace std;
 
-    const PI mul_thread = max( 1, 32 / sizeof( TF ) );
-    const PI nb_threads = thread_pool.nb_threads();
+    if ( multithread ) {
+        const PI mul_thread = max( 1, 32 / sizeof( TF ) );
+        const PI nb_threads = thread_pool.nb_threads();
 
-    auto n2_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
-    auto ni_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+        auto n2_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+        auto ni_residuals = Vec<TF>::fill( mul_thread * nb_threads, 0 );
+        Errors res;
+        for_each_cell_mt( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1, PI num_thread ) {
+            if ( dirac_weight <= 0 ) { // || c0 >= c1
+                res.bad_cell = true;
+                return;
+            }
+
+            const TF rd = sqrt( dirac_weight );
+            const TF b0 = dirac_position - rd;
+            const TF b1 = dirac_position + rd;
+            
+            if ( c0 > c1 ) {
+                const TF a0 = min( b1, c0 );
+                const TF a1 = max( b0, c1 );
+                if ( a1 <= a0 ) {
+                    const TF delta = sorted_dirac_masses[ num_dirac ] - normalized_density_integral( a0, a1 );
+                    self_max( ni_residuals[ mul_thread * num_thread ], abs( delta ) );
+                    n2_residuals[ mul_thread * num_thread ] += pow( delta, 2 );
+                } else
+                    res.bad_cell = true;
+            } else {
+                const TF a0 = max( b0, c0 );
+                const TF a1 = min( b1, c1 );
+                if ( a0 <= a1 ) {
+                    const TF delta = sorted_dirac_masses[ num_dirac ] - normalized_density_integral( a0, a1 );
+                    self_max( ni_residuals[ mul_thread * num_thread ], abs( delta ) );
+                    n2_residuals[ mul_thread * num_thread ] += pow( delta, 2 );
+                } else
+                    res.bad_cell = true;
+            }
+        } );
+
+        res.n2_residual = sqrt( sum( n2_residuals ) );
+        res.ni_residual = max( ni_residuals );
+
+        return res;
+    }
+
     Errors res;
-    for_each_cell_mt( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1, PI num_thread ) {
-        if ( dirac_weight <= 0 ) { // || c0 >= c1
+    res.n2_residual = 0;
+    res.ni_residual = 0;
+    for_each_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1 ) {
+        if ( dirac_weight <= 0 ) {
             res.bad_cell = true;
             return;
         }
@@ -423,8 +464,8 @@ DTP typename UTP::Errors UTP::errors() const {
             const TF a1 = max( b0, c1 );
             if ( a1 <= a0 ) {
                 const TF delta = sorted_dirac_masses[ num_dirac ] - normalized_density_integral( a0, a1 );
-                self_max( ni_residuals[ mul_thread * num_thread ], abs( delta ) );
-                n2_residuals[ mul_thread * num_thread ] += pow( delta, 2 );
+                self_max( res.ni_residual, abs( delta ) );
+                res.n2_residual += pow( delta, 2 );
             } else
                 res.bad_cell = true;
         } else {
@@ -432,15 +473,14 @@ DTP typename UTP::Errors UTP::errors() const {
             const TF a1 = min( b1, c1 );
             if ( a0 <= a1 ) {
                 const TF delta = sorted_dirac_masses[ num_dirac ] - normalized_density_integral( a0, a1 );
-                self_max( ni_residuals[ mul_thread * num_thread ], abs( delta ) );
-                n2_residuals[ mul_thread * num_thread ] += pow( delta, 2 );
-             } else
+                self_max( res.ni_residual, abs( delta ) );
+                res.n2_residual += pow( delta, 2 );
+            } else
                 res.bad_cell = true;
         }
     } );
 
-    res.n2_residual = sqrt( sum( n2_residuals ) );
-    res.ni_residual = max( ni_residuals );
+    res.n2_residual = sqrt( res.n2_residual );
 
     return res;
 }
