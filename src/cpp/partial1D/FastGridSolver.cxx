@@ -412,8 +412,8 @@ DTP Vec<TF> UTP::newton_dir() {
     TF prev_ldds = 0;
     TF prev_v = 0;
     for_each_normalized_system_item( [&]( PI index, TF m0, TF m1, TF v, bool bad_cell ) {
-        if ( index == 0 && global_mass_ratio == 1 && current_contrast_ratio == 0 )
-            m0 += 1;
+        // if ( index == 0 && global_mass_ratio == 1 && current_contrast_ratio == 0 )
+        //     m0 += 1;
     
         const TF d = m0 - prev_ldds;
         const TF l = m1 / d;
@@ -436,9 +436,18 @@ DTP Vec<TF> UTP::newton_dir() {
 DTP void UTP::plot( Str filename ) const {
     std::ofstream fs( filename );
 
-    const PI s = normalized_density_values.size();
-    Vec<TF> xs = Vec<TF>::linspace( - 0.1 * s, 1.1 * s, 20 * s );
-    Vec<TF> ys = map_vec( xs, [&]( TF x ) { return normalized_density_value( x ); } );
+    Vec<TF> xs;
+    Vec<TF> ys;
+    xs << beg_x_density;
+    ys << original_density_values[ 0 ];
+    for( PI i = 1; i < original_density_values.size(); ++i ) {
+        const TF x = beg_x_density + ( end_x_density - beg_x_density ) * ( i + 0 ) / original_density_values.size();
+        ys << original_density_values[ i - 1 ] << original_density_values[ i - 0 ];
+        xs << x << x;
+    }
+    ys << original_density_values.back();
+    xs << end_x_density;
+
 
     Vec<TF> bx = normalized_cell_barycenters();
     Vec<TF> by = bx * 0;
@@ -474,6 +483,14 @@ DTP Vec<TF> UTP::normalized_cell_barycenters() const {
             res[ num_dirac ] = it ? normalized_density_x_integral( x0, x1 ) / it : 0;
         }        
     } );
+    return res;
+}
+
+DTP Vec<TF> UTP::cell_barycenters() const {
+    const TF mul = ( end_x_density - beg_x_density ) / original_density_values.size();
+    Vec<TF> res = normalized_cell_barycenters();
+    for( auto &x : res )
+        x = beg_x_density + x * mul;
     return res;
 }
 
@@ -557,10 +574,12 @@ DTP bool UTP::update_weights() {
 }
 
 DTP void UTP::solve() {
+    using namespace std;
+
     update_weights();
 
-    if ( target_contrast_ratio != current_contrast_ratio ) {
-        set_density_contrast( target_contrast_ratio );
+    while( current_contrast_ratio > target_contrast_ratio ) {
+        set_density_contrast( max( current_contrast_ratio / 100, target_contrast_ratio ) );
         update_weights();
     }
 }

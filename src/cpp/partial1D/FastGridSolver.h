@@ -23,7 +23,9 @@ public:
  
     Vec<TF>                 normalized_cell_barycenters      () const;
     Vec<TF>                 normalized_cell_masses           () const; ///<
-     
+
+    Vec<TF>                 cell_barycenters                 () const;
+
     bool                    update_weights                   (); ///<
     Vec<TF>                 newton_dir                       (); ///<
     TF                      l2_error                         () const; ///<

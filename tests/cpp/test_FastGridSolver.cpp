@@ -58,18 +58,19 @@ TEST_CASE( "Fast grid solver", "" ) {
     // solver.l2_error();   -> 2767[µs] x 1   vs 3001 [µs] avant
 
     FastGridSolverInput<TF> si;
-    si.dirac_positions = Vec<TF>::cellspace( 0, 0.75, 8 );
-    si.starting_contrast_ratio = 0;
-    si.target_contrast_ratio = 0;
+    si.dirac_positions = Vec<TF>::cellspace( 0, 0.75, 10 );
+    si.starting_contrast_ratio = 1e-3;
+    si.target_contrast_ratio = 2e-7;
 
     si.density_values = { 1 };
     si.beg_x_density = 0;
     si.end_x_density = 1;
  
     FastGridSolver<TF> solver( std::move( si ) );
-    // P( solver.newton_dir() );
     solver.solve();
-    // solver.plot();
+
+    P( solver.cell_barycenters() );
+    solver.plot();
 
     // {
     //     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
