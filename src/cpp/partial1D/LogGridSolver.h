@@ -1,6 +1,5 @@
 #pragma once
 
-#include "SymmetricBandMatrix.h"
 #include "LogGridSolverInput.h"
 
 namespace usdot {
@@ -13,7 +12,7 @@ public:
     /**/                    LogGridSolver                    ( LogGridSolverInput<TF> &&input );
  
     void                    set_density_contrast             ( TF max_ratio ); ///<
-    TF                      update_weights                   ();
+    void                    update_weights                   ();
     Vec<TF>                 newton_dir                       () const;
     void                    solve                            ();
 
@@ -21,6 +20,7 @@ public:
     Vec<TF>                 cell_barycenters                 () const;
     Vec<TF>                 dirac_positions                  () const;
     PI                      nb_diracs                        () const;
+    void                    plot                             ( Str filename = "glot.py" ) const;
 
     TF                      normalized_density_x_integral_ap ( TF x0, TF x1, PI nb_steps = 100000 ) const;
     TF                      normalized_density_x_primitive   ( TF normalized_pos ) const;

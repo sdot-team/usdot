@@ -409,57 +409,57 @@ DTP TF UTP::l2_error() const {
     return has_bad_cell ? numeric_limits<TF>::max() : sqrt( res );
 }
 
-DTP Vec<TF> UTP::error_log() const {
-    using namespace std;
+// DTP Vec<TF> UTP::error_log() const {
+//     using namespace std;
 
-    Vec<TF> res( FromSize(), nb_diracs() );
-    for_each_normalized_cell_mass( [&]( PI index, TF v, bool ) {
-        res[ index ] = log( v / sorted_dirac_masses[ index ] );
-    } );
-    return res;
-}
+//     Vec<TF> res( FromSize(), nb_diracs() );
+//     for_each_normalized_cell_mass( [&]( PI index, TF v, bool ) {
+//         res[ index ] = log( v / sorted_dirac_masses[ index ] );
+//     } );
+//     return res;
+// }
 
-DTP std::function<Vec<TF>( TF )> UTP::newton_path_log( PI order, TF eps ) {
-    Vec<Vec<TF>> dirs;
-    dirs << newton_dir_log( eps / 10 );
-    for( PI i = 1; i <= order; ++i ) {
-        for( PI d = 0; d < 3; ++d ) {
-            P( newton_dir_log( eps / 10 ) );
-            sorted_dirac_weights += newton_dir_log( eps / 10 );
-        }
-        weights << sorted_dirac_weights;
-    }
+// DTP std::function<Vec<TF>( TF )> UTP::newton_path_log( PI order, TF eps ) {
+//     Vec<Vec<TF>> dirs;
+//     dirs << newton_dir_log( eps / 10 );
+//     for( PI i = 1; i <= order; ++i ) {
+//         for( PI d = 0; d < 3; ++d ) {
+//             P( newton_dir_log( eps / 10 ) );
+//             sorted_dirac_weights += newton_dir_log( eps / 10 );
+//         }
+//         weights << sorted_dirac_weights;
+//     }
         
-    P( newton_dir_log( eps / 10 ) );
-    return {};
-}
+//     P( newton_dir_log( eps / 10 ) );
+//     return {};
+// }
 
-DTP Vec<TF> UTP::newton_dir_log( TF eps ) {    
-    using namespace std;
+// DTP Vec<TF> UTP::newton_dir_log( TF eps ) {    
+//     using namespace std;
 
-    // M
-    using TM = Eigen::Matrix<TF,Eigen::Dynamic,Eigen::Dynamic>;
-    using TV = Eigen::Matrix<TF,Eigen::Dynamic,1>;
-    TM M( nb_diracs(), nb_diracs() );    
-    Vec<TF> V = error_log();
-    M.fill( 0 );
-    for( PI r = 0; r < nb_diracs(); ++r ) {
-        TF &ref_weight = sorted_dirac_weights[ r ];
-        TF old_weight = ref_weight;
-        ref_weight += eps;
+//     // M
+//     using TM = Eigen::Matrix<TF,Eigen::Dynamic,Eigen::Dynamic>;
+//     using TV = Eigen::Matrix<TF,Eigen::Dynamic,1>;
+//     TM M( nb_diracs(), nb_diracs() );    
+//     Vec<TF> V = error_log();
+//     M.fill( 0 );
+//     for( PI r = 0; r < nb_diracs(); ++r ) {
+//         TF &ref_weight = sorted_dirac_weights[ r ];
+//         TF old_weight = ref_weight;
+//         ref_weight += eps;
 
-        Vec<TF> U = error_log();
+//         Vec<TF> U = error_log();
 
-        for( PI c = max( r, 1ul ) - 1; c < min( r + 2, nb_diracs() ); ++c )
-            M.coeffRef( r, c ) = ( U[ c ] - V[ c ] ) / eps;
+//         for( PI c = max( r, 1ul ) - 1; c < min( r + 2, nb_diracs() ); ++c )
+//             M.coeffRef( r, c ) = ( U[ c ] - V[ c ] ) / eps;
 
-        ref_weight = old_weight;
-    }
+//         ref_weight = old_weight;
+//     }
 
-    Eigen::FullPivLU<TM> lu( M );
+//     Eigen::FullPivLU<TM> lu( M );
     
-    return lu.solve( Eigen::Map<TV,Eigen::Unaligned>( V.data(), V.size() ) );
-}
+//     return lu.solve( Eigen::Map<TV,Eigen::Unaligned>( V.data(), V.size() ) );
+// }
 
 DTP Vec<TF> UTP::newton_dir() {    
     // integrated LDL solver
@@ -639,7 +639,7 @@ DTP bool UTP::update_weights( PI max_iter ) {
         if ( num_iter == max_iter )
             throw runtime_error( "failed to converge" );
         
-            // get a new direction
+        // get a new direction
         Vec<TF> dir = newton_dir();
         
         // find a first relaxation coeff
@@ -655,7 +655,7 @@ DTP bool UTP::update_weights( PI max_iter ) {
                 // refine the value
                 TF best_error = new_error;
                 TF best_b = a;
-                for( TF b : Vec<TF>::linspace( a * 0.6, a * 1.9, 50 ) ) {
+                for( TF b : Vec<TF>::linspace( a * 0.5, a * 1.0, 50 ) ) {
                     sorted_dirac_weights = old_dirac_weights + b * dir;
                     TF new_error = l2_error();
 
@@ -683,7 +683,6 @@ DTP bool UTP::update_weights( PI max_iter ) {
 
 DTP void UTP::solve() {
     using namespace std;
-    P( normalized_density_values );
 
     update_weights();
 

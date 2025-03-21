@@ -11,7 +11,8 @@
 #include <fstream>
 #include <limits>
 
-#include <eigen3/Eigen/Dense>
+// #include "eigen3/Eigen/src/LU/PartialPivLU.h"
+// #include <eigen3/Eigen/Dense>
 
 // #include "SymmetricBandMatrix.h"
 #include "LogGridSolver.h"
@@ -354,6 +355,9 @@ DTP Vec<TF> UTP::dirac_positions() const {
 }
 
 DTP void UTP::set_density_contrast( TF max_ratio ) {    
+    if ( verbosity > 0 )
+        P( max_ratio );
+    
     // first take
     min_density_value = max_of_original_density_values * max_ratio;
     current_contrast_ratio = max_ratio;
@@ -409,71 +413,178 @@ DTP TF UTP::normalized_error() const {
     return sqrt( res );
 }
 
-DTP Vec<TF> UTP::newton_dir() const {
-    using TM = Eigen::Matrix<TF,Eigen::Dynamic,Eigen::Dynamic>;
-    using TV = Eigen::Matrix<TF,Eigen::Dynamic,1>;
+DTP void UTP::plot( Str filename ) const {
+    std::ofstream fs( filename );
 
-    TM M( nb_diracs(), nb_diracs() );    
-    TV V( nb_diracs() );
-    M.fill( 0 );
+    Vec<TF> xs;
+    Vec<TF> ys;
+    xs << beg_x_density;
+    ys << original_density_values[ 0 ];
+    for( PI i = 1; i < original_density_values.size(); ++i ) {
+        const TF x = beg_x_density + ( end_x_density - beg_x_density ) * ( i + 0 ) / original_density_values.size();
+        ys << original_density_values[ i - 1 ] << original_density_values[ i - 0 ];
+        xs << x << x;
+    }
+    ys << original_density_values.back();
+    xs << end_x_density;
 
-    TF mp = 0;
-    for_each_normalized_system_item( [&]( PI i, TF m0, TF m1, TF v, bool bad_cell ) {
-        M.coeffRef( i + 0, i + 0 ) = m0 / v;
-        if ( m1 )
-            M.coeffRef( i + 0, i + 1 ) = m1 / v;
-        if ( mp )
-            M.coeffRef( i + 0, i - 1 ) = mp / v;
-        mp = m1;
 
-        V.coeffRef( i + 0 ) = log( sorted_dirac_masses[ i ] / v );    
-        // M.coeffRef( i + 0, i + 0 ) = m0;
-        // if ( m1 )
-        //     M.coeffRef( i + 0, i + 1 ) = m1;
-        // if ( mp )
-        //     M.coeffRef( i + 0, i - 1 ) = mp;
-        // mp = m1;
+    Vec<TF> bx = cell_barycenters();
+    Vec<TF> by = bx * 0 - 0.1;
 
-        // V.coeffRef( i + 0 ) = sorted_dirac_masses[ i ] - v;
-    } );
+    Vec<TF> dx = dirac_positions();
+    Vec<TF> dy = dx * 0 - 0.2;
 
-    // std::cout << M << std::endl;
-    // std::cout << V << std::endl;
-
-    Eigen::FullPivLU<TM> lu( M );    
-    return lu.solve( V );
+    fs << "from matplotlib import pyplot\n";
+    fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
+    fs << "pyplot.plot( " << to_string( bx ) << ", " << to_string( by ) << ", '+' )\n";
+    fs << "pyplot.plot( " << to_string( dx ) << ", " << to_string( dy ) << ", '+' )\n";
+    fs << "pyplot.show()\n";
 }
 
-DTP TF UTP::update_weights() {
-    Vec<TF> old_dirac_weights = sorted_dirac_weights;
-    Vec<TF> dir = newton_dir();
-    Vec<TF> xs, errors;
-    for( TF a : Vec<TF>::linspace( 0, 1, 100 ) ) {
-        sorted_dirac_weights = old_dirac_weights + a * dir;
-        if ( std::isnan( normalized_error() ) )
-            break;
-        errors << normalized_error();
-        xs << a;
-    }
-    // glot_vec( xs, errors );
+DTP Vec<TF> UTP::newton_dir() const {
+    // using TM = Eigen::Matrix<TF,Eigen::Dynamic,Eigen::Dynamic>;
+    // using TV = Eigen::Matrix<TF,Eigen::Dynamic,1>;
 
-    PI best_i = argmin( errors );
-    TF best_a = xs[ best_i ];
-    if ( best_a == 0 )
-        throw std::runtime_error( "bad direction" );
+    // TM M( nb_diracs(), nb_diracs() );    
+    // TV V( nb_diracs() );
+    // M.fill( 0 );
+
+    // TF mp = 0;
+    // for_each_normalized_system_item( [&]( PI i, TF m0, TF m1, TF v, bool bad_cell ) {
+    //     M.coeffRef( i, i + 0 ) = m0 / v;
+    //     if ( m1 )
+    //         M.coeffRef( i, i + 1 ) = m1 / v;
+    //     if ( mp )
+    //         M.coeffRef( i, i - 1 ) = mp / v;
+    //     mp = m1;
+
+    //     V.coeffRef( i ) = log( sorted_dirac_masses[ i ] / v );    
+    //     // M.coeffRef( i + 0, i + 0 ) = m0;
+    //     // if ( m1 )
+    //     //     M.coeffRef( i + 0, i + 1 ) = m1;
+    //     // if ( mp )
+    //     //     M.coeffRef( i + 0, i - 1 ) = mp;
+    //     // mp = m1;
+
+    //     // V.coeffRef( i + 0 ) = sorted_dirac_masses[ i ] - v;
+    // } );
+
+    // // std::cout << M << std::endl;
+    // // std::cout << V << std::endl;
+    // Eigen::PartialPivLU<TM> lu( M );
+    // std::cout << lu.solve( V ) << std::endl;
+
+    // int n = nb_diracs();
+    // TM upper( n, n ); upper.fill( 0 );
+    // TM lower( n, n ); lower.fill( 0 );
+    // for (int i = 0; i < n; i++) {
+    //     // diagonal
+    //     TF sum = 0;
+    //     if ( i )
+    //         sum += lower(i,i-1) * upper(i-1,i);
+    //     upper.coeffRef(i,i) = M(i,i) - sum;
+
+    //     // Upper Triangular
+    //     if ( i + 1 < n )
+    //         upper.coeffRef(i,i+1) = M(i,i+1);
+
+    //     // Lower Triangular
+    //     lower.coeffRef(i,i) = 1;
+    //     if ( i + 1 < n )
+    //         lower.coeffRef(i+1,i) = M(i+1,i) / upper(i,i);
+    // }
     
-    sorted_dirac_weights = old_dirac_weights + best_a * dir;
-    P( best_a, errors[ best_i ] );
+    // std::cout << upper << std::endl;
+    // std::cout << lower << std::endl;
+
+    /*
+        upper.coeffRef(i,i) = M(i,i) - lower(i,i-1) * upper(i-1,i);
+        upper.coeffRef(i,i+1) = M(i,i+1);
+        lower.coeffRef(i+1,i) = M(i+1,i) / upper(i,i);
+    */
+    TF prev_m1 = 0;
+    TF prev_x = 0;
+    TF prev_u = 0;
+    TF prev_d = 0;
+    Vec<TF> us( FromSize(), nb_diracs() );
+    Vec<TF> ds( FromSize(), nb_diracs() );
+    Vec<TF> xs( FromSize(), nb_diracs() );
+    for_each_normalized_system_item( [&]( PI index, TF m0, TF m1, TF v, bool bad_cell ) {
+        const TF y = log( sorted_dirac_masses[ index ] / v );
+        const TF l = prev_m1 ? prev_m1 / ( v * prev_d ) : 0;
+        const TF d = m0 / v - prev_u * l;
+        const TF u = m1 / v;
+        ds[ index ] = d;
+        us[ index ] = u;
+
+        const TF x = y - l * prev_x;
+        xs[ index ] = x;
+        
+        prev_m1 = m1;
+        prev_x = x;
+        prev_u = u;
+        prev_d = d;
+    } );
+
+    xs.back() /= ds.back();
+    for( PI i = nb_diracs() - 1; i--; )
+        xs[ i ] = ( xs[ i ] - us[ i ] * xs[ i + 1 ] ) / ds[ i ];
     
-    return errors[ best_i ];
+    return xs;
+}
+
+DTP void UTP::update_weights() {
+    TF last_error = normalized_error();
+    for( PI num_iter = 0; num_iter < 50; ++num_iter ) {
+        Vec<TF> old_dirac_weights = sorted_dirac_weights;
+        Vec<TF> dir = newton_dir();
+        
+        TF end_a = 1, end_error = 0;
+        for( ;; end_a /= 2 ) {
+            if ( end_a == 0 )
+                throw std::runtime_error( "bad direction" );
+            sorted_dirac_weights = old_dirac_weights + end_a * dir;
+            end_error = normalized_error();
+            if ( end_error < last_error )
+                break;
+        }
+    
+        Vec<TF> as, errors;
+        for( TF a : Vec<TF>::linspace( 0, end_a, 100, false ) ) {
+            sorted_dirac_weights = old_dirac_weights + a * dir;
+            TF error = normalized_error();
+            if ( std::isnan( error ) )
+                throw std::runtime_error( "unexpected nan" );
+            errors << error;
+            as << a;
+        }
+        errors << end_error;
+        as << end_a;
+        // glot_vec( xs, errors );
+    
+        PI best_i = argmin( errors );
+        TF best_a = as[ best_i ];
+        if ( best_a == 0 )
+            throw std::runtime_error( "bad direction" );
+        if ( verbosity > 0 )
+            P( best_a, errors[ best_i ] );
+        
+        sorted_dirac_weights = old_dirac_weights + best_a * dir;
+        last_error = errors[ best_i ];
+
+        if ( errors[ best_i ] < target_l2_error )
+            break;
+    }
 }
 
 DTP void UTP::solve() {
-    for( PI num_iter = 0; num_iter < 50; ++num_iter ) {
-        TF error = update_weights();
-        if ( error < target_l2_error )
-            break;
-    }        
+    update_weights();
+
+    while ( current_contrast_ratio > target_contrast_ratio ) {
+        set_density_contrast( std::max( current_contrast_ratio / 2, target_contrast_ratio ) );
+        update_weights();
+    }
 }
 
 #undef DTP

@@ -10,16 +10,18 @@ TEST_CASE( "Log grid solver", "" ) {
     // solver.l2_error();   -> 2767[µs] x 1   vs 3001 [µs] avant
 
     LogGridSolverInput<TF> si;
-    si.dirac_positions = Vec<TF>::cellspace( 0, 0.75, 100 ); // 30
+    si.dirac_positions = Vec<TF>::cellspace( 0, 0.75, 10000 ); // 30
     si.starting_contrast_ratio = 0.5;
-    si.target_contrast_ratio = 2e-7;
+    si.target_contrast_ratio = 1e-6;
 
-    si.density_values = { 1, 0, 1 };
+    si.density_values = { 1, 0.2, 1 };
     si.beg_x_density = 0;
     si.end_x_density = 1;
  
     LogGridSolver<TF> solver( std::move( si ) );
     solver.solve();
+
+    solver.plot();
 
     // try {
     //     solver.update_weights( 1 );

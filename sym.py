@@ -67,3 +67,37 @@ l, d, perm = scipy.linalg.ldl( M )
 # print( l )
 # print( d )
 print( scipy.linalg.solve( M, V ) )
+
+
+
+def luDecomposition(m, n):
+    l = [[0 for x in range(n)] for y in range(n)]
+    u = [[0 for x in range(n)] for y in range(n)]
+
+    # Decomposing matrix into Upper
+    # and Lower triangular matrix
+    for r in range(n):
+        # Upper Triangular
+        u[ r, r ] = m[ r, r ] - l[ r, r - 1 ] * u[ r - 1, r ]
+
+        u[ r, r + 1 ] = m[ r, r + 1 ] - l[ r, r - 1 ] * u[ r - 1, r + 1 ]
+
+        # Lower Triangular
+        l[ r + 1, r ] = ( m[ r + 1, r ] - l[ r + 1, r - 1 ] * u[ r - 1, r ] ) / u[ r, r ]
+
+    # setw is for displaying nicely
+    print("Lower Triangular\t\tUpper Triangular")
+
+    # Displaying the result :
+    for r in range(n):
+
+        # Lower
+        for j in range(n):
+            print(l[r][j], end="\t")
+        print("", end="\t")
+
+        # Upper
+        for j in range(n):
+            print(u[r][j], end="\t")
+        print("")
+

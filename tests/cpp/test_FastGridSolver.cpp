@@ -1,10 +1,8 @@
 #include <partial1D/FastGridSolver.h>
 #include <partial1D/SimpleSolver.h>
 #include "catch_main.h"
-#include "glot.h"
 
 #include <chrono>
-#include <stdexcept>
 
 using namespace usdot;
 using namespace std;
@@ -69,8 +67,9 @@ TEST_CASE( "Fast grid solver", "" ) {
  
     FastGridSolver<TF> solver( std::move( si ) );
     // P( solver.normalized_cell_boundaries() );
+    solver.solve();
 
-    solver.newton_path_log();
+    // solver.newton_path_log();
 
     // try {
     //     solver.update_weights( 1 );
