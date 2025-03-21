@@ -1,19 +1,27 @@
 #pragma once
 
-#include "FastGridSolverInput.h"
+#include "SymmetricBandMatrix.h"
+#include "LogGridSolverInput.h"
 
 namespace usdot {
 
 /**
 */
 template<class TF>
-class FastGridSolver {
+class LogGridSolver {
 public:
-    /**/                    FastGridSolver                   ( FastGridSolverInput<TF> &&input );
+    /**/                    LogGridSolver                    ( LogGridSolverInput<TF> &&input );
  
-    void                    set_density_contrast             ( TF max_ratio ); ///< 
+    void                    set_density_contrast             ( TF max_ratio ); ///<
+    TF                      update_weights                   ();
+    Vec<TF>                 newton_dir                       () const;
+    void                    solve                            ();
+
+    TF                      normalized_error                 () const;
+    Vec<TF>                 cell_barycenters                 () const;
+    Vec<TF>                 dirac_positions                  () const;
     PI                      nb_diracs                        () const;
-     
+
     TF                      normalized_density_x_integral_ap ( TF x0, TF x1, PI nb_steps = 100000 ) const;
     TF                      normalized_density_x_primitive   ( TF normalized_pos ) const;
     TF                      normalized_density_x_integral    ( TF x0, TF x1 ) const;
@@ -24,20 +32,6 @@ public:
     Vec<TF>                 normalized_cell_barycenters      () const;
     Vec<Vec<TF,2>>          normalized_cell_boundaries       () const;
     Vec<TF>                 normalized_cell_masses           () const; ///<
-
-    Vec<TF>                 cell_barycenters                 () const;
-    Vec<TF>                 dirac_positions                  () const;
-
-    int                     update_weights_log               ( PI max_iter = 50 ); ///<
-    auto                    newton_path_log                  ( PI order = 2, TF eps = 1e-6 ) -> std::function<Vec<TF>( TF )>; ///<
-    Vec<TF>                 newton_dir_log                   ( TF eps = 1e-8 ); ///<
-    Vec<TF>                 error_log                        () const; ///<
-    
-    bool                    update_weights                   ( PI max_iter = 50 ); ///<
-    Vec<TF>                 newton_dir                       (); ///<
-    TF                      l2_error                         () const; ///<
-    void                    solve                            (); ///< all in one
-    void                    plot                             ( Str filename = "glot.py" ) const;
 
     void                    for_each_normalized_system_item  ( auto &&func ) const; ///< func( PI index, TF m0, TF m1, TF v, bool bad_cell )
     void                    for_each_normalized_cell_mass    ( auto &&func ) const; ///< func( PI index, TF mass, bool bad_cell )
@@ -54,11 +48,6 @@ public:
     
     Vec<TF>                 sorted_dirac_weights;            ///<
     Vec<TF>                 sorted_dirac_masses;             ///<
-
-    // outputs
-    Vec<TF>                 max_mass_ratio_error_history;
-    Vec<TF>                 norm_2_residual_history;
-    Vec<TF>                 norm_2_rhs_history;
 
 private:
     // diracs 
@@ -88,4 +77,4 @@ private:
 
 } // namespace usdot
 
-#include "FastGridSolver.cxx"
+#include "LogGridSolver.cxx"

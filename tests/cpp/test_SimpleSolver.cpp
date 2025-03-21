@@ -34,14 +34,11 @@ TEST_CASE( "Simple solver prog", "" ) {
     // Time difference = 2712[µs]
 
     SimpleSolverInput<TF> si;
-    si.dirac_positions = Vec<TF>::linspace( 0.01, 0.99, 800000 );
-    si.starting_contrast_ratio = 1e-6;
-    si.target_contrast_ratio = 1e-6;
- 
-    // for( auto &p : si.dirac_positions )
-    //     p += 0.05 * TF( rand() ) / RAND_MAX;
+    si.dirac_positions = Vec<TF>::cellspace( 0, 0.75, 100 );
+    si.starting_contrast_ratio = 0.5;
+    si.target_contrast_ratio = 2e-7;
 
-    si.density_values = { 1, 0.01, 1 };
+    si.density_values = { 1, 0, 1 };
     si.beg_x_density = 0;
     si.end_x_density = 1;
  
@@ -55,8 +52,8 @@ TEST_CASE( "Simple solver prog", "" ) {
     // P( solver.newton_system_ap() );
     // P( solver.newton_system() );
 
-    // solver.solve();
-    // solver.plot();
+    solver.solve();
+    solver.plot();
 
     // P( solver.normalized_density_x_integral( -1.1, 6.1 ) );
 
@@ -83,24 +80,24 @@ TEST_CASE( "Simple solver prog", "" ) {
     // B * A^-1 * ( a - B y ) + C y = b
     // B * A^-1 * a - B * A^-1 * B y + C y = b
     //   ( C - B * A^-1 * B ) y = b - B * A^-1 * a
-    {
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        solver.newton_dir();
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-    }
+    // {
+    //     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    //     solver.newton_dir();
+    //     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+    // }
 
-    {
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        solver.newton_system();
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-    }
+    // {
+    //     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    //     solver.newton_system();
+    //     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+    // }
 
-    {
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        solver.errors();
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-    }
+    // {
+    //     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    //     solver.errors();
+    //     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+    // }
 }

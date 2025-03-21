@@ -122,3 +122,37 @@ Autre rk: dans le fond, on a un pb de contrôle.
 
 Rq: on peut envisager de dilater des intervalles pour décrire les densités. Ça pourrait marcher pour les interfaces
 
+On aimerait un coût qui empêche de se retrouver avec des dérivées nulles
+  Le critère le plus naturel serait de se baser sur log( aire / aire_prescrite ), mais ça exclut les aires négatives
+  Rq: le log va faire encore plus exploser les cellules sur les densités faibles.
+    -> on pourrait aussi pénaliser la taille des cellules indépendamment de la densité, par exemple en se basant sur la max de la densité, qui définit une taille min de cellule.
+    Le point, c'est que dans la solution, il n'est pas possible d'avoir une aire_densité beaucoup plus petite que aire_reelle : on sait que l'aire réelle ne peut pas être plus petite que la masse prescrite / le max de la densité.
+      On aimerait par exemple un blend qui tend vers l'aire réelle lorsque ça devient plus petit que le min.
+
+      Autre prop: on pondère par la densité moyenne
+   
+      densite_moyenne * log( aire / aire_prescrite )
+    
+  Rq: la non linéarité devrait donner un chemin non-linéaire. On peut évaluer les dérivées
+
+  Rq: 
+
+Considérant que A = V + M * w
+
+On peut chercher à résoudre une EDP d( V + M * w )/dt = log( ( V + M * w ) ./ P )
+  Si on injecte w = w1 * t + w2 * t^2 + w3 * t^3 + ... on obtient
+    M * ( w1 + 2 * w2 * t + 3 * w3 * t^2 + ... ) = log( ( V + M * ( w1 * t + w2 * t^2 + w3 * t^3 + ... ) ) ./ P )
+  en t = 0, on obtient
+    M * w1 = log( V ./ P )
+  En dérivant 1 fois
+    M * ( 2 * w2 + 6 * w3 * t + ... ) = M * ( w1 + 2 * w2 * t + 3 * w3 * t^2 + ... ) * P ./ ( V + M * ( w1 * t + w2 * t^2 + w3 * t^3 + ... ) )
+  en t = 0, on obtient
+    M * ( 2 * w2 ) = M * w1 * P ./ V
+  En dérivant 1 fois supplémentaire
+    M * ( 6 * w3 + ... ) = M * ( 2 * w2 + 6 * w3 * t + ... ) * P ./ ( V + M * ( w1 * t + w2 * t^2 + w3 * t^3 + ... ) ) -
+                           M * ( w1 + 2 * w2 * t + 3 * w3 * t^2 + ... ) * P ./ ( V + M * ( w1 * t + w2 * t^2 + w3 * t^3 + ... ) )^2
+  en t = 0, on obtient
+    6 * M * w2 = M * P * ( 2 * w2 / V - w1 / V^2 ) * P
+    24 * M * w3 = M * ( 6 * w3 /  - 2 * w2 / V - w1 / V ) * P / V
+
+-> on pourrait faire une descente locale de gradient à pas fixe, et on extrapole.
