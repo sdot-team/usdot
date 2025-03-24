@@ -164,3 +164,4 @@ En 1D, on a qd même bien envie d'utiliser les CDF
   M X' = V' - M' X avec X = Xp + a * Xs
   M'' X + 2 * M' X' + M X'' = V'' avec X = Xp + a * Xs + a^2/2 * Xd
 
+Si on fait la convolution seule, on aura toujours le problème des coupes de boules.
