@@ -13,23 +13,39 @@ namespace usdot {
 DTP UTP::GridDensity( const Vec &original_values, TF filter, PI mul_x, TF cut_ratio ) {
     using namespace std;
 
+    //
+    auto interp = [&]( auto &&func ) {
+        for( PI x = 0; x < mul_x; ++x ) {
+            TF a = TF( x ) / mul_x;
+            func( a * original_values.front() );
+        }
+        for( PI i = 0; i + 1 < original_values.size(); ++i ) {
+            for( PI x = 0; x < mul_x; ++x ) {
+                TF a = TF( x ) / mul_x;
+                func( ( 1 - a ) * original_values[ i + 0 ] + a * original_values[ i + 1 ] );
+            }
+        }
+        for( PI x = 0; x <= mul_x; ++x ) {
+            TF a = TF( x ) / mul_x;
+            func( ( 1 - a ) * original_values.back() );
+        }
+    };
+
     // 
     Vec der_forward; der_forward.reserve( 2 * mul_x * values.size() );
     Vec forward; forward.reserve( 2 * mul_x * values.size() );
     TF der_prev = 0, prev = 0, m = 0;
-    for( TF v : original_values ) {
-        for( PI x = 0; x < mul_x; ++x ) {
-            const TF n = filter * prev + ( 1 - filter ) * v;
-            const TF der_n = filter * der_prev + prev - v;
-            der_forward.push_back( der_n );
-            forward.push_back( n );
+    interp( [&]( TF v ) {
+        const TF n = filter * prev + ( 1 - filter ) * v;
+        const TF der_n = filter * der_prev + prev - v;
+        der_forward.push_back( der_n );
+        forward.push_back( n );
 
-            m = max( m, n );
+        m = max( m, n );
 
-            der_prev = der_n;
-            prev = n;
-        }
-    }
+        der_prev = der_n;
+        prev = n;
+    } );
     while ( prev > m * cut_ratio ) {
         const TF n = filter * prev;
         const TF der_n = prev + filter * der_prev;
@@ -68,7 +84,7 @@ DTP UTP::GridDensity( const Vec &original_values, TF filter, PI mul_x, TF cut_ra
     //
     std::reverse( der_values.begin(), der_values.end() );
     std::reverse( values.begin(), values.end() );
-    offset = values.size() - forward.size();
+    offset = values.size() - forward.size() + mul_x;
 }
 
 DTP TF UTP::value( TF x ) const {
