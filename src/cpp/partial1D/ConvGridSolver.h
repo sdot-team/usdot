@@ -20,7 +20,7 @@ public:
     void                    go_to_filter_value               ( TF filter_value ); ///<
     int                     update_weights                   ();
     TF                      line_search                      ( const Vec &dir );
-    Vec                     newton_dir                       () const;
+    std::pair<Vec,TF>       newton_dir                       () const;
     void                    solve                            ();
 
     Vec                     cell_barycenters                 () const;

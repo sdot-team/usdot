@@ -5,6 +5,7 @@
 // #include <tl/support/operators/argmin.h>
 // #include <tl/support/operators/max.h>
 // #include <tl/support/operators/sum.h>
+#include <stdexcept>
 #include <tl/support/ASSERT.h>
 #include <tl/support/P.h>
 #include <numeric>
@@ -13,6 +14,7 @@
 
 #include "ConvGridSolver.h"
 #include "glot.h"
+#include "partial1D/Extrapolation.h"
 
 namespace usdot {
 
@@ -88,6 +90,13 @@ DTP void UTP::initialize_filter_value( TF filter_value ) {
     PI mul_x = 1;
     TF cut_ratio = 1e-6, target_mass = sum_of_dirac_masses / global_mass_ratio;
     density = DensityPtr{ new GridDensity<TF>( original_density_values, filter_value, mul_x, cut_ratio, target_mass ) };
+}
+
+DTP void UTP::go_to_filter_value( TF filter_value ) {
+    Vec old_weights = sorted_dirac_weights;
+    
+
+    initialize_filter_value( filter_value );
 }
 
 DTP void UTP::for_each_normalized_cell( auto &&func ) const {
@@ -332,13 +341,18 @@ DTP void UTP::plot( Str filename ) const {
     fs << "pyplot.show()\n";
 }
 
-DTP UTP::Vec UTP::newton_dir() const {
+DTP std::pair<typename UTP::Vec,TF> UTP::newton_dir() const {
+    bool has_bad_cell = false;
     Vec x( nb_diracs() );
     Vec e( nb_diracs() );
     TF prev_dll = 0;
     TF prev_v = 0;
+    TF error = 0;
     for_each_normalized_system_item( [&]( PI index, TF m0, TF m1, TF v, bool bad_cell ) {
         v -= sorted_dirac_masses[ index ];
+        has_bad_cell |= bad_cell;
+        error += pow( v, 2 );
+
         const TF d = m0 - prev_dll;
         const TF l = m1 / d;
         e[ index ] = l;
@@ -353,63 +367,44 @@ DTP UTP::Vec UTP::newton_dir() const {
     for( PI i = nb_diracs() - 1; i--; )
         x[ i ] -= e[ i ] * x[ i + 1 ];
 
-    return x;
-}
-
-DTP TF UTP::line_search( const Vec &dir ) {
-    Vec old_dirac_weights = sorted_dirac_weights;
-    TF best_error = std::numeric_limits<TF>::max();
-    TF best_a = 0;
-    for( PI n = 0; n <= 25; ++n ) {
-        const TF a = pow( 0.5, TF( n ) / 5 );
-        for( PI i = 0; i < nb_diracs(); ++i )
-            sorted_dirac_weights[ i ] = old_dirac_weights[ i ] - a * dir[ i ];
-
-        TF new_error = normalized_error();
-        if ( best_error > new_error ) {
-            best_error = new_error;
-            best_a = a;
-        }                    
-    }
-    P( best_a, best_error );
-
-    for( PI i = 0; i < nb_diracs(); ++i )
-        sorted_dirac_weights[ i ] = old_dirac_weights[ i ] - best_a * dir[ i ];
-
-    return best_a;
+    return { x, has_bad_cell ? std::numeric_limits<TF>::max() : error };
 }
 
 DTP int UTP::update_weights() {
-    Vec old_dirac_weights = sorted_dirac_weights;
-    TF last_error = normalized_error();
+    Vec initial_dirac_weights = sorted_dirac_weights;
+    std::pair<Vec,TF> de = newton_dir();
+    
     for( PI num_iter = 0; ; ++num_iter ) {
-        if ( num_iter == 150 ) {
-            sorted_dirac_weights = old_dirac_weights;
+        if ( num_iter == 150 )
             throw std::runtime_error( "too many iterations" );
+
+        // line search
+        Vec base_dirac_weights = sorted_dirac_weights;
+        for( TF a = 1; ; a *= 0.75 ) {
+            if ( a < 1e-2 )
+                return 1;
+            for( PI i = 0; i < nb_diracs(); ++i )
+                sorted_dirac_weights[ i ] = base_dirac_weights[ i ] - a * de.first[ i ];
+            std::pair<Vec,TF> nde = newton_dir();
+            if ( nde.second < de.second ) {
+                P( a, nde.second );
+                if ( nde.second < target_l2_error )
+                    return 0;
+                de = std::move( nde );
+                break;
+            }
         }
-        
-        Vec dir = newton_dir();
-        line_search( dir );
-
-        TF error = normalized_error();
-        P( last_error, error );
-        if ( std::isnan( error ) )
-            throw std::runtime_error( "unexpected nan" );
-
-        if ( error >= last_error ) {
-            sorted_dirac_weights = old_dirac_weights;
-            return 1;
-        }
-        last_error = error;
-
-        if ( error < target_l2_error )
-            return 0;
     }
     return 0;
 }
 
 DTP void UTP::solve() {
-    update_weights();
+    while ( true ) {
+        if ( update_weights() == 0 )
+            break;
+        go_to_filter_value( 0.5 + current_filter_value / 2 );
+        P( current_filter_value );
+    }
 
     // while ( current_filter_value > target_filter_value ) {
     //     set_density_contrast( std::max( current_filter_value / 2, target_filter_value ) );

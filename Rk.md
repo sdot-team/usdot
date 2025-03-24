@@ -169,3 +169,5 @@ Si on fait la convolution seule, on aura toujours le problème des coupes de bou
 Pb de la mort: les intersections avec les boules introduisant des non-linéarités, on se retrouve avec des problèmes de relaxation.
   Pire encore: on peut se retrouver avec des changement de régime...
   Si on oublie ces changements de régime, on pourrait 
+
+  

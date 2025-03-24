@@ -8,8 +8,8 @@ using TF = double;
 
 TEST_CASE( "Conv Grid solver", "" ) {
     ConvGridSolverInput<TF> si;
-    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 5 );
-    si.starting_filter_value = 0.; //99;
+    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 50 );
+    si.starting_filter_value = 0.95; //99;
     si.target_filter_value = 0.01;
 
     si.density_values = { 1, 1, 1 };
