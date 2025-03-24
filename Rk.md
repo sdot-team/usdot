@@ -156,4 +156,11 @@ On peut chercher à résoudre une EDP d( V + M * w )/dt = log( ( V + M * w ) ./ 
     24 * M * w3 = M * ( 6 * w3 /  - 2 * w2 / V - w1 / V ) * P / V
 
 -> on pourrait faire une descente locale de gradient à pas fixe, et on extrapole.
- -4.181409e-01, 1.053605e-01, 1.053605e-01, 1.053605e-01, 4.307829e-01, 7.985077e-01, 7.985077e-01, 7.985077e-01, 6.931472e-01, -7.640977e-01
+
+En 1D, on a qd même bien envie d'utiliser les CDF
+  Qu'est-ce que ça pourrait donner de faire une transition vers le partiel ?
+
+  M Xs = V
+  M X' = V' - M' X avec X = Xp + a * Xs
+  M'' X + 2 * M' X' + M X'' = V'' avec X = Xp + a * Xs + a^2/2 * Xd
+

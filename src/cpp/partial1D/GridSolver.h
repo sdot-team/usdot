@@ -1,25 +1,22 @@
 #pragma once
 
-#include "LogGridSolverInput.h"
-#include "TridiagonalMatrix.h"
+#include "GridSolverInput.h"
 
 namespace usdot {
 
 /**
 */
 template<class TF>
-class LogGridSolver {
+class GridSolver {
 public:
-    struct                  System                           { TridiagonalMatrix<TF> M; Vec<TF> V; };
-
-    /**/                    LogGridSolver                    ( LogGridSolverInput<TF> &&input );
+    /**/                    GridSolver                    ( GridSolverInput<TF> &&input );
  
     void                    set_density_contrast             ( TF max_ratio ); ///<
     void                    update_weights                   ();
-    auto                    newton_dir                       () const -> std::function<Vec<TF>( TF a )>;
+    Vec<TF>                 newton_dir                       () const;
     void                    solve                            ();
 
-    TF                      normalized_error                 () const; ///< norm_2( log( current_mass / target_mass ) )
+    TF                      normalized_error                 () const;
     Vec<TF>                 cell_barycenters                 () const;
     Vec<TF>                 dirac_positions                  () const;
     PI                      nb_diracs                        () const;
@@ -38,7 +35,6 @@ public:
 
     void                    for_each_normalized_system_item  ( auto &&func ) const; ///< func( PI index, TF m0, TF m1, TF v, bool bad_cell )
     void                    for_each_normalized_cell_mass    ( auto &&func ) const; ///< func( PI index, TF mass, bool bad_cell )
-    
     void                    for_each_normalized_cell_mt      ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1, num_thread )
     void                    for_each_normalized_cell         ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1 )
 
@@ -81,4 +77,4 @@ private:
 
 } // namespace usdot
 
-#include "LogGridSolver.cxx"
+#include "GridSolver.cxx"

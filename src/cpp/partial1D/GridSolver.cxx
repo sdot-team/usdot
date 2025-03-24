@@ -11,16 +11,20 @@
 #include <fstream>
 #include <limits>
 
-#include "LogGridSolver.h"
+// #include "eigen3/Eigen/src/LU/PartialPivLU.h"
+// #include <eigen3/Eigen/Dense>
+
+// #include "SymmetricBandMatrix.h"
+#include "GridSolver.h"
 #include "glot.h"
 
 namespace usdot {
 
     
 #define DTP template<class TF>
-#define UTP LogGridSolver<TF>
+#define UTP GridSolver<TF>
 
-DTP UTP::LogGridSolver( LogGridSolverInput<TF> &&input ) {
+DTP UTP::GridSolver( GridSolverInput<TF> &&input ) {
     using namespace std;
 
     // check inputs
@@ -469,7 +473,7 @@ DTP Vec<TF> UTP::newton_dir() const {
     // // std::cout << M << std::endl;
     // // std::cout << V << std::endl;
     // Eigen::PartialPivLU<TM> lu( M );
-    // return lu.solve( V );
+    // std::cout << lu.solve( V ) << std::endl;
 
     // int n = nb_diracs();
     // TM upper( n, n ); upper.fill( 0 );
@@ -499,15 +503,13 @@ DTP Vec<TF> UTP::newton_dir() const {
         upper.coeffRef(i,i+1) = M(i,i+1);
         lower.coeffRef(i+1,i) = M(i+1,i) / upper(i,i);
     */
-
-    // direction at 0
     TF prev_m1 = 0;
     TF prev_x = 0;
     TF prev_u = 0;
     TF prev_d = 0;
     Vec<TF> us( FromSize(), nb_diracs() );
     Vec<TF> ds( FromSize(), nb_diracs() );
-    Vec<TF> x0( FromSize(), nb_diracs() );
+    Vec<TF> xs( FromSize(), nb_diracs() );
     for_each_normalized_system_item( [&]( PI index, TF m0, TF m1, TF v, bool bad_cell ) {
         const TF y = log( sorted_dirac_masses[ index ] / v );
         const TF l = prev_m1 ? prev_m1 / ( v * prev_d ) : 0;
@@ -517,7 +519,7 @@ DTP Vec<TF> UTP::newton_dir() const {
         us[ index ] = u;
 
         const TF x = y - l * prev_x;
-        x0[ index ] = x;
+        xs[ index ] = x;
         
         prev_m1 = m1;
         prev_x = x;
@@ -525,47 +527,16 @@ DTP Vec<TF> UTP::newton_dir() const {
         prev_d = d;
     } );
 
-    x0.back() /= ds.back();
+    xs.back() /= ds.back();
     for( PI i = nb_diracs() - 1; i--; )
-        x0[ i ] = ( x0[ i ] - us[ i ] * x0[ i + 1 ] ) / ds[ i ];
+        xs[ i ] = ( xs[ i ] - us[ i ] * xs[ i + 1 ] ) / ds[ i ];
     
-    // first derivative
-    prev_m1 = 0;
-    prev_x = 0;
-    prev_u = 0;
-    prev_d = 0;
-    for_each_normalized_system_item( [&]( PI index, TF m0, TF m1, TF v, bool bad_cell ) {
-        // const TF y = - log( ( v + x0[ index ] * a ) / sorted_dirac_masses[ index ] );
-        const TF y = - x0[ index ] * sorted_dirac_masses[ index ] / v;
-
-        const TF l = prev_m1 ? prev_m1 / ( v * prev_d ) : 0;
-        const TF d = m0 / v - prev_u * l;
-        const TF u = m1 / v;
-        ds[ index ] = d;
-        us[ index ] = u;
-
-        const TF x = y - l * prev_x;
-        x0[ index ] = x;
-        
-        prev_m1 = m1;
-        prev_x = x;
-        prev_u = u;
-        prev_d = d;
-    } );
-
-    x0.back() /= ds.back();
-    for( PI i = nb_diracs() - 1; i--; )
-        x0[ i ] = ( x0[ i ] - us[ i ] * x0[ i + 1 ] ) / ds[ i ];
-
-    return x0;
+    return xs;
 }
 
 DTP void UTP::update_weights() {
     TF last_error = normalized_error();
-    for( PI num_iter = 0; ; ++num_iter ) {
-        if ( num_iter == 150 )
-            throw std::runtime_error( "too many iterations" );
-        
+    for( PI num_iter = 0; num_iter < 50; ++num_iter ) {
         Vec<TF> old_dirac_weights = sorted_dirac_weights;
         Vec<TF> dir = newton_dir();
         
@@ -580,7 +551,7 @@ DTP void UTP::update_weights() {
         }
     
         Vec<TF> as, errors;
-        for( TF a : Vec<TF>::linspace( 0, end_a, 1000, false ) ) {
+        for( TF a : Vec<TF>::linspace( 0, end_a, 100, false ) ) {
             sorted_dirac_weights = old_dirac_weights + a * dir;
             TF error = normalized_error();
             if ( std::isnan( error ) )
