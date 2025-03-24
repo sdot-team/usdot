@@ -1,3 +1,5 @@
+#pragma once
+
 #include <tl/support/string/to_string.h>
 #include <tl/support/containers/Vec.h>
 #include <fstream>

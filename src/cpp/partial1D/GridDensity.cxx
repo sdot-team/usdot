@@ -112,6 +112,15 @@ DTP UTP::GridDensity( const Vec &original_values, TF filter, PI mul_x, TF cut_ra
     der_primitives.back() = der_o;
     x_primitives.back() = x_o;
     primitives.back() = o;
+
+    // normalize
+    const TF mul = target_mass / integral( 0, original_values.size() - 1 );
+    for( auto &v : der_primitives ) v *= mul;
+    for( auto &v : der_values ) v *= mul;
+
+    for( auto &v : x_primitives ) v *= mul;
+    for( auto &v : primitives ) v *= mul;
+    for( auto &v : values ) v *= mul;
 }
 
 DTP TF UTP::der_primitive( TF x ) const {
@@ -187,6 +196,17 @@ DTP TF UTP::value( TF x ) const {
     return values[ i ] * ( 1 - f ) + values[ i + 1 ] * f;
 }
 
+DTP TF UTP::der_integral( TF x0, TF x1 ) const {
+    return der_primitive( x1 ) - der_primitive( x0 );
+}
+
+DTP TF UTP::x_integral( TF x0, TF x1 ) const {
+    return x_primitive( x1 ) - x_primitive( x0 );
+}
+
+DTP TF UTP::integral( TF x0, TF x1 ) const {
+    return primitive( x1 ) - primitive( x0 );
+}
 
 #undef DTP
 #undef UTP

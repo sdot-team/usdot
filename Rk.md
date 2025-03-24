@@ -165,3 +165,7 @@ En 1D, on a qd même bien envie d'utiliser les CDF
   M'' X + 2 * M' X' + M X'' = V'' avec X = Xp + a * Xs + a^2/2 * Xd
 
 Si on fait la convolution seule, on aura toujours le problème des coupes de boules.
+
+Pb de la mort: les intersections avec les boules introduisant des non-linéarités, on se retrouve avec des problèmes de relaxation.
+  Pire encore: on peut se retrouver avec des changement de régime...
+  Si on oublie ces changements de régime, on pourrait 

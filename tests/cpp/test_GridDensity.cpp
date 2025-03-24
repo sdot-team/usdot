@@ -39,7 +39,6 @@ TEST_CASE( "Grid primitive", "" ) {
     //     [&]( TF x ) { return ( gd.x_primitive( x * mul_x + 1e-6 ) - gd.x_primitive( x * mul_x ) ) / 1e-6 + .01; }
     // );
     glot( Vec<TF>::linspace( -7, 12, 1000 ), 
-        [&]( TF x ) { return gd.der_value( x * mul_x ); },
-        [&]( TF x ) { return ( gd.der_primitive( x * mul_x + 1e-6 ) - gd.der_primitive( x * mul_x ) ) / 1e-6 + .1; }
+        [&]( TF x ) { return gd.der_value( x * mul_x ); }
     );
 }
