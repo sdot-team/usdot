@@ -2,7 +2,7 @@
 
 // #include <tl/support/operators/self_max.h>
 // #include <tl/support/operators/norm_2.h>
-#include <tl/support/operators/argmin.h>
+// #include <tl/support/operators/argmin.h>
 // #include <tl/support/operators/max.h>
 // #include <tl/support/operators/sum.h>
 #include <algorithm>
@@ -13,17 +13,17 @@
 #include <fstream>
 #include <limits>
 
-#include "ConvGridSolver.h"
+// #include "partial1D/Extrapolation.h"
+#include "GradientSolver.h"
 #include "glot.h"
-#include "partial1D/Extrapolation.h"
 
 namespace usdot {
 
     
 #define DTP template<class TF>
-#define UTP ConvGridSolver<TF>
+#define UTP GradientSolver<TF>
 
-DTP UTP::ConvGridSolver( ConvGridSolverInput<TF> &&input ) {
+DTP UTP::GradientSolver( GradientSolverInput<TF> &&input ) {
     using namespace std;
 
     // check inputs
@@ -262,8 +262,8 @@ DTP std::vector<std::array<TF,2>> UTP::normalized_cell_boundaries() const {
     return res;
 }
 
-DTP UTP::Vec UTP::normalized_cell_barycenters() const {
-    Vec res( nb_diracs() );
+DTP UTP::TV UTP::normalized_cell_barycenters() const {
+    TV res( nb_diracs() );
     for_each_normalized_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1 ) {
         const TF rd = sqrt( dirac_weight );
         if ( c0 > c1 ) {
@@ -281,11 +281,11 @@ DTP UTP::Vec UTP::normalized_cell_barycenters() const {
     return res;
 }
 
-DTP UTP::Vec UTP::cell_barycenters() const {
+DTP UTP::TV UTP::cell_barycenters() const {
     const TF mul = ( end_x_density - beg_x_density ) / ( original_density_values.size() - 1 );
-    Vec bar = normalized_cell_barycenters();
+    TV bar = normalized_cell_barycenters();
 
-    Vec res( nb_diracs() );
+    TV res( nb_diracs() );
     for( PI i = 0; i < nb_diracs(); ++i )
         res[ sorted_dirac_nums[ i ] ] = beg_x_density + mul * bar[ i ];
     return res;
@@ -296,9 +296,9 @@ DTP TF UTP::density_value( TF pos ) const {
     return density->value( mul * ( pos - beg_x_density ) );
 }
 
-DTP UTP::Vec UTP::dirac_positions() const {
+DTP UTP::TV UTP::dirac_positions() const {
     const TF mul = ( end_x_density - beg_x_density ) / ( original_density_values.size() - 1 );
-    Vec res( nb_diracs() );
+    TV res( nb_diracs() );
     for( PI i = 0; i < nb_diracs(); ++i )
         res[ sorted_dirac_nums[ i ] ] = beg_x_density + mul * sorted_dirac_positions[ i ];
     return res;
@@ -318,8 +318,8 @@ DTP TF UTP::normalized_error() const {
 DTP void UTP::plot( Str filename ) const {
     std::ofstream fs( filename );
 
-    Vec xs;
-    Vec ys;
+    TV xs;
+    TV ys;
     for( PI i = 0; i < original_density_values.size(); ++i ) {
         const TF x = beg_x_density + ( end_x_density - beg_x_density ) * i / ( original_density_values.size() - 1 );
         ys.push_back( original_density_values[ i ] );
@@ -328,11 +328,11 @@ DTP void UTP::plot( Str filename ) const {
     ys.push_back( original_density_values.back() );
     xs.push_back( end_x_density );
 
-    Vec bx = cell_barycenters();
-    Vec by( bx.size(), -0.1 );
+    TV bx = cell_barycenters();
+    TV by( bx.size(), -0.1 );
 
-    Vec dx = dirac_positions();
-    Vec dy( dx.size(), -0.2 );
+    TV dx = dirac_positions();
+    TV dy( dx.size(), -0.2 );
 
     fs << "from matplotlib import pyplot\n";
     fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
@@ -341,60 +341,69 @@ DTP void UTP::plot( Str filename ) const {
     fs << "pyplot.show()\n";
 }
 
-DTP std::pair<typename UTP::Vec,TF> UTP::newton_dir() const {
-    bool has_bad_cell = false;
-    Vec x( nb_diracs() );
-    Vec e( nb_diracs() );
-    TF prev_dll = 0;
-    TF prev_v = 0;
-    TF error = 0;
-    for_each_normalized_system_item( [&]( PI index, TF m0, TF m1, TF v, bool bad_cell ) {
-        v -= sorted_dirac_masses[ index ];
-        has_bad_cell |= bad_cell;
-        error += pow( v, 2 );
+// DTP std::pair<typename UTP::TV,TF> UTP::newton_dir() const {
+//     bool has_bad_cell = false;
+//     TV x( nb_diracs() );
+//     TV e( nb_diracs() );
+//     TF prev_dll = 0;
+//     TF prev_v = 0;
+//     TF error = 0;
+//     for_each_normalized_system_item( [&]( PI index, TF m0, TF m1, TF v, bool bad_cell ) {
+//         v -= sorted_dirac_masses[ index ];
+//         has_bad_cell |= bad_cell;
+//         error += pow( v, 2 );
 
-        const TF d = m0 - prev_dll;
-        const TF l = m1 / d;
-        e[ index ] = l;
+//         const TF d = m0 - prev_dll;
+//         const TF l = m1 / d;
+//         e[ index ] = l;
 
-        prev_dll = d * l * l;
+//         prev_dll = d * l * l;
 
-        const TF v0 = v - prev_v;
-        x[ index ] = v0 / d;
-        prev_v = l * v0;
-    } );
+//         const TF v0 = v - prev_v;
+//         x[ index ] = v0 / d;
+//         prev_v = l * v0;
+//     } );
 
-    for( PI i = nb_diracs() - 1; i--; )
-        x[ i ] -= e[ i ] * x[ i + 1 ];
+//     for( PI i = nb_diracs() - 1; i--; )
+//         x[ i ] -= e[ i ] * x[ i + 1 ];
 
-    return { x, has_bad_cell ? std::numeric_limits<TF>::max() : error };
-}
+//     return { x, has_bad_cell ? std::numeric_limits<TF>::max() : error };
+// }
 
 DTP int UTP::update_weights() {
-    Vec initial_dirac_weights = sorted_dirac_weights;
-    std::pair<Vec,TF> de = newton_dir();
-    
-    for( PI num_iter = 0; ; ++num_iter ) {
-        if ( num_iter == 150 )
-            throw std::runtime_error( "too many iterations" );
+    //  
+    TV g0( FromSize(), nb_diracs() );
+    for_each_normalized_cell_mass( [&]( PI index, TF mass, bool bad_cell ) {
+        g0[ index ] = sorted_dirac_masses[ index ] - mass;
+    } );
 
-        // line search
-        Vec base_dirac_weights = sorted_dirac_weights;
-        for( TF a = 1; ; a *= 0.75 ) {
-            if ( a < 1e-2 )
-                return 1;
-            for( PI i = 0; i < nb_diracs(); ++i )
-                sorted_dirac_weights[ i ] = base_dirac_weights[ i ] - a * de.first[ i ];
-            std::pair<Vec,TF> nde = newton_dir();
-            if ( nde.second < de.second ) {
-                P( a, nde.second );
-                if ( nde.second < target_l2_error )
-                    return 0;
-                de = std::move( nde );
-                break;
-            }
+    Vec<TV> gradients{ std::move( g0 ) };
+    for( PI i = 1; i < floor( log2( nb_diracs() ) ); ++i ) {
+        TV ng( FromSize(), nb_diracs() );
+        TF f = 1 - pow( 0.1, i );
+        TF prev = 0;
+        for( PI j = 0; j < nb_diracs(); ++j ) {
+            const TF n = f * prev + ( 1 - f ) * gradients[ 0 ][ j ];
+            ng[ j ] = n;
+            prev = n;
         }
+        prev = 0;
+        for( PI j = nb_diracs(); j--; ) {
+            const TF n = f * prev + ( 1 - f ) * ng[ j ];
+            ng[ j ] = n;
+            prev = n;
+        }
+
+        const TF m = max( ng );
+        ng /= m;
+
+        gradients << std::move( ng );
     }
+
+    P( gradients.size() );
+
+    glot_vec( Vec<TF>::linspace( 0, 1, nb_diracs() ), gradients[ 0 ], gradients[ 1 ], gradients[ 5 ], gradients[ 6 ] );
+    
     return 0;
 }
 
@@ -402,52 +411,9 @@ DTP void UTP::solve() {
     if ( nb_diracs() == 0 )
         return;
 
-    // 
-    std::cout << "increase the filter width to ensure a 'good enough' contrast" << std::endl;
-    while ( true ) {
-        if ( density->contrast( 0, original_density_values.size() ) > 0.1 )
-            break;
-        initialize_filter_value( 0.5 * ( 1 + current_filter_value ) );
-        P( current_filter_value );
-    }
-
     // solve
-    int not_solved = update_weights();
-    if ( not_solved )
-        throw std::runtime_error( "not solved with the first filter value" );
+    update_weights();
 
-    // // increase the filter width to get a first solution
-    // std::cout << "increase the filter width to get a first solution" << std::endl;
-    // const TF initial_filter_value = current_filter_value;
-    // while ( true ) {
-    //     if ( update_weights() == 0 )
-    //         break;
-    //     std::fill( sorted_dirac_weights.begin(), sorted_dirac_weights.end(), init_w );
-    //     initialize_filter_value( 0.5 * ( 1 + current_filter_value ) );
-    //     P( current_filter_value );
-
-    //     if ( current_filter_value > 0.95 ) {
-    //         glot( ::Vec<TF>::linspace( -2, 5, 1000 ), 
-    //             [&]( TF x ) { return density_value( x ); }
-    //         );
-    //         throw std::runtime_error( "unable to start" );
-    //         return;
-    //     }
-    // }
-
-    // // decrease the filter width to go to the target value
-    // std::cout << "decrease the filter width to go to the target value" << std::endl;
-    // while ( current_filter_value > target_filter_value ) {
-    //     const TF prev_filter_value = current_filter_value;
-    //     Vec old_weights = sorted_dirac_weights;
-    //     for( TF next_filter_value = target_filter_value; ; next_filter_value = 0.5 * ( prev_filter_value + next_filter_value ) ) {
-    //         go_to_filter_value( next_filter_value );
-    //         P( current_filter_value );
-    //         if ( update_weights() == 0 )
-    //             break;
-    //         sorted_dirac_weights = old_weights;
-    //     }
-    // }
 }
 
 #undef DTP

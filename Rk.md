@@ -168,6 +168,34 @@ Si on fait la convolution seule, on aura toujours le problème des coupes de bou
 
 Pb de la mort: les intersections avec les boules introduisant des non-linéarités, on se retrouve avec des problèmes de relaxation.
   Pire encore: on peut se retrouver avec des changement de régime...
-  Si on oublie ces changements de régime, on pourrait 
+  Si on oublie ces changements de régime, on pourrait.
 
+Proposition: on cherche une convolution qui assure que ce n'est pas la densité qui va empêcher de converger.
+  Si on oublie le Newton, on peut dire que ce qu'on veut éviter, c'est qu'une cellule devienne vide à cause d'un contraste trop fort.
   
+
+--------------------------------------------------------------------------------------------------------------
+Objectif une bonne semaine en musique, pratique collective.
+Age des participants -> ensemble vocal + percussion. Supervision autonomie. Ce qui est propoposé c'est le cadre.
+Feu de camp, boum.
+Animations, manuel, créatif, dessins jeux de sociétés.
+Adultes séparés pour groupes, chambres.
+Chambres de 3, plus resseré. Elle sera pas seule dans sa tranche d'âge. + de 8 à 12. + de filles 60%.
+
+Arrivée le dimanche ? Activités. 1 tiers la veille. Petit confort. Pas de nécessité. Possible seule dans la chambre.
+
+Liens avec les autres styles ?
+
+Ambiance de travail.
+
+  45 enfants, principalement entre 7 et 13. 2 de 13 ans, 4 de 12 ans. Pas de 14 ans.
+  Activités en groupes en fonction des ages. Ensemble dans le centre.
+
+Impro 
+Bernard
+
+Séjour linguistique sur campus en angleterre. Archer. 35 de 10 à 16 ans. 1425e.
+Dossier avec Sonia.
+--------------------------------------------------------------------------------------------------------------
+
+

@@ -208,6 +208,11 @@ DTP TF UTP::integral( TF x0, TF x1 ) const {
     return primitive( x1 ) - primitive( x0 );
 }
 
+DTP TF UTP::contrast( PI beg, PI end ) const {
+    //TF mi
+    return 0;
+}
+
 #undef DTP
 #undef UTP
 

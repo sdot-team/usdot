@@ -26,6 +26,7 @@ public:
     TF                      integral         ( TF x0, TF x1 ) const;
     TF                      value            ( TF x ) const;
     
+    TF                      contrast         ( PI beg, PI end ) const;
 
     Vec                     der_primitives;  ///<
     Vec                     der_values;      ///<

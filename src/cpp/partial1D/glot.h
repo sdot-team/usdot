@@ -19,10 +19,13 @@ void glot( Vec<TF> xs, auto &&...funcs ) {
 }
 
 template<class TF>
-void glot_vec( Vec<TF> xs, Vec<TF> ys ) {
+void glot_vec( Vec<TF> xs, auto... ys ) {
     std::ofstream fs( "glot.py" );
     fs << "from matplotlib import pyplot\n";
-    fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
+    auto pf = [&]( auto &&y ) {
+        fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( y ) << " )\n";
+    };
+    ( pf( ys ), ... );
     fs << "pyplot.show()\n";
 }
 
