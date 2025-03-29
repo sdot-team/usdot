@@ -9,18 +9,12 @@ namespace usdot {
     values on a regular grid. Interpolation order = 1
 */
 template<class TF>
-class GridDensity {
+class ControledDensity {
 public:
     using Vec              = std::vector<TF>;
     using PI               = std::size_t;
 
-    /**/  GridDensity      ( const Vec &values, TF filter = 0, PI mul_x = 1, TF cut_ratio = 1e-6, TF target_mass = 1 );
-
-    auto  controled        ( TF ratio_at_end ) const -> std::unique_ptr<GridDensity>;
-
-    TF    der_primitive    ( TF x ) const;
-    TF    der_integral     ( TF x0, TF x1 ) const;
-    TF    der_value        ( TF x ) const;
+    /**/  ControledDensity ( const Vec &values, TF ratio_at_end = 0, TF target_mass = -1 );
 
     TF    x_primitive      ( TF x ) const;
     TF    x_integral       ( TF x0, TF x1 ) const;
@@ -31,9 +25,6 @@ public:
     
     TF    contrast         ( PI beg, PI end ) const;
 
-    Vec   der_primitives;  ///<
-    Vec   der_values;      ///<
-
     Vec   x_primitives;    ///<
     Vec   primitives;      ///<
     Vec   values;          ///<
@@ -42,4 +33,4 @@ public:
 
 } // namespace usdot
 
-#include "GridDensity.cxx"
+#include "ControledDensity.cxx"

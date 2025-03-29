@@ -123,6 +123,10 @@ DTP UTP::GridDensity( const Vec &original_values, TF filter, PI mul_x, TF cut_ra
     for( auto &v : values ) v *= mul;
 }
 
+DTP std::unique_ptr<UTP> UTP::controled( TF ratio_at_end ) const {
+    
+}
+
 DTP TF UTP::der_primitive( TF x ) const {
     x += offset;
     if ( x < 0 )

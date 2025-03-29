@@ -198,4 +198,25 @@ Séjour linguistique sur campus en angleterre. Archer. 35 de 10 à 16 ans. 1425e
 Dossier avec Sonia.
 --------------------------------------------------------------------------------------------------------------
 
+La proposition, c'est de controler la descente des densités. En gros on va controler l'amplitude des déplacements.
+  Pour les bords extérieurs, il suffira
+
+--------------------------------------------------------------------------------------------------------------
+
+
+Dimanche soir possible.
+Libéré le jeudi.
+  23km. marche beaucoup. presque de la ballade.
+  Prise en charge des bagages. Optionnel.
+  Déjeuner pas inclus. Si option sandwich, ou sinon, endroit supérette, restaurant.
+
+--------------------------------------------------------------------------------------------------------------
+Puy en Velay -> 4h27, train à 19h00 gare de Lyon (1 changement)
+Lannion -> 3h40
+Colmar -> 2h23
+Brest -> 3h51
+
+Déjà fait chambon, pavin
+
+sac a dos 30L, au plus light, se changer le soir. Le pantalon 5 jours, tongs pour le soir.
 

@@ -2,7 +2,7 @@
 
 #include <tl/support/containers/Vec.h>
 #include "GradientSolverInput.h"
-#include "GridDensity.h"
+#include "ControledDensity.h"
 
 namespace usdot {
 
@@ -11,63 +11,56 @@ namespace usdot {
 template<class TF>
 class GradientSolver {
 public:
-    using                   DensityPtr                       = std::unique_ptr<GridDensity<TF>>;
+    using                   DensityPtr                       = std::unique_ptr<ControledDensity<TF>>;
     using                   PI                               = std::size_t;
     using                   TV                               = Vec<TF>;
 
     /**/                    GradientSolver                   ( GradientSolverInput<TF> &&input );
  
-    void                    initialize_filter_value          ( TF filter_value ); ///<
-    void                    go_to_filter_value               ( TF filter_value ); ///<
     int                     update_weights                   ();
     void                    solve                            ();
+    void                    plot                             ( std::string filename = "glot.py" ) const;
 
     TV                      cell_barycenters                 () const;
-    TV                      dirac_positions                  () const;
-    TF                      density_value                    ( TF pos ) const;
-    PI                      nb_diracs                        () const;
-    void                    plot                             ( std::string filename = "glot.py" ) const;
+    Vec<Vec<TF,2>>          cell_boundaries                  () const;
+    Vec<TF>                 cell_masses                      () const;
+    TF                      error                            () const;
     
+    Vec<TF>                 dirac_positions                  () const;
+    TF                      density_value                    ( TF pos, PI n = 0 ) const;
+    Vec<Vec<TF>>            newton_dirs                      () const;
+    PI                      nb_cells                         () const;
+
     TV                      normalized_cell_barycenters      () const;
-    auto                    normalized_cell_boundaries       () const -> std::vector<std::array<TF,2>>;
-    TV                      normalized_cell_masses           () const; ///<
-    TF                      normalized_error                 () const; ///< norm_2( log( current_mass / target_mass ) )
+    Vec<Vec<TF,2>>          normalized_cell_boundaries       () const;
 
-    void                    for_each_normalized_system_item  ( auto &&func ) const; ///< func( PI index, TF m0, TF m1, TF v, bool bad_cell )
-    void                    for_each_normalized_cell_mass    ( auto &&func ) const; ///< func( PI index, TF mass, bool bad_cell )
-    
-    void                    for_each_normalized_cell_mt      ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1, num_thread )
-    void                    for_each_normalized_cell         ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1 )
+    void                    for_each_normalized_system_item  ( auto &&func ) const;
+    void                    for_each_normalized_cell         ( auto &&get_weight, auto &&func ) const;
+    void                    for_each_normalized_cell         ( auto &&func ) const;
 
-    // directly modifiable inputs
-    TF                      current_filter_value             = 1e-9;
-    TF                      target_filter_value              = 1e-9;
-    TF                      target_l2_error                  = 1e-5;
+    // behavior
     bool                    throw_if_error;                  ///<
     bool                    multithread;                     ///<
     int                     verbosity;                       ///<
     
+    // diracs 
+    TV                      sorted_dirac_positions;          ///<
     TV                      sorted_dirac_weights;            ///<
     TV                      sorted_dirac_masses;             ///<
-
-private:
-    // diracs 
-    TV                      sorted_dirac_positions;            ///<
-    std::vector<PI>         sorted_dirac_nums;                 ///<
-   
-    TF                      sum_of_dirac_masses;               ///<
+    Vec<PI>                 sorted_dirac_nums;               ///<
+    
+    // 
+    TF                      sum_of_dirac_masses;             ///<
+    TF                      global_mass_ratio;               ///<
+    TF                      target_l2_error                  = 1e-5;
    
     // density
-    TV                      original_density_values;           ///<
-    TF                      beg_x_density;                     ///<
-    TF                      end_x_density;                     ///<
-    DensityPtr              density;                           ///<
-
-    // parameters
-    TF                      global_mass_ratio;
+    TV                      original_density_values;         ///<
+    TF                      beg_x_density;                   ///<
+    TF                      end_x_density;                   ///<
+    Vec<DensityPtr>         densities;                       ///<
 };
-
 
 } // namespace usdot
 
-#include "GradientSolver.cxx"
+#include "GradientSolver.cxx" // IWYU pragma: export
