@@ -220,3 +220,4 @@ Déjà fait chambon, pavin
 
 sac a dos 30L, au plus light, se changer le soir. Le pantalon 5 jours, tongs pour le soir.
 
+Prop: on cherche pour chaque ensemble connecté l'erreur en fonction 

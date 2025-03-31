@@ -31,6 +31,8 @@ public:
     
     TF    contrast         ( PI beg, PI end ) const;
 
+    TF    radius_for       ( TF mass, TF tol, TF center, TF prev_rad ) const;
+
     Vec   der_primitives;  ///<
     Vec   der_values;      ///<
 

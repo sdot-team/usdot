@@ -124,7 +124,44 @@ DTP UTP::GridDensity( const Vec &original_values, TF filter, PI mul_x, TF cut_ra
 }
 
 DTP std::unique_ptr<UTP> UTP::controled( TF ratio_at_end ) const {
-    
+    TODO;
+}
+
+DTP TF UTP::radius_for( TF target_mass, TF tol, TF center, TF prev_rad ) const {
+    using namespace std;
+
+    // current mass
+    TF mass = integral( center - prev_rad, center + prev_rad );
+    if ( abs( mass - target_mass ) < tol * target_mass )
+        return prev_rad;
+
+    // beg, end
+    TF beg_rad = prev_rad, beg_mass = mass;
+    TF end_rad = prev_rad, end_mass = mass;
+    if ( mass < target_mass ) {
+        do {
+            end_rad *= 2;
+            end_mass = integral( center - end_rad, center + end_rad );
+        } while ( end_mass < target_mass );
+    } else {
+        do {
+            beg_rad /= 2;
+            beg_mass = integral( center - beg_rad, center + beg_rad );
+        } while ( beg_mass > target_mass );
+    }
+
+    //
+    while ( true ) {
+        const TF mid_rad = ( beg_rad + end_rad ) / 2;
+        const TF mid_mass = integral( center - mid_rad, center + mid_rad );
+        if ( abs( mid_mass - target_mass ) < tol * target_mass || beg_rad == end_rad )
+            return mid_rad;
+
+        if ( mid_mass < target_mass )
+            beg_rad = mid_rad;
+        else
+            end_rad = mid_rad;
+    }
 }
 
 DTP TF UTP::der_primitive( TF x ) const {

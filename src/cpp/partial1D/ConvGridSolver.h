@@ -1,5 +1,6 @@
 #pragma once
 
+#include <tl/support/containers/Vec.h>
 #include "ConvGridSolverInput.h"
 #include "GridDensity.h"
 
@@ -11,30 +12,31 @@ template<class TF>
 class ConvGridSolver {
 public:
     using                   DensityPtr                       = std::unique_ptr<GridDensity<TF>>;
-    using                   Vec                              = std::vector<TF>;
     using                   PI                               = std::size_t;
+    using                   TV                               = Vec<TF>;
 
     /**/                    ConvGridSolver                   ( ConvGridSolverInput<TF> &&input );
  
     void                    initialize_filter_value          ( TF filter_value ); ///<
     void                    go_to_filter_value               ( TF filter_value ); ///<
     int                     update_weights                   ();
-    TF                      line_search                      ( const Vec &dir );
-    std::pair<Vec,TF>       newton_dir                       () const;
+    TF                      line_search                      ( const TV &dir );
+    auto                    newton_dirs                      () -> std::function<TV( TF )>;
+    TV                      newton_dir                       () const;
     void                    solve                            ();
 
-    Vec                     cell_barycenters                 () const;
-    Vec                     dirac_positions                  () const;
+    TV                      cell_barycenters                 () const;
+    TV                      dirac_positions                  () const;
     TF                      density_value                    ( TF pos ) const;
     PI                      nb_diracs                        () const;
     void                    plot                             ( std::string filename = "glot.py" ) const;
     
-    Vec                     normalized_cell_barycenters      () const;
+    TV                      normalized_cell_barycenters      () const;
     auto                    normalized_cell_boundaries       () const -> std::vector<std::array<TF,2>>;
-    Vec                     normalized_cell_masses           () const; ///<
+    TV                      normalized_cell_masses           () const; ///<
     TF                      normalized_error                 () const; ///< norm_2( log( current_mass / target_mass ) )
 
-    void                    for_each_normalized_system_item  ( auto &&func ) const; ///< func( PI index, TF m0, TF m1, TF v, bool bad_cell )
+    void                    for_each_normalized_system_item  ( auto &&bad_cell, auto &&bb, auto &&bc, auto &&cb, auto &&cc ) const; ///< bb( PI index ), bc( PI index ), cb( PI index ), cc( PI index, TF m0, TF m1, TF v ) 
     void                    for_each_normalized_cell_mass    ( auto &&func ) const; ///< func( PI index, TF mass, bool bad_cell )
     
     void                    for_each_normalized_cell_mt      ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1, num_thread )
@@ -48,18 +50,18 @@ public:
     bool                    multithread;                     ///<
     int                     verbosity;                       ///<
     
-    Vec                     sorted_dirac_weights;            ///<
-    Vec                     sorted_dirac_masses;             ///<
+    TV                      sorted_dirac_weights;            ///<
+    TV                      sorted_dirac_masses;             ///<
 
 private:
     // diracs 
-    Vec                     sorted_dirac_positions;            ///<
+    TV                      sorted_dirac_positions;            ///<
     std::vector<PI>         sorted_dirac_nums;                 ///<
    
     TF                      sum_of_dirac_masses;               ///<
    
     // density
-    Vec                     original_density_values;           ///<
+    TV                      original_density_values;           ///<
     TF                      beg_x_density;                     ///<
     TF                      end_x_density;                     ///<
     DensityPtr              density;                           ///<

@@ -22,10 +22,12 @@ template<class TF>
 void glot_vec( Vec<TF> xs, auto... ys ) {
     std::ofstream fs( "glot.py" );
     fs << "from matplotlib import pyplot\n";
+    PI cpt = 0;
     auto pf = [&]( auto &&y ) {
-        fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( y ) << " )\n";
+        fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( y ) << ", label='" << cpt++ << "' )\n";
     };
     ( pf( ys ), ... );
+    fs << "pyplot.legend()\n";
     fs << "pyplot.show()\n";
 }
 
