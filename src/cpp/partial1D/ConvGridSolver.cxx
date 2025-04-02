@@ -77,11 +77,12 @@ DTP UTP::ConvGridSolver( ConvGridSolverInput<TF> &&input ) {
     initialize_filter_value( input.starting_filter_value );
 
     // weights
+    const TF base_weight = pow( 0.5 * TF( original_density_values.size() ) / nb_diracs, 2 );
     sorted_dirac_weights.resize( nb_diracs );
     for( PI i = 0; i < nb_diracs; ++i ) {
         sorted_dirac_weights[ i ] = sorted_dirac_nums[ i ] < input.dirac_weights.size() ? 
             input.dirac_weights[ sorted_dirac_nums[ i ] ] * pow( mul_dirac, 2 ) : 
-            pow( 0.5 * sorted_dirac_masses[ i ] / density->value( sorted_dirac_positions[ i ] ), 2 );
+            base_weight;
     }
 }
 
@@ -428,6 +429,7 @@ DTP typename UTP::TV UTP::newton_dir() const {
         // ball
         if ( w0 <= 0 ) {
             has_bad_cell = true;
+            // P( "NW", n );
             continue;
         }
         const TF rd = sqrt( w0 );
@@ -440,16 +442,24 @@ DTP typename UTP::TV UTP::newton_dir() const {
         const TF i1 = ( d0 + d1 + ( w0 - w1 ) / ( d1 - d0 ) ) / 2;
 
         // void cell
-        if ( i0 > i1 || i1 < b0 || i0 > b1 ) {
+        if ( i1 < i0 ) {
             has_bad_cell = true;
-            continue;
+            // P( "NC", n );
+            break;
+        }
+        if ( i1 < b0 || i0 > b1 ) {
+            has_bad_cell = true;
+            // P( "VC", n );
+            break;
         }
 
         if ( b0 > i0 ) { // ball cut on the left
             if ( b1 < i1 ) { // BB
                 const TF rad = density->radius_for( sorted_dirac_masses[ n ], 1e-4, d0, rd );
                 res[ n ] = pow( rad, 2 ) - sorted_dirac_weights[ n ];
+                // P( "BB", n );
             } else { // BI
+                // P( "BI", n );
                 const TF v0 = density->value( b0 );
                 const TF v1 = density->value( i1 );
                 const TF C = 2 * ( d1 - d0 ) / v1;
@@ -476,6 +486,7 @@ DTP typename UTP::TV UTP::newton_dir() const {
             }
         } else { // interface on the left
             if ( b1 < i1 ) { // IB
+                // P( "IB", n );
                 const TF dp = sorted_dirac_positions[ n - 1 ];
                 const TF bi = density->integral( i0, b1 );
                 const TF v0 = density->value( i0 );
@@ -546,16 +557,18 @@ DTP typename UTP::TV UTP::newton_dir() const {
                     use_best_r0( r0 );
                 } else {
                     if ( dw_0[ n + 0 ] + w0 > 0 ) {
-                        TODO;
+                        const TF w0 = sorted_dirac_weights[ n ];
+                        const TF r0 = dichotomy( err, target_mass_error * sorted_dirac_masses[ n ], TF( 0 ), w0 ? 2 * w0 : 1 );
+                        use_best_r0( r0 );
                     } else {
                         TODO;
                     }
                 }
             } else { // II
+                // P( "II", n );
                 const TF dp = sorted_dirac_positions[ n - 1 ];
                 const TF C = 0.5 / ( d0 - dp ) * density->value( i0 );
                 const TF D = 0.5 / ( d1 - d0 ) * density->value( i1 );
-
                 // on cherche dw1 fonction de r0, sachant que
                 //   sorted_dirac_masses[ n ] = integral( i0, i1 ) 
                 //                            + 0.5 * ( dw0 - dwp ) / ( d0 - dp ) * density->value( i0 )
@@ -575,7 +588,9 @@ DTP typename UTP::TV UTP::newton_dir() const {
         d0 = d1;
         w0 = w1;
     }
-    P( res );
+
+    if ( has_bad_cell )
+        P( "bad cell" );
 
     return res;
 }
@@ -639,7 +654,7 @@ DTP void UTP::solve() {
         return;
 
     // solve
-    initialize_filter_value( pow( 0.5, 1.0 / original_density_values.size() ) );
+    // initialize_filter_value( pow( 0.5, 1.0 / original_density_values.size() ) );
     int not_solved = update_weights();
     if ( not_solved )
         throw std::runtime_error( "not solved with the first filter value" );

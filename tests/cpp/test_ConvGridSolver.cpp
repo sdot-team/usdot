@@ -135,20 +135,19 @@ TEST_CASE( "Conv Grid solver", "" ) {
     //     P( v[ 1 ] - v[ 0 ] );
 
     ConvGridSolverInput<TF> si;
-    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 8 );
+    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 80 );
     si.starting_filter_value = 0.0; //99;
     si.target_filter_value = 0.0;
-    si.global_mass_ratio = 2.0 / 3.0;
+    si.global_mass_ratio = 1.5 / 3.0;
 
-    si.density_values = { 1, 1 };
+    si.density_values = { 1, 1, 1, 0.1, 1, 1, 1 };
     si.beg_x_density = -1;
     si.end_x_density = 2;
  
     ConvGridSolver<TF> solver( std::move( si ) );
     // P( solver.normalized_cell_boundaries() );
-    P( solver.sorted_dirac_weights );
     solver.solve();
-    solver.plot();
+    // solver.plot();
 
     // glot( Vec<TF>::linspace( -7, 12, 1000 ), 
     //     [&]( TF x ) { return solver.density_value( x ); }
