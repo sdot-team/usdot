@@ -477,6 +477,7 @@ DTP typename UTP::TV UTP::newton_dir() const {
         } else { // interface on the left
             if ( b1 < i1 ) { // IB
                 const TF dp = sorted_dirac_positions[ n - 1 ];
+                const TF bi = density->integral( i0, b1 );
                 const TF v0 = density->value( i0 );
                 const TF v1 = density->value( b1 );
                 // function to compute the mass error vs the weight of the BI cell
@@ -526,7 +527,7 @@ DTP typename UTP::TV UTP::newton_dir() const {
                 auto err = [&]( const TF r0 ) {
                     const TF xp = dw_0[ n - 1 ] + dw_1[ n - 1 ] * r0 + dw_2[ n - 1 ] * r0 * r0;
                     const TF x0 = dw_0[ n + 0 ] + dw_1[ n + 0 ] * r0 + dw_2[ n + 0 ] * r0 * r0;
-                    const TF mb = density->integral( i0, b1 ) - sorted_dirac_masses[ n ];
+                    const TF mb = bi - sorted_dirac_masses[ n ];
                     const TF m1 = ( sqrt( max( 0, w0 + x0 ) ) - sqrt( w0 ) ) * v1;
                     const TF m0 = 0.5 * ( x0 - xp ) / ( d0 - dp ) * v0;
                     return mb + m0 + m1;
@@ -534,7 +535,7 @@ DTP typename UTP::TV UTP::newton_dir() const {
 
                 auto use_best_r0 = [&]( const TF r0 ) {
                     for( PI ind = bi_ind; ind <= n; ++ind )
-                        res[ ind ] = dw_0[ n ] + dw_1[ n ] * r0 + dw_2[ n ] * r0 * r0;
+                        res[ ind ] = dw_0[ ind ] + dw_1[ ind ] * r0 + dw_2[ ind ] * r0 * r0;
                 };
 
                 const TF de = dw_1[ n + 0 ] * dw_1[ n + 0 ] - 4 * dw_2[ n + 0 ] * ( dw_0[ n + 0 ] + w0 );
@@ -574,6 +575,7 @@ DTP typename UTP::TV UTP::newton_dir() const {
         d0 = d1;
         w0 = w1;
     }
+    P( res );
 
     return res;
 }
@@ -625,7 +627,7 @@ DTP int UTP::update_weights() {
         if ( best_a == 0 )
             throw std::runtime_error( "bad direction" );
         
-        P( best_a, errors[ best_i ] );
+        P( best_a, base_error, errors[ best_i ] );
 
     }
 
