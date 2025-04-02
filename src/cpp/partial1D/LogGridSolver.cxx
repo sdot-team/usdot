@@ -563,7 +563,7 @@ DTP Vec<TF> UTP::newton_dir() const {
 DTP void UTP::update_weights() {
     TF last_error = normalized_error();
     for( PI num_iter = 0; ; ++num_iter ) {
-        if ( num_iter == 150 )
+        if ( num_iter == 15 )
             throw std::runtime_error( "too many iterations" );
         
         Vec<TF> old_dirac_weights = sorted_dirac_weights;
@@ -571,8 +571,8 @@ DTP void UTP::update_weights() {
         
         TF end_a = 1, end_error = 0;
         for( ;; end_a /= 2 ) {
-            if ( end_a == 0 )
-                throw std::runtime_error( "bad direction" );
+            // if ( end_a == 0 )
+            //     throw std::runtime_error( "bad direction" );
             sorted_dirac_weights = old_dirac_weights + end_a * dir;
             end_error = normalized_error();
             if ( end_error < last_error )
@@ -582,7 +582,7 @@ DTP void UTP::update_weights() {
         Vec<TF> as, errors;
         for( TF a : Vec<TF>::linspace( 0, end_a, 1000, false ) ) {
             sorted_dirac_weights = old_dirac_weights + a * dir;
-            TF error = normalized_error();
+             TF error = normalized_error();
             if ( std::isnan( error ) )
                 throw std::runtime_error( "unexpected nan" );
             errors << error;
@@ -595,7 +595,7 @@ DTP void UTP::update_weights() {
         PI best_i = argmin( errors );
         TF best_a = as[ best_i ];
         if ( best_a == 0 )
-            throw std::runtime_error( "bad direction" );
+            throw std::runtime_error( "weirdox" );
         if ( verbosity > 0 )
             P( best_a, errors[ best_i ] );
         

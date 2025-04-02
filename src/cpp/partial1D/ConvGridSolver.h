@@ -12,6 +12,7 @@ template<class TF>
 class ConvGridSolver {
 public:
     using                   DensityPtr                       = std::unique_ptr<GridDensity<TF>>;
+    struct                  Poly                             { TF c0, c1, c2, ca; void display( auto &ds) const { DS_OBJECT(Poly,c0,c1,c2,ca);} }; ///< poly to get optimal weight wrt radius of the first cell and blend ratio for target masses
     using                   PI                               = std::size_t;
     using                   TV                               = Vec<TF>;
 
@@ -19,10 +20,6 @@ public:
  
     void                    initialize_filter_value          ( TF filter_value ); ///<
     void                    go_to_filter_value               ( TF filter_value ); ///<
-    int                     update_weights                   ();
-    TF                      line_search                      ( const TV &dir );
-    auto                    newton_dirs                      () -> std::function<TV( TF )>;
-    TV                      newton_dir                       () const;
     void                    solve                            ();
 
     TV                      cell_barycenters                 () const;
@@ -42,6 +39,8 @@ public:
     void                    for_each_normalized_cell_mt      ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1, num_thread )
     void                    for_each_normalized_cell         ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1 )
 
+    void                    get_system                       ( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &polys, TF &max_a, int &has_bad_cell ) const;
+
     // directly modifiable inputs
     TF                      current_filter_value             = 1e-9;
     TF                      target_filter_value              = 1e-9;
@@ -55,17 +54,23 @@ public:
     TV                      sorted_dirac_masses;             ///<
 
 private:
+    TF                      best_r_for_ib                    ( const Vec<Poly> &polys, PI n, TF a ) const;
+    Vec<TF>                 ce_errors                        ( const Vec<Poly> &polys, PI nb, PI ne, TF a, TF r ) const;
+    TF                      bi_error                         ( const Vec<Poly> &polys, PI n, TF a, TF r ) const;
+    TF                      ii_error                         ( const Vec<Poly> &polys, PI n, TF a, TF r ) const;
+
+
     // diracs 
-    TV                      sorted_dirac_positions;            ///<
-    std::vector<PI>         sorted_dirac_nums;                 ///<
+    TV                      sorted_dirac_positions;          ///<
+    std::vector<PI>         sorted_dirac_nums;               ///<
    
-    TF                      sum_of_dirac_masses;               ///<
+    TF                      sum_of_dirac_masses;             ///<
    
     // density
-    TV                      original_density_values;           ///<
-    TF                      beg_x_density;                     ///<
-    TF                      end_x_density;                     ///<
-    DensityPtr              density;                           ///<
+    TV                      original_density_values;         ///<
+    TF                      beg_x_density;                   ///<
+    TF                      end_x_density;                   ///<
+    DensityPtr              density;                         ///<
 
     // parameters
     TF                      global_mass_ratio;
