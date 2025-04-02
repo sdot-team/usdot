@@ -131,36 +131,40 @@ DTP TF UTP::radius_for( TF target_mass, TF tol, TF center, TF prev_rad ) const {
     using namespace std;
 
     // current mass
-    TF mass = integral( center - prev_rad, center + prev_rad );
-    if ( abs( mass - target_mass ) < tol * target_mass )
+    TF mid_dlt = integral( center - prev_rad, center + prev_rad ) - target_mass;
+    if ( abs( mid_dlt ) < tol * target_mass )
         return prev_rad;
 
     // beg, end
-    TF beg_rad = prev_rad, beg_mass = mass;
-    TF end_rad = prev_rad, end_mass = mass;
-    if ( mass < target_mass ) {
+    TF beg_rad = prev_rad, beg_dlt = mid_dlt;
+    TF end_rad = prev_rad, end_dlt = mid_dlt;
+    if ( mid_dlt < 0 ) {
         do {
             end_rad *= 2;
-            end_mass = integral( center - end_rad, center + end_rad );
-        } while ( end_mass < target_mass );
+            end_dlt = integral( center - end_rad, center + end_rad ) - target_mass;
+        } while ( end_dlt < 0 );
     } else {
         do {
             beg_rad /= 2;
-            beg_mass = integral( center - beg_rad, center + beg_rad );
-        } while ( beg_mass > target_mass );
+            beg_dlt = integral( center - beg_rad, center + beg_rad ) - target_mass;
+        } while ( beg_dlt > 0 );
     }
 
     //
     while ( true ) {
-        const TF mid_rad = ( beg_rad + end_rad ) / 2;
-        const TF mid_mass = integral( center - mid_rad, center + mid_rad );
-        if ( abs( mid_mass - target_mass ) < tol * target_mass || beg_rad == end_rad )
+        const TF mid_rad = ( beg_rad * end_dlt - end_rad * beg_dlt ) / ( end_dlt - beg_dlt );
+
+        const TF mid_dlt = integral( center - mid_rad, center + mid_rad ) - target_mass;
+        if ( abs( mid_dlt ) < tol * target_mass || beg_rad == end_rad )
             return mid_rad;
 
-        if ( mid_mass < target_mass )
+        if ( mid_dlt < 0 ) {
             beg_rad = mid_rad;
-        else
+            beg_dlt = mid_dlt;
+        } else {
             end_rad = mid_rad;
+            end_dlt = mid_dlt;
+        }
     }
 }
 

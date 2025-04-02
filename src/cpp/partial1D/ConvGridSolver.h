@@ -45,6 +45,7 @@ public:
     // directly modifiable inputs
     TF                      current_filter_value             = 1e-9;
     TF                      target_filter_value              = 1e-9;
+    TF                      target_mass_error                = 1e-5;
     TF                      target_l2_error                  = 1e-5;
     bool                    throw_if_error;                  ///<
     bool                    multithread;                     ///<

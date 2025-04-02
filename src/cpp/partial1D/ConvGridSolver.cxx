@@ -14,8 +14,9 @@
 #include <limits>
 
 #include "ConvGridSolver.h"
+#include "dichotomy.h"
 #include "glot.h"
-#include "partial1D/Extrapolation.h"
+// #include "partial1D/Extrapolation.h"
 
 namespace usdot {
 
@@ -146,18 +147,9 @@ DTP void UTP::for_each_normalized_cell_mass( auto &&func ) const {
 }
 
 DTP Vec<TF> UTP::normalized_cell_masses() const {
-    TV res( nb_diracs() );
-    for_each_normalized_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF, TF, TF c0, TF c1 ) {
-        const TF rd = sqrt( dirac_weight );
-        if ( c0 > c1 ) {
-            const TF x0 = max( dirac_position - rd, c1 );
-            const TF x1 = min( dirac_position + rd, c0 );
-            res[ num_dirac ] = - density->integral( x0, x1 );
-        } else {
-            const TF x0 = max( dirac_position - rd, c0 );
-            const TF x1 = min( dirac_position + rd, c1 );
-            res[ num_dirac ] = density->integral( x0, x1 );
-        }        
+    TV res( FromSize(), nb_diracs() );
+    for_each_normalized_cell_mass( [&]( PI num_dirac, TF mass, bool ) {
+        res[ num_dirac ] = mass;
     } );
     return res;
 }
@@ -418,61 +410,170 @@ DTP void UTP::for_each_normalized_system_item( auto &&bad_cell, auto &&bb, auto 
 }
 
 DTP typename UTP::TV UTP::newton_dir() const {
+    using namespace std;
+
+    //
     TV res( FromSize(), nb_diracs() );
-    TV x0( FromSize(), nb_diracs() );
-    TV x1( FromSize(), nb_diracs() );
-    TV e( FromSize(), nb_diracs() );
     bool has_bad_cell = false;
-    TF prev_dll = 0;
-    TF prev_lv = 0;
-    TF error = 0;
-    for_each_normalized_system_item( 
-        // bad cell
-        [&]( PI index ) {
+    
+    TF i0 = numeric_limits<TF>::lowest(); // prev cut in the current state (current weights)
+    TF d0 = sorted_dirac_positions[ 0 ];
+    TF w0 = sorted_dirac_weights[ 0 ];
+
+    TV dw_0( FromSize(), nb_diracs() ); // r^0 coeff of optimal weight for each cell vs radius of the BI cell
+    TV dw_1( FromSize(), nb_diracs() ); // r^1 coeff of optimal weight for each cell vs radius of the BI cell
+    TV dw_2( FromSize(), nb_diracs() ); // r^2 coeff of optimal weight for each cell vs radius of the BI cell
+    PI bi_ind; // index of the bi cell
+    for( PI n = 0; n < nb_diracs(); ++n ) {
+        // ball
+        if ( w0 <= 0 ) {
             has_bad_cell = true;
-        },
-
-        // bb
-        [&]( PI index, TF center, TF prev_rad ) {
-            const TF rad = density->radius_for( sorted_dirac_masses[ index ], 1e-4, center, prev_rad * 2 );
-            res[ index ] = pow( rad, 2 ) - sorted_dirac_weights[ index ];
-            P( pow( rad, 2 ), sorted_dirac_weights[ index ] );
-        },
-
-        // bc
-        [&]( PI index, TF m1 ) {
-            TODO;
-        },
-
-        // cb
-        [&]( PI index ) {
-            TODO;
-        },
-
-        // cc
-        [&]( PI index, TF m0, TF m1, TF v ) {
-            TODO;
-
-            v = sorted_dirac_masses[ index ] - v;
-
-            TF d = m0 - prev_dll;
-            if ( d <= 0 )
-                d = 1;
-
-            const TF l = m1 / d;
-            e[ index ] = l;
-
-            prev_dll = d * l * l;
-
-            const TF v0 = v - prev_lv;
-            x0[ index ] = v0 / d;
-            prev_lv = l * v0;
+            continue;
         }
-    );
+        const TF rd = sqrt( w0 );
+        const TF b0 = d0 - rd;
+        const TF b1 = d0 + rd;
 
-    // for( PI i = nb_diracs() - 1; i--; ) {
-    //     x0[ i ] -= e[ i ] * x0[ i + 1 ];
-    // }
+        // next intersection
+        const TF d1 = n + 1 < nb_diracs() ? sorted_dirac_positions[ n + 1 ] : numeric_limits<TF>::max();
+        const TF w1 = n + 1 < nb_diracs() ? sorted_dirac_weights[ n + 1 ] : 0;
+        const TF i1 = ( d0 + d1 + ( w0 - w1 ) / ( d1 - d0 ) ) / 2;
+
+        // void cell
+        if ( i0 > i1 || i1 < b0 || i0 > b1 ) {
+            has_bad_cell = true;
+            continue;
+        }
+
+        if ( b0 > i0 ) { // ball cut on the left
+            if ( b1 < i1 ) { // BB
+                const TF rad = density->radius_for( sorted_dirac_masses[ n ], 1e-4, d0, rd );
+                res[ n ] = pow( rad, 2 ) - sorted_dirac_weights[ n ];
+            } else { // BI
+                const TF v0 = density->value( b0 );
+                const TF v1 = density->value( i1 );
+                const TF C = 2 * ( d1 - d0 ) / v1;
+                bi_ind = n;
+
+                // dw = r0^2 - w0
+                dw_0[ n + 0 ] = - w0;
+                dw_1[ n + 0 ] = 0;
+                dw_2[ n + 0 ] = 1;
+
+                // pour la 1ère cellule, on cherche dw1 fonction de r0, sachant que
+                //   sorted_dirac_masses[ n ] = integral( b0, i1 ) + ( r0 - rd ) * density->value( b0 ) + 0.5 * ( r0^2 - w0 - dw1 ) / ( d1 - d0 ) * density->value( i1 )
+                // En + synthétique:
+                //   ma = in + ( r0 - rd ) * v0 + 0.5 * ( r0^2 - w0 - dw1 ) / ( d1 - d0 ) * v1
+                //   0 = ( in + ( r0 - rd ) * v0 - ma ) * 2 * ( d1 - d0 ) / v1 + r0^2 - w0 - dw1
+                //   dw1 = ( in + ( r0 - rd ) * v0 - ma ) * 2 * ( d1 - d0 ) / v1 + r0^2 - w0
+                // D'où
+                //   dw1_0 = 2 * ( in - rd * v0 - ma ) * ( d1 - d0 ) / v1 - w0
+                //   dw1_1 = 2 * v0 * ( d1 - d0 ) / v1
+                //   dw1_2 = 1
+                dw_0[ n + 1 ] = ( density->integral( b0, i1 ) - rd * v0 - sorted_dirac_masses[ n ] ) * C - w0;
+                dw_1[ n + 1 ] = v0 * C;
+                dw_2[ n + 1 ] = 1;
+            }
+        } else { // interface on the left
+            if ( b1 < i1 ) { // IB
+                const TF dp = sorted_dirac_positions[ n - 1 ];
+                const TF v0 = density->value( i0 );
+                const TF v1 = density->value( b1 );
+                // function to compute the mass error vs the weight of the BI cell
+                // auto print_masses = [&]( TF w0 ) {
+                //     P( w0 );
+                //     const TF r0 = sqrt( w0 );
+                //     const PI ind = bi_ind;
+
+                //     // first cell
+                //     const TF w1 = sorted_dirac_weights[ ind + 1 ] + dw_0[ ind + 1 ] + dw_1[ ind + 1 ] * r0 + dw_2[ ind + 1 ] * r0 * r0;
+                //     const TF d0 = sorted_dirac_positions[ ind + 0 ];
+                //     const TF d1 = sorted_dirac_positions[ ind + 1 ];
+                //     const TF b0 = d0 - r0;
+                //     const TF i1 = ( d0 + d1 + ( w0 - w1 ) / ( d1 - d0 ) ) / 2;
+                //     P( b0, i1, density->integral( b0, i1 ) );
+
+                //     // II cells
+                //     for( PI ind = bi_ind + 1; ind < n; ++ind ) {
+                //         const TF wp = sorted_dirac_weights[ ind - 1 ] + dw_0[ ind - 1 ] + dw_1[ ind - 1 ] * r0 + dw_2[ ind - 1 ] * r0 * r0;
+                //         const TF w0 = sorted_dirac_weights[ ind + 0 ] + dw_0[ ind + 0 ] + dw_1[ ind + 0 ] * r0 + dw_2[ ind + 0 ] * r0 * r0;
+                //         const TF w1 = sorted_dirac_weights[ ind + 1 ] + dw_0[ ind + 1 ] + dw_1[ ind + 1 ] * r0 + dw_2[ ind + 1 ] * r0 * r0;
+                //         const TF dp = sorted_dirac_positions[ ind - 1 ];
+                //         const TF d0 = sorted_dirac_positions[ ind + 0 ];
+                //         const TF d1 = sorted_dirac_positions[ ind + 1 ];
+                //         const TF i0 = ( dp + d0 + ( wp - w0 ) / ( d0 - dp ) ) / 2;
+                //         const TF i1 = ( d0 + d1 + ( w0 - w1 ) / ( d1 - d0 ) ) / 2;
+                //         P( i0, i1, density->integral( i0, i1 ) );
+                //     }
+                // };
+                // //
+                // print_masses( 0.0 );
+                // print_masses( 0.05 );
+                // print_masses( 0.1 );
+
+                // on veut
+                //   sorted_dirac_masses[ n ] = integral( i0, b1 ) 
+                //                            + 0.5 * ( dw0 - dwp ) / ( d0 - dp ) * density->value( i0 )
+                //                            + ( sqrt( w0 + dw0 ) - sqrt( w0 ) ) * density->value( b1 )
+                // sous forme condensée
+                //   ma = in + 0.5 * ( dw0 - dwp ) / ( d0 - dp ) * v0 + ( sqrt( w0 + dw0 ) - sqrt( w0 ) ) * v1
+                // Si on développe
+                //   ma = in + 0.5 * ( dw0_0 + dw0_1 * r + dw0_1 * r^2 - dwp_0 - ... ) / ( d0 - dp ) * v0
+                //      + ( sqrt( w0 + dw0_0 + dw0_1 * r + dw0_1 * r^2 ) - sqrt( w0 ) ) * v1
+                // ou
+                //   ( ma - in - 0.5 * ( dw0_0 + dw0_1 * r + dw0_1 * r^2 - dwp_0 - ... ) / ( d0 - dp ) * v0 ) / v1 + sqrt( w0 ) = 
+                //      sqrt( w0 + dw0_0 + dw0_1 * r + dw0_1 * r^2 )
+                auto err = [&]( const TF r0 ) {
+                    const TF xp = dw_0[ n - 1 ] + dw_1[ n - 1 ] * r0 + dw_2[ n - 1 ] * r0 * r0;
+                    const TF x0 = dw_0[ n + 0 ] + dw_1[ n + 0 ] * r0 + dw_2[ n + 0 ] * r0 * r0;
+                    const TF mb = density->integral( i0, b1 ) - sorted_dirac_masses[ n ];
+                    const TF m1 = ( sqrt( max( 0, w0 + x0 ) ) - sqrt( w0 ) ) * v1;
+                    const TF m0 = 0.5 * ( x0 - xp ) / ( d0 - dp ) * v0;
+                    return mb + m0 + m1;
+                };
+
+                auto use_best_r0 = [&]( const TF r0 ) {
+                    for( PI ind = bi_ind; ind <= n; ++ind )
+                        res[ ind ] = dw_0[ n ] + dw_1[ n ] * r0 + dw_2[ n ] * r0 * r0;
+                };
+
+                const TF de = dw_1[ n + 0 ] * dw_1[ n + 0 ] - 4 * dw_2[ n + 0 ] * ( dw_0[ n + 0 ] + w0 );
+                if ( dw_2[ n + 0 ] && de > 0 ) {
+                    const TF mi = max( 0, ( sqrt( de ) - dw_1[ n + 0 ] ) / ( 2 * dw_2[ n + 0 ] ) );
+                    const TF ma = ( sqrt( de ) + dw_1[ n + 0 ] ) / ( 2 * dw_2[ n + 0 ] );
+                    const TF r0 = dichotomy( err, target_mass_error * sorted_dirac_masses[ n ], mi, ma );
+                    use_best_r0( r0 );
+                } else {
+                    if ( dw_0[ n + 0 ] + w0 > 0 ) {
+                        TODO;
+                    } else {
+                        TODO;
+                    }
+                }
+            } else { // II
+                const TF dp = sorted_dirac_positions[ n - 1 ];
+                const TF C = 0.5 / ( d0 - dp ) * density->value( i0 );
+                const TF D = 0.5 / ( d1 - d0 ) * density->value( i1 );
+
+                // on cherche dw1 fonction de r0, sachant que
+                //   sorted_dirac_masses[ n ] = integral( i0, i1 ) 
+                //                            + 0.5 * ( dw0 - dwp ) / ( d0 - dp ) * density->value( i0 )
+                //                            + 0.5 * ( dw0 - dw1 ) / ( d1 - d0 ) * density->value( i1 )
+                // Avec C = 0.5 / ( d0 - dp ) * density->value( i0 ) et D = 0.5 / ( d1 - d0 ) * density->value( i1 ), on a
+                //   sorted_dirac_masses[ n ] = integral( i0, i1 ) + ( C + D ) * dw0 - C * dwp - D * dw1
+                // D'où
+                //   dw1 = ( integral( i0, i1 ) - sorted_dirac_masses[ n ] - C * dwp + ( C + D ) * dw0 ) / D
+                dw_0[ n + 1 ] = ( C + D ) / D * dw_0[ n + 0 ] - C / D * dw_0[ n - 1 ] + ( density->integral( i0, i1 ) - sorted_dirac_masses[ n ] ) / D;
+                dw_1[ n + 1 ] = ( C + D ) / D * dw_1[ n + 0 ] - C / D * dw_1[ n - 1 ];
+                dw_2[ n + 1 ] = ( C + D ) / D * dw_2[ n + 0 ] - C / D * dw_2[ n - 1 ];
+            }
+        }
+
+        //
+        i0 = i1;
+        d0 = d1;
+        w0 = w1;
+    }
 
     return res;
 }

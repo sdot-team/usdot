@@ -221,3 +221,32 @@ Déjà fait chambon, pavin
 sac a dos 30L, au plus light, se changer le soir. Le pantalon 5 jours, tongs pour le soir.
 
 Prop: on cherche pour chaque ensemble connecté l'erreur en fonction 
+
+--------------------------------------------------------------------------------------------------------------
+Prop: plutôt que fixer les poids, on fixe la position des interfaces. Par exemple, on donne la position en cours pour bi et la position avec un offset
+  Ça permet d'obtenir deux listes de positions, pour lesquelles l'erreur est nulle pour les cellules ii, et avec une position pour ib.
+  Ensuite, on peut paramétrer en w0 : pour w0 fixé, la masse impose une frontière pour bi et donc une frontière pour ib puis un w  
+  Si on impose w0, trouver la frontière demande à résoudre un pb non linéaire. D'où l'idée d'imposer plutôt la frontière.
+  Du coup, on ne connait pas w0, mais on peut calculer w1 - w0
+
+Que stocke-t-on ?
+  * l'offset précédant des masses 
+
+On peut aussi paraméter par l'ajout de masse sur la première interface.
+  L'ajout de masse sur la dernière, c'est - l'ajout de masse sur la première
+
+Rq de la mort: on pourrait simplement calculer la masse manquante entre les couped de boules.
+  Pour un w_bi donne, on va donc pouvoir trouver de façon immédiate
+    * le w_ib utile pour trouver la masse manquante (en utilisant l'integrale bord à bord)
+    * la position 
+
+Pour un w_0 donné,
+  * on veut masse_prescrite = masse_actuelle + ( sqrt( w0 ) - sqrt( w0_o ) ) * density->value( b0 ) + écart_de_masse_à_droite
+  * on est donc capables de trouver l'écart_de_masse_à_droite
+  * et donc, on peut déterminer w1... jusqu'à wn
+
+Prop: on cherche la masse de la dernière cellule comme polynôme de r0, le rayon de la première cellule.
+  à chaque étape, on pourra donner le rayon fonction de r0
+
+Prop: on contruit les rayon (racines des poids) fonction du rayon de BI.
+
