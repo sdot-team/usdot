@@ -39,21 +39,20 @@ public:
     void                    for_each_normalized_cell_mt      ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1, num_thread )
     void                    for_each_normalized_cell         ( auto &&func ) const; ///< func( dirac_position, dirac_weight, ldist, rdist, b0, b1 )
 
-    void                    get_system                       ( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &polys, TF &max_a, int &has_bad_cell ) const;
-
     // directly modifiable inputs
     TF                      current_filter_value             = 1e-9;
     TF                      target_filter_value              = 1e-9;
     TF                      target_mass_error                = 1e-5;
-    TF                      target_l2_error                  = 1e-5;
     bool                    throw_if_error;                  ///<
     bool                    multithread;                     ///<
     int                     verbosity;                       ///<
     
     TV                      sorted_dirac_weights;            ///<
     TV                      sorted_dirac_masses;             ///<
-
+    
 private:
+    void                    get_system                       ( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &polys, TF &max_a, TF &cell_error, int &has_bad_cell ) const;
+    bool                    set_weight_for                   ( const Vec<Vec<PI,2>> &connected_cells, const Vec<Poly> &polys, TF a );
     TF                      best_r_for_ib                    ( const Vec<Poly> &polys, PI n, TF a ) const;
     Vec<TF>                 ce_errors                        ( const Vec<Poly> &polys, PI nb, PI ne, TF a, TF r ) const;
     TF                      bi_error                         ( const Vec<Poly> &polys, PI n, TF a, TF r ) const;

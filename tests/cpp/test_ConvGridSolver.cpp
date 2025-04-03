@@ -12,13 +12,12 @@ using TF = double;
 
 TEST_CASE( "Conv Grid solver", "" ) {
     ConvGridSolverInput<TF> si;
-    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 10 );
+    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 100 );
     si.starting_filter_value = 0.0; //99;
     si.target_filter_value = 0.0;
     si.global_mass_ratio = 2.0 / 3.0;
 
-    //si.density_values = { 1, 1, 0.6, 0.1, 0.6, 1, 1 };
-    si.density_values = { 1, 1 };
+    si.density_values = { 1, 1, 1e-3, 1e-3, 1e-3, 1, 1 };
     si.beg_x_density = -1;
     si.end_x_density = 2;
  

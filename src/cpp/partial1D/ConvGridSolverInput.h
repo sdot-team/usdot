@@ -22,7 +22,7 @@ struct ConvGridSolverInput {
     TF      target_filter_value             = 1e-6;
 
     TF      min_dirac_separation            = 1e-6;
-    TF      target_l2_error                 = 1e-5;
+    TF      target_mass_error               = 1e-5;
 
     bool    throw_if_error                  = 1;
     bool    multithread                     = 0;
