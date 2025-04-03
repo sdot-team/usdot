@@ -51,9 +51,9 @@ public:
     TV                      sorted_dirac_masses;             ///<
     
 private:
-    void                    get_system                       ( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &polys, TF &max_a, TF &cell_error, int &has_bad_cell ) const;
-    bool                    set_weight_for                   ( const Vec<Vec<PI,2>> &connected_cells, const Vec<Poly> &polys, TF a );
+    int                     get_weights_for                  ( Vec<TF> &new_dirac_weights, const Vec<Vec<PI,2>> &connected_cells, const Vec<Poly> &polys, TF a );
     TF                      best_r_for_ib                    ( const Vec<Poly> &polys, PI n, TF a ) const;
+    void                    get_system                       ( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &polys, TF &max_a, TF &cell_error, int &has_bad_cell, const TV &sorted_dirac_weight ) const;
     Vec<TF>                 ce_errors                        ( const Vec<Poly> &polys, PI nb, PI ne, TF a, TF r ) const;
     TF                      bi_error                         ( const Vec<Poly> &polys, PI n, TF a, TF r ) const;
     TF                      ii_error                         ( const Vec<Poly> &polys, PI n, TF a, TF r ) const;

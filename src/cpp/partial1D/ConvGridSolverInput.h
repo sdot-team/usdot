@@ -18,8 +18,8 @@ struct ConvGridSolverInput {
 
     TF      global_mass_ratio               = 1;
 
-    TF      starting_filter_value           = 1e-6;
-    TF      target_filter_value             = 1e-6;
+    TF      starting_filter_value           = 0;
+    TF      target_filter_value             = 0;
 
     TF      min_dirac_separation            = 1e-6;
     TF      target_mass_error               = 1e-5;

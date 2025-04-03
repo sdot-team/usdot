@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <tl/support/operators/sgn.h>
 #include <tl/support/ASSERT.h>
 #include <tl/support/TODO.h>
@@ -12,8 +13,8 @@ TF dichotomy( auto &&func, TF tol, TF beg_x, TF end_x, TF beg_y, TF end_y ) {
     //
     for( int num_iter = 0; ; ++num_iter ) {
         const TF mid_x = ( beg_x * end_y - end_x * beg_y ) / ( end_y - beg_y );
-        if ( num_iter == 50 )
-            return mid_x;
+        if ( num_iter == 50000 )
+            throw std::runtime_error( "dichotomy pb" );
 
         const TF mid_y = func( mid_x );
         if ( abs( mid_y ) < tol || beg_x == end_x )

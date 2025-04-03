@@ -1,22 +1,15 @@
 #pragma once
 
-// #include <tl/support/operators/self_max.h>
-// #include <tl/support/operators/norm_2.h>
 #include <tl/support/operators/argmin.h>
-// #include <tl/support/operators/max.h>
-// #include <tl/support/operators/sum.h>
-#include <algorithm>
-#include <stdexcept>
 #include <tl/support/ASSERT.h>
 #include <tl/support/P.h>
+#include <algorithm>
 #include <numeric>
 #include <fstream>
 #include <limits>
 
 #include "ConvGridSolver.h"
 #include "dichotomy.h"
-#include "glot.h"
-// #include "partial1D/Extrapolation.h"
 
 namespace usdot {
 
@@ -228,15 +221,21 @@ DTP TF UTP::normalized_error() const {
 DTP void UTP::plot( Str filename ) const {
     std::ofstream fs( filename );
 
-    TV xs;
+    TF de = ( end_x_density - beg_x_density ) / 3;
+    TV xs = Vec<TF>::linspace( beg_x_density - de, end_x_density + de, 10000 );
     TV ys;
-    for( PI i = 0; i < original_density_values.size(); ++i ) {
-        const TF x = beg_x_density + ( end_x_density - beg_x_density ) * i / ( original_density_values.size() - 1 );
-        ys.push_back( original_density_values[ i ] );
-        xs.push_back( x );
-    }
-    ys.push_back( original_density_values.back() );
-    xs.push_back( end_x_density );
+    for( TF x : xs )
+        ys << density_value( x );
+
+    // for( PI i = 0; i < original_density_values.size(); ++i ) {
+    //     const TF x = beg_x_density + ( end_x_density - beg_x_density ) * i / ( original_density_values.size() - 1 );
+    //     ys.push_back( original_density_values[ i ] );
+    //     xs.push_back( x );
+    // }
+    // ys.push_back( original_density_values.back() );
+    // xs.push_back( end_x_density );
+
+
 
     TV bx = cell_barycenters();
     TV by( FromSizeAndItemValue(), bx.size(), -0.1 );
@@ -304,7 +303,7 @@ void plot_bnds_evolution( const Vec<Vec<Vec<TF,2>>> &bnds ) {
 //     return 0;
 // }
 
-DTP void UTP::get_system( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &opt_weights, TF &max_a, TF &cell_error, int &has_bad_cell ) const {
+DTP void UTP::get_system( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &opt_weights, TF &max_a, TF &cell_error, int &has_bad_cell, const TV &sorted_dirac_weights ) const {
     using namespace std;
 
     //
@@ -354,19 +353,20 @@ DTP void UTP::get_system( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &opt_weight
                 const TF sva = density->value( b0 ) + density->value( b1 );
                 const TF itg = density->integral( b0, b1 );
                 connected_cells.push_back_br( n, n );
-                if ( sva == 0 ) {
-                    has_bad_cell = 4;
-                    return;
-                }
+                // if ( sva == 0 ) {
+                //     has_bad_cell = 4;
+                //     return;
+                // }
+                const TF mde = sorted_dirac_masses[ n ] / original_density_values.size();
 
                 const TF err = sorted_dirac_masses[ n ] - itg;
-                cell_error = max( cell_error, abs( err ) );
+                cell_error += pow( err, 2 );
 
                 opt_weights[ n ] = { 
                     .c0 = r0,
                     .c1 = 0,
                     .c2 = 0,
-                    .ca = err / sva
+                    .ca = err / max( mde, sva )
                 };
             } else { // BI
                 // opt_weights[ n ] is equal to r^2
@@ -379,7 +379,7 @@ DTP void UTP::get_system( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &opt_weight
                 };
 
                 const TF err = density->integral( b0, i1 ) - sorted_dirac_masses[ n ];
-                cell_error = max( cell_error, abs( err ) );
+                cell_error += pow( err, 2 );
 
                 // mass of current cell will precribe opt_weights[ n + 1 ]
                 //   ( 1 - a ) * integral( i0, i1 ) + a * target_area = integral( i0, i1 ) + v0 * ( r - r0 ) + v1 * 0.5 * ( r^2 - w0 - ow + w1 ) / ( d1 - d0 )
@@ -387,12 +387,16 @@ DTP void UTP::get_system( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &opt_weight
                 //   a * ( target_area - integral( i0, i1 ) ) - v0 * ( r - r0 ) = ( r^2 - w0 - ow + w1 ) / C
                 //   ( a * ( target_area - integral( i0, i1 ) ) - v0 * ( r - r0 ) ) * C = r^2 - w0 - ow + w1
                 //   ow = r^2 + w1 - w0 + ( a * ( integral( i0, i1 ) - target_area ) + v0 * ( r - r0 ) ) * C
-                const TF v0 = density->value( b0 );
-                const TF v1 = density->value( i1 );
-                if ( v0 == 0 || v1 == 0 ) {
-                    has_bad_cell = 5;
-                    return;
-                }
+                const TF dv0 = density->value( b0 );
+                const TF dv1 = density->value( i1 );
+                // if ( dv0 == 0 || dv1 == 0 ) {
+                //     has_bad_cell = 5;
+                //     return;
+                // }
+
+                const TF mde = sorted_dirac_masses[ n ] / original_density_values.size();
+                const TF v0 = max( mde, dv0 );
+                const TF v1 = max( mde, dv1 );
 
                 const TF D = 2 * ( d1 - d0 ) / v1;
                 opt_weights[ n + 1 ] = {
@@ -404,19 +408,19 @@ DTP void UTP::get_system( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &opt_weight
             }
         } else { // interface on the left
             if ( b1 < i1 ) { // IB
-                const TF v1 = density->value( b1 );
-                if ( v1 == 0 ) {
-                    has_bad_cell = 6;
-                    return;
-                }
+                // const TF v1 = density->value( b1 );
+                // if ( v1 == 0 ) {
+                //     has_bad_cell = 6;
+                //     return;
+                // }
 
                 const TF err = density->integral( i0, b1 ) - sorted_dirac_masses[ n ];
-                cell_error = max( cell_error, abs( err ) );
+                cell_error += pow( err, 2 );
 
                 connected_cells.back()[ 1 ] = n;
             } else { // II
                 const TF err = density->integral( i0, i1 ) - sorted_dirac_masses[ n ];
-                cell_error = max( cell_error, abs( err ) );
+                cell_error += pow( err, 2 );
 
                 // ( 1 - a ) * integral( i0, i1 ) + a * target_area = integral( i0, i1 ) + ( ow0 - w0 - owp + wp ) * C
                 //                                                                       + ( ow0 - w0 - ow1 + w1 ) * D
@@ -424,15 +428,19 @@ DTP void UTP::get_system( Vec<Vec<PI,2>> &connected_cells, Vec<Poly> &opt_weight
                 //                                          + ( ow0 - w0 - ow1 + w1 ) * D
                 // ow1 * D = a * ( integral( i0, i1 ) - target_area ) + ( ow0 - w0 - owp + wp ) ) * C
                 //                                                    + ( ow0 - w0 + w1 ) * D
+                const TF dv0 = density->value( i0 );
+                const TF dv1 = density->value( i1 );
+                // if ( dv1 == 0 ) {
+                //     has_bad_cell = 7;
+                //     return;
+                // }
+
+                const TF mde = sorted_dirac_masses[ n ] / original_density_values.size();
+                const TF v0 = max( mde, dv0 );
+                const TF v1 = max( mde, dv1 );
+
                 const Poly &owp = opt_weights[ n - 1 ];
                 const Poly &ow0 = opt_weights[ n - 0 ];
-                const TF v0 = density->value( i0 );
-                const TF v1 = density->value( i1 );
-                if ( v1 == 0 ) {
-                    has_bad_cell = 7;
-                    return;
-                }
-
                 const TF C = 0.5 * v0 / ( d0 - dp );
                 const TF D = 0.5 * v1 / ( d1 - d0 );
                 const TF E = C / D;
@@ -534,7 +542,7 @@ DTP TF UTP::best_r_for_ib( const Vec<Poly> &polys, PI n, TF a ) const {
     const TF pp0 = polys[ n - 1 ].c0, pp1 = polys[ n - 1 ].c1, pp2 = polys[ n - 1 ].c2, ppa = polys[ n - 1 ].ca;
     const TF p00 = polys[ n + 0 ].c0, p01 = polys[ n + 0 ].c1, p02 = polys[ n + 0 ].c2, p0a = polys[ n + 0 ].ca;
 
-    const TF ter = target_mass_error * sorted_dirac_masses[ n ] * 1e-3;
+    const TF ter = target_mass_error * sorted_dirac_masses[ n ] * 1e-5;
 
     auto err = [&]( const TF r ) {
         const TF new_wp = pp0 + pp1 * r + pp2 * pow( r, 2 ) + ppa * a;
@@ -553,16 +561,16 @@ DTP TF UTP::best_r_for_ib( const Vec<Poly> &polys, PI n, TF a ) const {
         if ( b >= 0 ) {
             const TF xa = ( - p01 - sqrt( b ) ) / ( 2 * p02 );
             const TF xb = ( - p01 + sqrt( b ) ) / ( 2 * p02 );
-            const TF x0 = min( xa, xb );
-            const TF x1 = max( xa, xb );
+            const TF x0 = max( 0, min( xa, xb ) );
+            const TF x1 = max( 0, max( xa, xb ) );
             if ( p02 < 0 ) { // solution must be in [ x0, x1 ]
-                if ( abs( err( x0 ) ) <= ter )
+                if ( x0 > 0 && abs( err( x0 ) ) <= ter )
                     return x0;
-                if ( abs( err( x1 ) ) <= ter )
+                if ( x1 > 0 && abs( err( x1 ) ) <= ter )
                     return x1;
                 if ( sgn( err( x0 ) ) == sgn( err( x1 ) ) )
-                    return -1;
-                return dichotomy( err, ter, x0, x1 );
+                    return -2;
+                return dichotomy( err, ter, max( 0, x0 ), x1 );
             }
             
             // solution may be in [ 0, x0 ]
@@ -576,29 +584,37 @@ DTP TF UTP::best_r_for_ib( const Vec<Poly> &polys, PI n, TF a ) const {
             }
 
             // else, solution must be in [ x1, inf ]
-            if ( abs( err( x1 ) ) <= ter )
+            if ( x1 > 0 && abs( err( x1 ) ) <= ter )
                 return x1;
             if ( err( x1 ) > 0 )
-                return -1;
-
-            TF max_r = 2 * x1;
-            while ( err( max_r ) < 0 )
+                return -3;
+ 
+            TF max_r = x1 ? 2 * x1 : 1;
+            while ( err( max_r ) < 0 ) {
+                if ( max_r > original_density_values.size() )
+                    return -4;
                 max_r *= 2;
+            }
+            // P( __LINE__, err( x1 ), err( max_r ), max_r, ter );
             return dichotomy( err, ter, x1, max_r );
         }
 
         //
         if ( p00 < 0 )
-            return -1;
+            return -5;
 
         if ( abs( err( 0 ) ) <= ter )
             return 0;
         if ( err( 0 ) > 0 )
-            return -1;
+            return -6;
 
-        TF max_r = 2 * old_w0;
-        while ( err( max_r ) < 0 )
+        TF max_r = old_rd ? 2 * old_rd : 1;
+        while ( err( max_r ) < 0 ) {
+            if ( max_r > original_density_values.size() )
+                return -7;
             max_r *= 2;
+        }
+        // P( __LINE__, max_r );
         return dichotomy( err, ter, TF( 0 ), max_r );
     }
 
@@ -606,8 +622,8 @@ DTP TF UTP::best_r_for_ib( const Vec<Poly> &polys, PI n, TF a ) const {
     return 0;
 }
 
-DTP bool UTP::set_weight_for( const Vec<Vec<PI,2>> &connected_cells, const Vec<Poly> &polys, TF a ) {
-    Vec<TF> new_dirac_weights( FromSize(), nb_diracs() );
+DTP int UTP::get_weights_for( Vec<TF> &new_dirac_weights, const Vec<Vec<PI,2>> &connected_cells, const Vec<Poly> &polys, TF a ) {
+    new_dirac_weights.resize( nb_diracs() );
     for( Vec<PI,2> inds : connected_cells ) {
         if ( inds[ 0 ] == inds[ 1 ] ) { 
             new_dirac_weights[ inds[ 0 ] ] = pow( polys[ inds[ 0 ] ].c0 + a * polys[ inds[ 0 ] ].ca, 2 );
@@ -616,15 +632,14 @@ DTP bool UTP::set_weight_for( const Vec<Vec<PI,2>> &connected_cells, const Vec<P
             // P( ce_errors( polys, inds[ 0 ], inds[ 1 ], 0.5, 0.5 ) );
             TF r = best_r_for_ib( polys, inds[ 1 ], a );
             if ( r < 0 )
-                return false;
+                return - r;
 
             for( PI n = inds[ 0 ]; n <= inds[ 1 ]; ++n )
                 new_dirac_weights[ n ] = polys[ n ].c0 + polys[ n ].c1 * r + polys[ n ].c2 * pow( r, 2 ) + polys[ n ].ca * a;
         }
     }
 
-    sorted_dirac_weights = std::move( new_dirac_weights );
-    return true;
+    return 0;
 }
 
 DTP void UTP::solve() {
@@ -637,42 +652,54 @@ DTP void UTP::solve() {
     Vec<Poly> new_opt_weights;
     Vec<Poly> opt_weights;
     int has_bad_cell;
+    TF new_cell_error;
     TF cell_error;
     TF max_a;
 
+    // history
+    // Vec<Vec<Vec<TF,2>>> bnds;
+
     // get the first system
-    get_system( connected_cells, opt_weights, max_a, cell_error, has_bad_cell );
+    get_system( connected_cells, opt_weights, max_a, cell_error, has_bad_cell, sorted_dirac_weights );
     if ( has_bad_cell )
         throw std::runtime_error( "bad initialization" );
-    P( cell_error );
+    // P( cell_error );
     if ( cell_error < target_mass_error / nb_diracs() )
         return;
 
     // iterate
+    Vec<TF> new_sorted_dirac_weights;
     for( PI num_iter = 0; ; ++num_iter ) {
         if ( num_iter == 1000 )
             throw std::runtime_error( "too much iterations" );
-        Vec<TF> old_weights = sorted_dirac_weights;
-        for( TF a = max_a; ; a /= 2 ) {
-            if ( a == 0 )
-                throw std::runtime_error( "bad direction" );
+        // bnds << normalized_cell_boundaries();
 
-            if ( set_weight_for( connected_cells, opt_weights, a ) ) {
-                get_system( new_connected_cells, new_opt_weights, max_a, cell_error, has_bad_cell );
-                if ( has_bad_cell ) {
-                    sorted_dirac_weights = old_weights;
-                    continue;
+        for( TF a = max_a; ; a *= 0.8 ) {
+            if ( a < 1e-20 ) {
+                // plot_bnds_evolution( bnds );
+                throw std::runtime_error( "bad direction" );
+            }
+
+            int esw = get_weights_for( new_sorted_dirac_weights, connected_cells, opt_weights, a );
+            if ( esw == 0 ) {
+                get_system( new_connected_cells, new_opt_weights, max_a, new_cell_error, has_bad_cell, new_sorted_dirac_weights );
+                if ( has_bad_cell == 0 && new_cell_error < cell_error ) {
+                    std::swap( new_sorted_dirac_weights, sorted_dirac_weights );
+                    std::swap( new_connected_cells, connected_cells );
+                    std::swap( new_opt_weights, opt_weights );
+                    std::swap( new_cell_error, cell_error );
+    
+                    // P( cell_error, a );
+                    if ( sqrt( cell_error ) < target_mass_error / nb_diracs() ) {
+                        P( num_iter );
+                        return;
+                    }
+                    break;
                 }
 
-                std::swap( new_connected_cells, connected_cells );
-                std::swap( new_opt_weights, opt_weights );
-
-                P( cell_error, a );
-                if ( cell_error < target_mass_error / nb_diracs() )
-                    return;
-
-                break;
+                // P( has_bad_cell, new_cell_error, cell_error, a );
             }
+            // P( esw );
         }
     }
 }

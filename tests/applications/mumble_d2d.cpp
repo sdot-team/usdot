@@ -20,7 +20,7 @@ int main() {
     TF max_x = max( sr.diracs )[ 0 ];
     sr.diracs = sr.diracs.filtered( [&]( const auto &p ) {
         return p[ 0 ] < min_x + 0.9 * ( max_x - min_x );
-    } );
+    } ); 
 
     // start from a false position
     sr.transformation = Sr::Tr::rotation( 15 * M_PI / 180 ) * Sr::Tr::translation( { 4, -6, 0 } );

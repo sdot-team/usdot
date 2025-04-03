@@ -1,11 +1,9 @@
 #pragma once
 
-#include "Density/PiecewiseConstantDensity.h"
-#include "Density/PiecewiseAffineDensity.h"
-#include <stdexcept>
 #include <tl/support/operators/sp.h>
 #include "ShapeRegistration.h"
-#include "Solver.h"
+#include "ConvGridSolver.h"
+#include "partial1D/ConvGridSolverInput.h"
 #include <fstream>
 
 namespace usdot {
@@ -129,7 +127,7 @@ DTP Vec<typename UTP::Pt> UTP::projection_dirs() {
     return res;
 }
 
-DTP RcPtr<Density<TF>> UTP::projected_density( Pt proj_dir ) {
+DTP std::tuple<TF,TF,Vec<TF>> UTP::projected_density( Pt proj_dir ) {
     if ( shape_triangles.size() ) {
         ASSERT( shape_points.empty() );
 
@@ -153,44 +151,51 @@ DTP RcPtr<Density<TF>> UTP::projected_density( Pt proj_dir ) {
         min_pos = min( min_pos, v );
     }
 
-    Vec<TF> x = Vec<TF>::linspace( min_pos, max_pos, nb_bins + 1 );
     Vec<TF> y{ FromSizeAndItemValue(), nb_bins, 0 };
     for( const Pt &p : shape_points ) {
         TF pos = ( sp( p, proj_dir ) - min_pos ) * nb_bins / ( max_pos - min_pos );
         PI ind = min( PI( pos ), nb_bins - 1 );
         y[ ind ] += 1;
     }
-    return RcPtr<PiecewiseConstantDensity<TF>>::New( x, y );
+
+    return { min_pos, max_pos, y };
 }
 
 DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
-    // projected_density
-    RcPtr<Density<TF>> de = projected_density( proj_dir );
+    ConvGridSolverInput<TF> solver_input;
+    solver_input.global_mass_ratio = mass_ratio;
+    solver_input.starting_filter_value = 0.5;
+    solver_input.target_mass_error = 1e-3;
+    solver_input.min_dirac_separation = 1e-4;
 
-    // projected_diracs
-    Vec<TF> di( FromReservationSize(), new_diracs.size() );
-    for( PI n = 0; n < diracs.size(); ++n )
-        di << sp( new_diracs[ n ], proj_dir );
+    // diracs
+    solver_input.dirac_positions.resize( new_diracs.size() );
+    for( PI n = 0; n < new_diracs.size(); ++n )
+        solver_input.dirac_positions[ n ] = sp( new_diracs[ n ], proj_dir );
 
-    // glot( Vec<TF>::linspace( min( pde.first ), max( pde.first ), 10000, false ), [&]( TF x ) { return de->value( x ); } );
-    // TODO;
-    
-    // power diagram
-    auto pd = RcPtr<PowerDiagram<TF>>::New( di, Vec<TF>::fill( diracs.size(), 1 ) );
-
-    // // auto t0 = std::chrono::high_resolution_clock::now();
-    // // auto t1 = std::chrono::high_resolution_clock::now();
-    // // PE( std::chrono::duration<double>{ t1 - t0 } );
+    // density
+    std::tuple<TF,TF,Vec<TF>> de = projected_density( proj_dir );
+    solver_input.density_values = std::get<2>( de );
+    solver_input.beg_x_density = std::get<0>( de );
+    solver_input.end_x_density = std::get<1>( de );
 
     // solver
-    Solver<TF> solver( pd, de, mass_ratio );
-    solver.solve();
-
-    solve_steps << solver.solve_step;
-
+    ConvGridSolver<TF> solver( std::move( solver_input ) );
+    solver.sorted_dirac_weights *= 40;
+    try {
+        solver.solve();
+    } catch ( std::runtime_error e ) {
+        // P( solver.dirac_positions() );
+        // P( mass_ratio );
+        // P( de );
+        solver.plot();
+        P( e.what() );
+        ASSERT( 0 );
+    }
+    // ASSERT( 0 );
 
     // delta
-    return pd->barycenters( *de, false ) - di;
+    return solver.cell_barycenters() - solver.dirac_positions();
 }
 
 DTP void UTP::compute_new_diracs( PI nb_iter ) {
@@ -198,8 +203,8 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
     for( PI n = 0; n < diracs.size(); ++n )
         new_diracs[ n ] = transformation.apply( diracs[ n ] );
 
-    for( PI num_iter = 0; num_iter < nb_iter; ++num_iter ) {
-        P( num_iter );
+    for( PI num_iter_cnd = 0; num_iter_cnd < nb_iter; ++num_iter_cnd ) {
+        P( num_iter_cnd );
         Vec<Pt> proj_dirs = projection_dirs();
 
         Vec<Pt,dim> M;
@@ -213,21 +218,17 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
                 v[ r ] = 0;
 
         for( Pt proj_dir : proj_dirs ) {
-            P( proj_dir );
+            // P( proj_dir );
 
-            try {
-                Vec<TF> de = delta_for_dir( proj_dir );
+            Vec<TF> de = delta_for_dir( proj_dir );
 
+            for( PI r = 0; r < dim; ++r )
+                for( PI c = 0; c < dim; ++c )
+                    M[ r ][ c ] += proj_dir[ r ] * proj_dir[ c ];
+
+            for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac )
                 for( PI r = 0; r < dim; ++r )
-                    for( PI c = 0; c < dim; ++c )
-                        M[ r ][ c ] += proj_dir[ r ] * proj_dir[ c ];
-    
-                for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac )
-                    for( PI r = 0; r < dim; ++r )
-                        V[ num_dirac ][ r ] += proj_dir[ r ] * de[ num_dirac ];
-            } catch ( std::runtime_error e ) {
-                P( e.what() );
-            }
+                    V[ num_dirac ][ r ] += proj_dir[ r ] * de[ num_dirac ];
         }
             
         // make matrix        

@@ -2,7 +2,6 @@
 
 #include <tl/support/containers/Opt.h>
 #include "AffineTransformation.h"
-#include "Density/Density.h"
 #include "VtkOutput.h"
 
 namespace usdot {
@@ -26,7 +25,7 @@ public:
     static void   load_points              ( Vec<Pt> &points, Str filename );
     void          load_shape               ( Str filename );
        
-    auto          projected_density        ( Pt proj_dir ) -> RcPtr<Density<TF>>;
+    auto          projected_density        ( Pt proj_dir ) -> std::tuple<TF,TF,Vec<TF>>;
     Vec<Pt>       projection_dirs          (); ///<
       
     void          compute_new_diracs       ( PI nb_iter = 50 ); ///<

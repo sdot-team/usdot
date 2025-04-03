@@ -250,14 +250,14 @@ Prop: on cherche la masse de la dernière cellule comme polynôme de r0, le rayo
 
 Prop: on contruit les rayon (racines des poids) fonction du rayon de BI.
 
-opt_weights: [ 
-{ c0:           0, c1:           0, c2:           1, ca:           0 }, 
-{ c0: -0.00333333, c1:   0.0666667, c2:           1, ca:  0.00111111 }, 
-{ c0: -0.00666667, c1:    0.133333, c2:           1, ca: -0.00111111 }, 
-{ c0:       -0.01, c1:         0.2, c2:           1, ca: -0.00111111 }, 
-{ c0:  -0.0133333, c1:    0.266667, c2:           1, ca: -0.00111111 }, 
-{ c0:  -0.0166667, c1:    0.333333, c2:           1, ca: -0.00111111 }, 
-{ c0:       -0.02, c1:         0.4, c2:           1, ca: -0.00111111 }, 
-{ c0:  -0.0233333, c1:    0.466667, c2:           1, ca: -0.00111111 }, 
-{ c0:  -0.0266667, c1:    0.533333, c2:           1, ca: -0.00111111 }, 
-{ c0:       -0.03, c1:         0.6, c2:           1, ca: -0.00111111 } ]
+Pb: les jonctions "non anticipées" de cellules semblent provoquer une augmentation importante du nombre d'itérations
+
+Prop: on fait une initialisation plus poussée.
+  L'idéal, ça serait de calculer les poids exacts à chaque ajout de cellule.
+    Pb: les polynômes qui donnent les poids optimaux dépendent de la position dans la densité.
+    Il faudrait donc réévaluer tous les poids à chaque changement de position.
+  Rq: on pourrait faire une initilisation pour une densité constante et converger vers la densité finale.
+  Autre prop: pour l'initialisation, on reste sur l'idée de supposer que les densités ne bougent pas, et en plus, on calcule en direct les poids
+  Prop pour démarrer : on calcule les poids initiaux par dichotomie (on pourra optimiser après)
+
+  

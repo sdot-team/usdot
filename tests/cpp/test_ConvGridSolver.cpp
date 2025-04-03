@@ -12,7 +12,7 @@ using TF = double;
 
 TEST_CASE( "Conv Grid solver", "" ) {
     ConvGridSolverInput<TF> si;
-    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 100 );
+    si.dirac_positions = Vec<TF>::cellspace( 0, 1, 200 );
     si.starting_filter_value = 0.0; //99;
     si.target_filter_value = 0.0;
     si.global_mass_ratio = 2.0 / 3.0;
@@ -23,7 +23,7 @@ TEST_CASE( "Conv Grid solver", "" ) {
  
     ConvGridSolver<TF> solver( std::move( si ) );
     // P( solver.normalized_cell_boundaries() );
-    solver.solve();
+    solver.solve(); // 85 -> 74
     solver.plot();
 
     // glot( Vec<TF>::linspace( -1, 2, 1000 ), 
