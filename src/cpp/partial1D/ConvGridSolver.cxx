@@ -70,15 +70,19 @@ DTP UTP::ConvGridSolver( ConvGridSolverInput<TF> &&input ) {
     initialize_filter_value( input.starting_filter_value );
 
     // weights
-    const TF base_weight = pow( 0.5 * global_mass_ratio * TF( original_density_values.size() ) / nb_diracs, 2 );
-    sorted_dirac_weights.resize( nb_diracs );
-    for( PI i = 0; i < nb_diracs; ++i ) {
-        sorted_dirac_weights[ i ] = sorted_dirac_nums[ i ] < input.dirac_weights.size() ? 
-            input.dirac_weights[ sorted_dirac_nums[ i ] ] * pow( mul_dirac, 2 ) : 
-            base_weight;
-    }
+    initialize_weights();
 }
 
+DTP void UTP::initialize_weights() {
+    // const TF base_weight = pow( 0.5 * global_mass_ratio * TF( original_density_values.size() ) / nb_diracs, 2 );
+    // sorted_dirac_weights.resize( nb_diracs );
+    // for( PI i = 0; i < nb_diracs; ++i ) {
+    //     sorted_dirac_weights[ i ] = sorted_dirac_nums[ i ] < input.dirac_weights.size() ? 
+    //         input.dirac_weights[ sorted_dirac_nums[ i ] ] * pow( mul_dirac, 2 ) : 
+    //         base_weight;
+    // }
+    TODO;
+}
 
 DTP PI UTP::nb_diracs() const {
     return sorted_dirac_positions.size();

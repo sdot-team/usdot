@@ -260,4 +260,4 @@ Prop: on fait une initialisation plus poussée.
   Autre prop: pour l'initialisation, on reste sur l'idée de supposer que les densités ne bougent pas, et en plus, on calcule en direct les poids
   Prop pour démarrer : on calcule les poids initiaux par dichotomie (on pourra optimiser après)
 
-  
+Prop:   

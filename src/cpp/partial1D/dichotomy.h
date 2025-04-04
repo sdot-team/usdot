@@ -1,9 +1,9 @@
 #pragma once
 
-#include <stdexcept>
 #include <tl/support/operators/sgn.h>
 #include <tl/support/ASSERT.h>
 #include <tl/support/TODO.h>
+#include <stdexcept>
 #include <cmath>
 
 template<class TF>
@@ -47,20 +47,19 @@ TF dichotomy( auto &&func, TF tol, TF beg_x, TF end_x ) {
 }
 
 template<class TF>
-TF dichotomy( auto &&func, TF tol, TF mid ) {
-    // // beg, end
-    // TF beg_x = prev_x, beg_y = mid_y;
-    // TF end_x = prev_x, end_y = mid_y;
-    // if ( mid_y < 0 ) {
-    //     do {
-    //         end_x *= 2;
-    //         end_y = integral( center - end_x, center + end_x ) - target_mass;
-    //     } while ( end_y < 0 );
-    // } else {
-    //     do {
-    //         beg_x /= 2;
-    //         beg_y = integral( center - beg_x, center + beg_x ) - target_mass;
-    //     } while ( beg_y > 0 );
-    // }
-    TODO;
+TF dichotomy_growing_from_zero( auto &&func, TF tol, TF mid ) {
+    // beg, end
+    TF beg_x = mid, beg_y = func( mid );
+    TF end_x = mid, end_y = beg_y;
+    if ( end_y < 0 ) {
+        do {
+            end_y = func( end_x *= 2 );
+        } while ( end_y < 0 );
+    } else {
+        do {
+            beg_y = func( beg_x /= 2 );
+        } while ( beg_y > 0 );
+    }
+
+    return dichotomy( func, tol, beg_x, end_x, beg_y, end_y );
 }
