@@ -1,5 +1,6 @@
 #pragma once
 
+#include <tl/support/P.h>
 #include "GridDensity.h"
 #include <algorithm>
 
@@ -89,6 +90,46 @@ DTP TF UTP::integral( TF x0, TF x1 ) const {
 
 DTP TF UTP::mass() const {
     return primitives.back();
+}
+
+DTP void UTP::get_inv_cdf( auto &inv_cdf_values, TF &mul_coeff, TI nb_bins ) const {
+    using namespace std;
+
+    mul_coeff = nb_bins / mass();
+    inv_cdf_values.resize( nb_bins + 1 );
+    for( TI n = 0; n + 1 < primitives.size(); ++n ) {
+        const TF p0 = primitives[ n + 0 ];
+        const TF p1 = primitives[ n + 1 ];
+        const TF v0 = values[ n + 0 ];
+        const TF v1 = values[ n + 1 ];
+        
+        const TF by = p0 * mul_coeff;
+        const TF ey = p1 * mul_coeff;
+        for( TF y = ceil( by ); y < min( floor( ey ), nb_bins ); y += 1 ) {
+            if ( const TF a = v1 - v0 ) {
+                const TF d = v0 * v0 - 2 * a * ( p0 - y / mul_coeff );
+                inv_cdf_values[ y ] = n + ( a > 0 ? 
+                    ( sqrt( d ) + v0 ) / a :
+                    ( sqrt( d ) - v0 ) / a
+                );
+            } else if ( v0 ) {
+                inv_cdf_values[ y ] = n + ( y / mul_coeff - p0 ) / v0;
+            } else {
+                inv_cdf_values[ y ] = n;
+            }
+        }
+    }
+    inv_cdf_values.back() = primitives.size() - 1;
+}
+
+DTP void UTP::plot( std::ostream &fs ) const {
+    fs << "pyplot.plot( ["; 
+    for( TI n = 0; n < values.size(); ++n )
+        fs << n << ", ";    
+    fs << " ], [";
+    for( TI n = 0; n < values.size(); ++n )
+        fs << values[ n ] << ", ";    
+    fs << "] )\n";
 }
 
 #undef DTP

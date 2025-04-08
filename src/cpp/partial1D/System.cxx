@@ -22,7 +22,7 @@ DTP UTP::System() {
 
 DTP void UTP::initialize_weights() {
     _update_system( true );
-    
+
     WeightInitializer<TF,Density> wi( *this );
     wi.run();
 }
@@ -45,33 +45,20 @@ DTP typename UTP::VF UTP::dirac_barycenters() const {
 DTP void UTP::plot( Str filename ) const {
     std::ofstream fs( filename );
 
-    // TF de = ( end_x_density - beg_x_density ) / 3;
-    // TV xs = Vec<TF>::linspace( beg_x_density - de, end_x_density + de, 10000 );
-    // TV ys;
-    // for( TF x : xs )
-    //     ys << density_value( x );
+    fs << "from matplotlib import pyplot\n";
+    density->plot( fs );
 
-    // // for( PI i = 0; i < original_density_values.size(); ++i ) {
-    // //     const TF x = beg_x_density + ( end_x_density - beg_x_density ) * i / ( original_density_values.size() - 1 );
-    // //     ys.push_back( original_density_values[ i ] );
-    // //     xs.push_back( x );
-    // // }
-    // // ys.push_back( original_density_values.back() );
-    // // xs.push_back( end_x_density );
+    TF y = 0;
+    for( auto c : cell_boundaries() ) {
+        const TF x0 = c[ 0 ];
+        const TF x1 = c[ 1 ];
+        const TF y0 = 0; // ( y++ ) / 10;
+        const TF y1 = y0 + 1;
+        fs << "pyplot.plot( [ " << x0 << ", " << x1 << ", " << x1 << ", " << x0 << ", " << x0 << " ], ";
+        fs << "[ " << y0 << ", " << y0 << ", " << y1 << ", " << y1 << ", " << y0 << " ] )\n";
+    }
 
-
-
-    // TV bx = cell_barycenters();
-    // TV by( FromSizeAndItemValue(), bx.size(), -0.1 );
-
-    // TV dx = dirac_positions();
-    // TV dy( FromSizeAndItemValue(), dx.size(), -0.2 );
-
-    // fs << "from matplotlib import pyplot\n";
-    // fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
-    // fs << "pyplot.plot( " << to_string( bx ) << ", " << to_string( by ) << ", '+' )\n";
-    // fs << "pyplot.plot( " << to_string( dx ) << ", " << to_string( dy ) << ", '+' )\n";
-    // fs << "pyplot.show()\n";
+    fs << "pyplot.show()\n";
 }
 
 template<class TF>
@@ -125,6 +112,15 @@ DTP typename UTP::VF UTP::cell_masses() const {
     VF res( FromSize(), nb_diracs() );
     for_each_cell( [&]( TI n, TF b, TF e ) {
         res[ sorted_dirac_nums[ n ] ] = density->integral( b, e );
+    } );
+    return res;
+}
+
+DTP typename UTP::VB UTP::cell_boundaries() const {
+    _update_system();
+    VB res( FromSize(), nb_diracs() );
+    for_each_cell( [&]( TI n, TF b, TF e ) {
+        res[ sorted_dirac_nums[ n ] ] = { b, e };
     } );
     return res;
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ostream>
 #include <vector>
 
 namespace usdot {
@@ -23,6 +24,9 @@ public:
     TF    value            ( TF x ) const;
 
     TF    mass             () const;
+
+    void  get_inv_cdf      ( auto &inv_cdf_values, TF &mul_coeff, TI nb_bins ) const;
+    void  plot             ( std::ostream &fs ) const;
 
 private:
     VF    x_primitives;    ///<

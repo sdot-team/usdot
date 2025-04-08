@@ -1,8 +1,7 @@
 #pragma once
 
-#include "WeightInitializer.h"
 #include "partial1D/dichotomy.h"
-#include <limits>
+#include "WeightInitializer.h"
 
 namespace usdot {
     
@@ -10,119 +9,146 @@ namespace usdot {
 #define UTP WeightInitializer<TF,Density>
 
 DTP UTP::WeightInitializer( Sys &sys ) : sys( sys ), last_ag( nullptr ) {
+    sys.density->get_inv_cdf( inv_cdf_values, mul_coeff, 500 );    
+    dirac_masses = mul_coeff * sys.sorted_dirac_masses;
+}
+
+DTP TF UTP::inv_cdf( TF u ) const {
+    const TI m = inv_cdf_values.size() - 1;
+    u = max( 0, min( m, u ) );
+
+    PI n = min( m - 1, PI( u ) );
+    TF f = u - n;
+    
+    return inv_cdf_values[ n + 0 ] * ( 1 - f ) + inv_cdf_values[ n + 1 ] * f;
+}
+
+DTP TF UTP::cdf( TF x ) const {
+    return mul_coeff * sys.density->primitive( x );
 }
 
 DTP void UTP::run() {
     using namespace std;
 
+    // push cells without taking care of the surrounding and start the first phase of agglomeration
+    Ag *last_ag_to_optimize = nullptr;
+    last_ag = nullptr;
     for( TI n = 0; n < sys.nb_diracs(); ++n ) {
-        const TF coord = sys.sorted_dirac_positions[ n ];
-        const TF mass = sys.sorted_dirac_masses[ n ];
-        const TF r = optimal_radius( coord, mass );
-        append_cell( n, coord - r, coord + r );
-    }
+        const TF x = sys.sorted_dirac_positions[ n ];
+        const TF m = dirac_masses[ n ];
+        const TF c = cdf( x );
 
-    // // get weights
-    // for( Agglomeration *item = last; item; item = item->prev ) {
-    //     if ( item->len_n() == 0 )
-    //         continue;
+        // find the cell position
+        auto err = [&]( const TF b ) {
+            return inv_cdf( b ) + inv_cdf( b + m ) - 2 * x;
+        };        
+        const TF b = dichotomy( err, 1e-4 * m, c - m, c + m );
 
-    //     // data from the last cell
-    //     const PI n = item->end_n - 1;
-    //     TF c = seed_coords[ n ];
+        // create or place in an agglomerate
+        if ( last_ag == nullptr || last_ag->end_u <= b ) { // non touching cell ?
+            Ag *item = pool.create<Ag>();
+            item->beg_n = n + 0;
+            item->end_n = n + 1;
+            item->beg_u = b;
+            item->end_u = b + m;
 
-    //     TF end_y = item->end_y(), beg_y = end_y - mass_ratios[ n ];
-    //     TF end_x = get_x( end_y ), beg_x = get_x( beg_y );
-
-    //     // compute the weight from the required radius
-    //     TF w = 0;
-    //     seed_weights[ item->end_n - 1 ] = w;
-
-    //     //  
-    //     TF w_to_add = max( pow( end_x - c, 2 ), pow( c - beg_x, 2 ) );
-    //     for( PI n = item->end_n; --n > item->beg_n; ) {
-    //         // update bounds
-    //         end_y = std::exchange( beg_y, max( 0, beg_y - mass_ratios[ n ] ) );
-    //         end_x = std::exchange( beg_x, get_x( beg_y ) );
-
-    //         // update w
-    //         TF d = std::exchange( c, seed_coords[ n - 1 ] );
-    //         w -= ( d + c - 2 * end_x ) * ( d - c );
-            
-    //         const TF min_w = max( pow( c - beg_x, 2 ), pow( end_x - c, 2 ) );
-    //         if ( min_w > w )
-    //             w_to_add = max( w_to_add, min_w - w );
-
-    //         // store the result
-    //         seed_weights[ n - 1 ] = w;
-    //     }
-
-    //     if ( w_to_add )
-    //         for( PI n = item->beg_n; n < item->end_n; ++n )
-    //             seed_weights[ n ] += w_to_add;
-    // }
-}
-
-DTP TF UTP::optimal_radius( TF pos, TF mass ) const {
-    auto err = [&]( TF r ) {
-        return sys.density->integral( pos - r, pos + r ) - mass;
-    };
-    return dichotomy_growing_from_zero( err, mass * 1e-2, TF( 1 ) );
-}
-
-DTP void UTP::append_cell( PI n, TF beg_x, TF end_x ) {
-    // non touching cell ?
-    if ( last_ag == nullptr || last_ag->end_x < beg_x ) {
-        Ag *item = pool.create<Ag>();
-        item->beg_x = beg_x;
-        item->end_x = end_x;
-        item->beg_n = n + 0;
-        item->end_n = n + 1;
-
-        item->prev = last_ag;
-        last_ag = item;
-        
-        return;
-    }
-
-    // else
-    const TF mass_to_distribute = sys.density->integral( beg_x, last_ag->end_x );
-    if ( mass_to_distribute ) {
-        const TF cn = TF( 1 ) / ( last_ag->len_n() + 1 );
-        const TF cp = 1 - cn;
-        auto err = [&]( const TF r ) {
-            return sys.density->integral( last_ag->beg_x - r * cp, last_ag->beg_x ) + sys.density->integral( end_x, end_x + r * cn ) - mass_to_distribute;
-        };
-        const TF new_r = dichotomy_growing_from_zero( err, 1e-2 * sys.sorted_dirac_masses[ n ], last_ag->end_x - beg_x );
-        last_ag->end_x = end_x + new_r * cn;
-        last_ag->beg_x -= new_r * cp;
-    }
-
-    //  append to the previous block
-    last_ag->end_n = n + 1;
-
-    // while we have an Agglomerate to merge
-    while ( true ) {
-        Ag *prev = last_ag->prev;
-        if ( prev == nullptr || prev->end_x < last_ag->beg_x )
-            break;
-
-        // append the last set
-        const TF mass_to_distribute = sys.density->integral( last_ag->beg_x, prev->end_x );
-        if ( mass_to_distribute ) {
-            const TF cn = prev->len_n() / TF( last_ag->len_n() + prev->len_n() );
-            const TF cp = 1 - cn;
-            auto err = [&]( const TF r ) {
-                return sys.density->integral( prev->beg_x - r * cp, prev->beg_x ) + sys.density->integral( last_ag->end_x, last_ag->end_x + r * cn ) - mass_to_distribute;
-            };
-            const TF new_r = dichotomy_growing_from_zero( err, 1e-2 * sys.sorted_dirac_masses[ n ], last_ag->end_x - beg_x );
-            last_ag->end_x = end_x + new_r * cn;
-            last_ag->beg_x -= new_r * cp;
+            item->prev = last_ag;
+            last_ag = item;
+        } else {
+            if ( last_ag_to_optimize != last_ag ) {
+                last_ag->prev_opt = last_ag_to_optimize;
+                last_ag_to_optimize = last_ag;
+                last_ag->test_width = 0;
+            }
+            last_ag->test_width += last_ag->end_u - b;
+            last_ag->end_n = n + 1;
         }
-    
-        //  append to the previous block
-        prev->end_n = last_ag->end_n;
     }
+
+    // optimize and merge the touching agglomerate
+    while ( last_ag_to_optimize ) {
+        // change the positions
+        for( Ag *item = last_ag_to_optimize; item; item = item->prev_opt )
+            optimize_agglomerate( item );
+
+        // merge the touching agglomerates
+        last_ag_to_optimize = nullptr;
+        for( Ag *item = last_ag; item; item = item->prev ) {
+            while ( Ag *prev = item->prev ) {
+                const TF delta = prev->end_u - item->beg_u;
+                if ( delta <= 0 )
+                    break;
+
+                if ( last_ag_to_optimize != item ) {
+                    item->prev_opt = last_ag_to_optimize;
+                    last_ag_to_optimize = item;
+                    item->test_width = 0;
+                }
+                item->test_width += delta;
+                item->beg_n = prev->beg_n;
+                item->beg_u = prev->beg_u;
+                item->prev = prev->prev;
+            }
+        }
+    }
+
+    // get the weights
+    for( Ag *item = last_ag; item; item = item->prev ) {
+        TF d0 = sys.sorted_dirac_positions[ item->beg_n ];
+        TF u0 = item->beg_u;
+        TF x0 = inv_cdf( u0 );
+        TF w0 = pow( d0 - x0, 2 );
+
+        if ( item->beg_n + 1 == item->end_n ) { // cell with only 1 dirac
+            sys.sorted_dirac_weights[ item->beg_n ] = w0;
+        } else { // several cells in item
+            for( PI n = item->beg_n; ; ++n ) {
+                sys.sorted_dirac_weights[ n ] = w0;
+                if ( n + 1 == item->end_n )
+                    break;
+                                
+                const TF d1 = sys.sorted_dirac_positions[ n + 1 ];
+                const TF u1 = u0 + dirac_masses[ n ];
+                const TF x1 = inv_cdf( u1 );
+                const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
+
+                d0 = d1;
+                u0 = u1;
+                x0 = x1;
+                w0 = w1;
+            }
+        }
+    }
+}
+
+DTP void UTP::optimize_agglomerate( Ag *item ) {
+    using namespace std;
+
+    TF m = 0;
+    for( PI n = item->beg_n; n < item->end_n; ++n )
+        m += dirac_masses[ n ];
+
+    auto err = [&]( TF b ) {
+        TF res = 0;
+        TF xb = inv_cdf( b );
+        for( PI n = item->beg_n; n < item->end_n; ++n ) {
+            b += dirac_masses[ n ];
+
+            const TF xd = sys.sorted_dirac_positions[ n ];
+            const TF xe = inv_cdf( b );
+
+            res += pow( xe - xd, 2 ) - pow( xb - xd, 2 );
+
+            xb = xe;
+        }
+
+        return res;
+    };
+
+    const TF c = 1e-6 * pow( sys.sorted_dirac_masses[ item->beg_n ], 2 );
+    const TF b = dichotomy( err, c, item->beg_u - 2 * item->test_width, item->beg_u );
+    item->end_u = b + m;
+    item->beg_u = b;
 }
 
 #undef DTP

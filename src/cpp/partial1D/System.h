@@ -15,6 +15,7 @@ public:
     using          TI                               = std::size_t;
     using          VI                               = Vec<TI>;
     using          VF                               = Vec<TF>;
+    using          VB                               = Vec<Vec<TF,2>>;
 
     /**/           System                           ();
 
@@ -30,6 +31,7 @@ public:
     VF             dirac_barycenters                () const;
 
     VF             cell_barycenters                 () const;
+    VB             cell_boundaries                  () const;
     VF             cell_masses                      () const;
 
     TF             density_value                    ( TF pos ) const;

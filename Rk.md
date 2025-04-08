@@ -260,4 +260,16 @@ Prop: on fait une initialisation plus poussée.
   Autre prop: pour l'initialisation, on reste sur l'idée de supposer que les densités ne bougent pas, et en plus, on calcule en direct les poids
   Prop pour démarrer : on calcule les poids initiaux par dichotomie (on pourra optimiser après)
 
-Prop:   
+Prop 1: au moment de donner les poids, on optimize le poids initial pour trouver le poids final... -> on va tomber sur les mêmes pb de convergence
+Prop 2: on fait le parcourt pour trouver les w dans les 2 sens, et on fait un blend
+  On est certains de trouver des w positifs... mais est-ce qu'on est sûrs d'éviter les cellules vides ?
+Prop 3: on fait une répartition égale des bords de cellule
+  -> ce n'est pas une bonne façon de pré-initialiser, en particulier lorsqu'il y a des contrastes dans la densité
+Prop 4: plutôt que de chercher beg_x et end_x, on cherche des w...
+Prop 5: on fait un passage en partant de w0. Quand on arrive à la fin, on regarde de combien il y a eu plantage au niveau de la masse et on refait un passage avec la masse corrigée.
+  Prop: on calcul la masse entre x0 et end_x
+
+Prop: on fait un vecteur de polynômes qui donnent les interfaces en fonction du poids de la première cellule.
+  L'objectif, c'est d'optimiser la poids de la première cellule à chaque ajout dans le pack.
+  Pb: on peut donner la suite de poids uniquement pour une densité connue. Lorsqu'on décale les cellules, les densité peuvent changer radicalement et la représentation polynomiale devient dégueulasse.
+  
