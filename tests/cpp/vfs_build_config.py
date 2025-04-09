@@ -6,16 +6,16 @@ def config( options ):
     # vfs.vfs_build_config( options )
 
     options.add_cpp_flag( '-Wno-deprecated-declarations' )
-    options.add_cpp_flag( '-std=c++20' )
+    options.add_cpp_flag( '-std=c++17' )
     options.add_cpp_flag( '-fPIC' )
     options.add_cpp_flag( '-g3' )
     options.add_cpp_flag( '-O3' )
 
-    options.add_inc_path( '/opt/homebrew/Cellar/eigen/3.4.0_1/include' )
-    options.add_inc_path( '/opt/homebrew/Cellar/boost/1.87.0/include' )
-    options.add_inc_path( '../../ext/matplotlib-cpp/' )
+    # options.add_inc_path( '/opt/homebrew/Cellar/eigen/3.4.0_1/include' )
+    # options.add_inc_path( '/opt/homebrew/Cellar/boost/1.87.0/include' )
+    # options.add_inc_path( '../../ext/matplotlib-cpp/' )
     options.add_inc_path( '../../src/cpp' )
-    options.add_inc_path( '../../ext' )
+    # options.add_inc_path( '../../ext' )
     
     # FLAGS := --cpp-flag=-I/home/leclerc/.vfs_build/ext/Catch2/install/include
     # FLAGS += --cpp-flag=-I/opt/homebrew/Cellar/eigen/3.4.0_1/include/

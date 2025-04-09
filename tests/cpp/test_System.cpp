@@ -1,8 +1,9 @@
-#include <partial1D/System.h>
-#include <partial1D/glot.h>
+#include <usdot/utility/glot.h>
+#include <usdot/System.h>
 #include "catch_main.h"
+#include <iostream>
 
-// #include <partial1D/gmp.h>
+// #include <usdot/utility/gmp.h>
 // using namespace boost::multiprecision;
 // using TF = number<backends::cpp_bin_float<40>>;
 
@@ -14,16 +15,21 @@ TEST_CASE( "System", "" ) {
     GridDensity<TF> gd( { 1, 0, 1 } );
 
     System<TF,GridDensity<TF>> si;
-    si.set_dirac_positions( Vec<TF>::cellspace( 0.25, 1.75, 15 ) );
-    si.set_global_mass_ratio( 0.25 );
+    si.stream = &std::cout;
+    si.verbosity = 2;
+
+    // si.set_dirac_positions( Vec<TF>::cellspace( 1.6, 2.0, 15 ) );
+    si.set_dirac_positions( cellspace<TF>( 1.0, 2.0, 5 ) );
+    si.set_global_mass_ratio( 0.75 );
     si.set_density( &gd );
 
     si.initialize_weights();
+    //si.solve();
     si.plot();
 
     // P( si.cell_boundaries() );
     // P( si.cell_masses() );
-    P( si.l2_mass_error() );
+    // P( si.l2_mass_error() );
 
     // si.dirac_positions = Vec<TF>::cellspace( 0, 1, 200 );
     // si.starting_filter_value = 0.0; //99;

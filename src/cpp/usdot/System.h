@@ -1,21 +1,20 @@
 #pragma once
 
-#include <tl/support/containers/Vec.h>
+#include "utility/common_macros.h"
 #include "GridDensity.h" // IWYU pragma: export
 
 namespace usdot {
-template<class TF,class Density>
-class WeightInitializer;
+template<class TF,class Density> class WeightInitializer;
+template<class TF,class Density> class WeightUpdater;
     
 /**
 */
 template<class TF,class Density>
 class System {
 public:
-    using          TI                               = std::size_t;
-    using          VI                               = Vec<TI>;
-    using          VF                               = Vec<TF>;
-    using          VB                               = Vec<Vec<TF,2>>;
+    using          VI                               = std::vector<PI>;
+    using          VF                               = std::vector<TF>;
+    using          VB                               = std::vector<std::array<TF,2>>;
 
     /**/           System                           ();
 
@@ -27,6 +26,7 @@ public:
 
     void           initialize_weights               ();
     void           update_weights                   ();
+    void           solve                            ();
 
     VF             dirac_barycenters                () const;
 
@@ -35,22 +35,31 @@ public:
     VF             cell_masses                      () const;
 
     TF             density_value                    ( TF pos ) const;
+
     
     TF             l2_mass_error                    () const; ///< 
-    TI             nb_diracs                        () const;
+    PI             nb_diracs                        () const;
+    TF             x_tol                            () const; ///<
     void           plot                             ( std::string filename = "glot.py" ) const;
 
     // directly modifiable inputs
     TF             target_max_mass_error            = 1e-4;
     bool           multithread                      = false; ///<
     int            verbosity                        = 0; ///<
+    std::ostream*  stream                           = nullptr; ///<
     
+    // output
+    PI             nb_iterations_update             = 0; ///<
+    PI             nb_iterations_init               = 0; ///<
+
 private:
-    friend class   WeightInitializer<TF,Density>;
+    friend class   WeightInitializer                <TF,Density>;
+    friend class   WeightUpdater                    <TF,Density>;
 
     void           _update_system                   ( bool need_weights = true ) const;
 
-    void           for_each_cell                    ( auto &&func ) const;
+    static void    plot_bnds_evolution              ( const std::vector<VB> &bnds );
+    T_T void       for_each_cell                    ( const T &func ) const;
 
     // 
     TF             global_mass_ratio;               ///<
@@ -64,7 +73,6 @@ private:
    
     // density
     const Density* density;                         ///<
-
 };
 
 

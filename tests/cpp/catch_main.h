@@ -3,8 +3,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 // #include <vfs/support/make_Vec.h> // IWYU pragma: export
-#include <tl/support/string/to_string.h> // IWYU pragma: export
-#include <tl/support/P.h> // IWYU pragma: export
+// #include <tl/support/string/to_string.h> // IWYU pragma: export
+// #include <tl/support/P.h> // IWYU pragma: export
 
 #define CHECK_REPR( A, B ) \
     CHECK( to_string( A, { .always_display_delimiters = true } ) == to_string( B, { .always_display_delimiters = true } ) )

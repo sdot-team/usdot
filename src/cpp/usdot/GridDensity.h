@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/common_types.h"
 #include <ostream>
 #include <vector>
 
@@ -12,7 +13,6 @@ template<class TF>
 class GridDensity {
 public:
     using VF               = std::vector<TF>;
-    using TI               = std::size_t;
 
     /**/  GridDensity      ( VF &&values );
 
@@ -23,9 +23,10 @@ public:
     TF    integral         ( TF x0, TF x1 ) const;
     TF    value            ( TF x ) const;
 
+    TF    width            () const;
     TF    mass             () const;
 
-    void  get_inv_cdf      ( auto &inv_cdf_values, TF &mul_coeff, TI nb_bins ) const;
+    void  get_inv_cdf      ( VF &inv_cdf_values, TF &mul_coeff, PI nb_bins ) const;
     void  plot             ( std::ostream &fs ) const;
 
 private:

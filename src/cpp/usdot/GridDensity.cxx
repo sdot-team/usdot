@@ -1,6 +1,5 @@
 #pragma once
 
-#include <tl/support/P.h>
 #include "GridDensity.h"
 #include <algorithm>
 
@@ -17,7 +16,7 @@ DTP UTP::GridDensity( VF &&values ) : values( std::move( values ) ) {
     x_primitives.resize( this->values.size() );
     primitives.resize( this->values.size() );
     TF o = 0, x_o = 0, der_o = 0;
-    for( TI i = 0; i + 1 < this->values.size(); ++i ) {
+    for( PI i = 0; i + 1 < this->values.size(); ++i ) {
         const TF v0 = this->values[ i + 0 ]; 
         const TF v1 = this->values[ i + 1 ]; 
         const TF m = ( v0 + v1 ) / 2;
@@ -40,7 +39,7 @@ DTP TF UTP::x_primitive( TF x ) const {
     if ( x < 0 )
         return x_primitives.front();
     
-    const TI i( x );
+    const PI i( x );
     if ( i >= primitives.size() - 1 )
         return x_primitives.back();
 
@@ -60,7 +59,7 @@ DTP TF UTP::primitive( TF x ) const {
     if ( x < 0 )
         return 0;
     
-    const TI i( x );
+    const PI i( x );
     if ( i >= primitives.size() - 1 )
         return primitives.back();
 
@@ -75,7 +74,7 @@ DTP TF UTP::value( TF x ) const {
     if ( x < 0 || x >= values.size() - 1 )
         return 0;
 
-    TI i( x );
+    PI i( x );
     TF f = x - i;
     return values[ i ] * ( 1 - f ) + values[ i + 1 ] * f;
 }
@@ -88,16 +87,20 @@ DTP TF UTP::integral( TF x0, TF x1 ) const {
     return primitive( x1 ) - primitive( x0 );
 }
 
+DTP TF UTP::width() const {
+    return values.size() - 1;
+}
+
 DTP TF UTP::mass() const {
     return primitives.back();
 }
 
-DTP void UTP::get_inv_cdf( auto &inv_cdf_values, TF &mul_coeff, TI nb_bins ) const {
+DTP void UTP::get_inv_cdf( VF &inv_cdf_values, TF &mul_coeff, PI nb_bins ) const {
     using namespace std;
 
     mul_coeff = nb_bins / mass();
     inv_cdf_values.resize( nb_bins + 1 );
-    for( TI n = 0; n + 1 < primitives.size(); ++n ) {
+    for( PI n = 0; n + 1 < primitives.size(); ++n ) {
         const TF p0 = primitives[ n + 0 ];
         const TF p1 = primitives[ n + 1 ];
         const TF v0 = values[ n + 0 ];
@@ -105,7 +108,7 @@ DTP void UTP::get_inv_cdf( auto &inv_cdf_values, TF &mul_coeff, TI nb_bins ) con
         
         const TF by = p0 * mul_coeff;
         const TF ey = p1 * mul_coeff;
-        for( TF y = ceil( by ); y < min( floor( ey ), nb_bins ); y += 1 ) {
+        for( PI y = PI( ceil( by ) ); y < min( PI( floor( ey ) ), nb_bins ); ++y ) {
             if ( const TF a = v1 - v0 ) {
                 const TF d = v0 * v0 - 2 * a * ( p0 - y / mul_coeff );
                 inv_cdf_values[ y ] = n + ( a > 0 ? 
@@ -124,10 +127,10 @@ DTP void UTP::get_inv_cdf( auto &inv_cdf_values, TF &mul_coeff, TI nb_bins ) con
 
 DTP void UTP::plot( std::ostream &fs ) const {
     fs << "pyplot.plot( ["; 
-    for( TI n = 0; n < values.size(); ++n )
+    for( PI n = 0; n < values.size(); ++n )
         fs << n << ", ";    
     fs << " ], [";
-    for( TI n = 0; n < values.size(); ++n )
+    for( PI n = 0; n < values.size(); ++n )
         fs << values[ n ] << ", ";    
     fs << "] )\n";
 }

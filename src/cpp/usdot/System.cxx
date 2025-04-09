@@ -1,12 +1,12 @@
 #pragma once
 
-#include <tl/support/ASSERT.h>
-#include <tl/support/P.h>
-#include <numeric>
-#include <fstream>
 
 #include "WeightInitializer.h"
+#include "utility/linspace.h"
+#include "WeightUpdater.h"
 #include "System.h"
+#include <numeric>
+#include <fstream>
 
 namespace usdot {
     
@@ -25,6 +25,25 @@ DTP void UTP::initialize_weights() {
 
     WeightInitializer<TF,Density> wi( *this );
     wi.run();
+
+    nb_iterations_init = wi.nb_iterations;
+}
+
+DTP void UTP::update_weights() {
+    _update_system( true );
+
+    WeightUpdater<TF,Density> wi( *this );
+    wi.run();
+
+    nb_iterations_update = wi.nb_iterations;
+}
+
+DTP void UTP::solve() {
+    initialize_weights();
+    update_weights();
+
+    if ( verbosity >= 2 && stream )
+        *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
 }
 
 DTP PI UTP::nb_diracs() const {
@@ -36,10 +55,14 @@ DTP TF UTP::density_value( TF pos ) const {
 }
 
 DTP typename UTP::VF UTP::dirac_barycenters() const {
-    VF res( FromSize(), nb_diracs() );
-    for( TI i = 0; i < nb_diracs(); ++i )
+    VF res( nb_diracs() );
+    for( PI i = 0; i < nb_diracs(); ++i )
         res[ sorted_dirac_nums[ i ] ] = sorted_dirac_positions[ i ];
     return res;
+}
+
+DTP TF UTP::x_tol() const {
+    return target_max_mass_error * global_mass_ratio * density->width() / nb_diracs();
 }
 
 DTP void UTP::plot( Str filename ) const {
@@ -52,7 +75,7 @@ DTP void UTP::plot( Str filename ) const {
     for( auto c : cell_boundaries() ) {
         const TF x0 = c[ 0 ];
         const TF x1 = c[ 1 ];
-        const TF y0 = 0; // ( y++ ) / 10;
+        const TF y0 = ( y++ ) / nb_diracs();
         const TF y1 = y0 + 1;
         fs << "pyplot.plot( [ " << x0 << ", " << x1 << ", " << x1 << ", " << x0 << ", " << x0 << " ], ";
         fs << "[ " << y0 << ", " << y0 << ", " << y1 << ", " << y1 << ", " << y0 << " ] )\n";
@@ -61,21 +84,23 @@ DTP void UTP::plot( Str filename ) const {
     fs << "pyplot.show()\n";
 }
 
-template<class TF>
-void plot_bnds_evolution( const Vec<Vec<Vec<TF,2>>> &bnds ) {
-    auto ys = Vec<TF>::linspace( 0, 1, bnds.size() );
+DTP void UTP::plot_bnds_evolution( const std::vector<VB> &bnds ) {
+    auto ys = linspace<TF>( 0, 1, bnds.size() );
+
     std::ofstream fs( "glot.py" );
     fs << "from matplotlib import pyplot\n";
     for( PI i = 0; i < bnds[ 0 ].size(); ++i ) {
         for( PI j = 0; j < bnds[ 0 ][ 0 ].size(); ++j ) {
-            Vec<TF> xs( FromSizeAndFunctionOnIndex(), bnds.size(), [&]( PI n ) { return bnds[ n ][ i ][ j ]; } );
+            VF xs( bnds.size() );
+            for( PI n = 0; n < bnds.size(); ++n )
+                xs[ n ] = bnds[ n ][ i ][ j ];
             fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
         }
     }
     fs << "pyplot.show()\n";
 }
 
-DTP void UTP::for_each_cell( auto &&func ) const {
+DTP T_T void UTP::for_each_cell( const T &func ) const {
     using namespace std;
 
     if ( nb_diracs() == 0 )
@@ -89,7 +114,7 @@ DTP void UTP::for_each_cell( auto &&func ) const {
         const TF d1 = sorted_dirac_positions[ n ];
         const TF w1 = sorted_dirac_weights[ n ];
         const TF i1 = ( d0 + d1 + ( w0 - w1 ) / ( d1 - d0 ) ) / 2;
-        const TF r0 = sqrt( max( w0, 0 ) );
+        const TF r0 = sqrt( max( w0, TF( 0 ) ) );
         const TF b0 = d0 - r0;
         const TF e0 = d0 + r0;
 
@@ -100,7 +125,7 @@ DTP void UTP::for_each_cell( auto &&func ) const {
         w0 = w1;
     }
 
-    const TF r0 = sqrt( max( w0, 0 ) );
+    const TF r0 = sqrt( max( w0, TF( 0 ) ) );
     const TF b0 = d0 - r0;
     const TF e0 = d0 + r0;
 
@@ -109,8 +134,8 @@ DTP void UTP::for_each_cell( auto &&func ) const {
 
 DTP typename UTP::VF UTP::cell_masses() const {
     _update_system();
-    VF res( FromSize(), nb_diracs() );
-    for_each_cell( [&]( TI n, TF b, TF e ) {
+    VF res( nb_diracs() );
+    for_each_cell( [&]( PI n, TF b, TF e ) {
         res[ sorted_dirac_nums[ n ] ] = density->integral( b, e );
     } );
     return res;
@@ -118,8 +143,8 @@ DTP typename UTP::VF UTP::cell_masses() const {
 
 DTP typename UTP::VB UTP::cell_boundaries() const {
     _update_system();
-    VB res( FromSize(), nb_diracs() );
-    for_each_cell( [&]( TI n, TF b, TF e ) {
+    VB res( nb_diracs() );
+    for_each_cell( [&]( PI n, TF b, TF e ) {
         res[ sorted_dirac_nums[ n ] ] = { b, e };
     } );
     return res;
@@ -129,7 +154,7 @@ DTP TF UTP::l2_mass_error() const {
     using namespace std;
     _update_system();
     TF res = 0;
-    for_each_cell( [&]( TI n, TF b, TF e ) {
+    for_each_cell( [&]( PI n, TF b, TF e ) {
         res += pow( sorted_dirac_masses[ n ] - density->integral( b, e ), 2 );
     } );
     return sqrt( res );
@@ -166,14 +191,14 @@ DTP void UTP::set_density( const Density *density ) {
 DTP void UTP::_update_system( bool need_weights ) const {
     if ( sorted_dirac_masses.empty() ) {
         total_dirac_mass = global_mass_ratio * density->mass();
-        sorted_dirac_masses = Vec<TF>::fill( nb_diracs(), total_dirac_mass / nb_diracs() );
+        sorted_dirac_masses = fill<TF>( nb_diracs(), total_dirac_mass / nb_diracs() );
     }
 
     if ( sorted_dirac_weights.empty() ) {
         const TF b = sorted_dirac_positions.front();
         const TF e = sorted_dirac_positions.back();
         const TF w = pow( global_mass_ratio * ( e - b ) / nb_diracs(), 2 );
-        sorted_dirac_weights = Vec<TF>::fill( nb_diracs(), w );
+        sorted_dirac_weights = fill<TF>( nb_diracs(), w );
     }
 }
 
