@@ -1,6 +1,6 @@
 #pragma once
 
-// #include "utility/dichotomy.h"
+#include "utility/newton_1D.h"
 #include "WeightInitializer.h"
 #include <algorithm>
 #include <stdexcept>
@@ -29,7 +29,7 @@ DTP void UTP::run() {
     
     for( nb_iterations = 0; last_ag_to_optimize; ++nb_iterations ) {
         for( Ag *item = last_ag_to_optimize; item; item = item->prev_opt )
-            optimize_aggregate( item, sys.x_tol() );
+            optimize_aggregate( item, sys.x_tol() / 10 );
         merge_touching_aggregates();
     }
 
@@ -65,38 +65,19 @@ DTP void UTP::make_isolated_aggregates() {
     // push cells without taking care of the surrounding and start the first phase of agglomeration
     const TF eps_u = max_u() * 100 * numeric_limits<TF>::epsilon();
     last_ag_to_optimize = nullptr;
-    const TF x_tol = sys.x_tol();
+    const TF x_tol = sys.x_tol() / 10;
     last_ag = nullptr;
     for( PI n = 0; n < sys.nb_sorted_diracs(); ++n ) {
         const TF x = sys.sorted_dirac_positions[ n ];
         const TF m = dirac_masses[ n ];
         const TF c = cdf( x );
 
-        glot_vec_ys( inv_cdf_values );
-        P( x, c );
-
         // find the cell position
-        auto solve = [&]() {
-            TF b = c, old_e = numeric_limits<TF>::max();
-            for( PI ni = 0; ; ++ni ) {
-                if ( ni == 100 )
-                    throw runtime_error( "max iter in make_isolated_aggregates" );
-                const TF e = inv_cdf( b ) + inv_cdf( b + m ) - 2 * x;
-                //P( ni, e );
-                // if ( abs( e ) > abs( old_e ) )
-                //     throw runtime_error( "Convergence PB in make_isolated_aggregates" );
-                old_e = e;
-
-                const TF d = der_inv_cdf( b ) + der_inv_cdf( b + m );
-                const TF a = max( TF( 0 ), min( TF( inv_cdf_values.size() - 1 - m ), b - e / d ) ) - b;
-                b += a;
-
-                if ( abs( a ) < x_tol )
-                    break;
-            }
-            return b;
-        };
-        const TF b = solve();
+        const TF b = newton_1D<TF>( c, 0, inv_cdf_values.size() - 1 - m, x_tol, [&]( TF b ) {
+            const TF e = inv_cdf( b ) + inv_cdf( b + m ) - 2 * x;
+            const TF d = der_inv_cdf( b ) + der_inv_cdf( b + m );
+            return std::pair<TF,TF>{ e, d };
+        } );
 
         // auto err = [&]( const TF b ) {
         //     return inv_cdf( b ) + inv_cdf( b + m ) - 2 * x;
@@ -176,10 +157,11 @@ DTP void UTP::set_the_weights() {
                 }
             }
             sys.sorted_dirac_weights[ item->beg_n ] = w0;
+            // P( w0, sys.density->integral( d0 - sqrt( w0 ), d0 + sqrt( w0 ) ) );
         } else { // several cells in item
             if ( item->beg_u <= eps_u ) {
                 if ( item->end_u >= max_u() - eps_u ) {
-                    TF w0 = pow( sys.density->width(), 2 ); // a large enough w0
+                    w0 = pow( sys.density->width(), 2 ); // a large enough w0
                     for( PI n = item->beg_n; ; ++n ) {
                         sys.sorted_dirac_weights[ n ] = w0;
                         if ( n + 1 == item->end_n )
@@ -211,7 +193,7 @@ DTP void UTP::set_the_weights() {
                         const TF d0 = sys.sorted_dirac_positions[ n - 1 ];
                         const TF u0 = u1 - dirac_masses[ n ];
                         const TF x0 = inv_cdf( u0 );
-                        const TF w0 = w1 - ( d1 - d0 ) * ( d0 + d1 - 2 * x0 );
+                        w0 = w1 - ( d1 - d0 ) * ( d0 + d1 - 2 * x0 );
     
                         d1 = d0;
                         u1 = u0;
@@ -219,6 +201,7 @@ DTP void UTP::set_the_weights() {
                         w1 = w0;
                     }
                 }
+                // P( w0, sys.density->integral( d0 - sqrt( w0 ), x0 ) );
             } else {
                 for( PI n = item->beg_n; ; ++n ) {
                     sys.sorted_dirac_weights[ n ] = w0;
@@ -235,6 +218,7 @@ DTP void UTP::set_the_weights() {
                     x0 = x1;
                     w0 = w1;
                 }
+                // P( w0, sys.density->integral( x0, d0 + sqrt( w0 ) ) );
             }
         }
     }
@@ -248,45 +232,32 @@ DTP void UTP::optimize_aggregate( Ag *item, TF x_tol ) {
     for( PI n = item->beg_n; n < item->end_n; ++n )
         m += dirac_masses[ n ];
 
-    // try Newton
-    TF old_e = numeric_limits<TF>::max();
-    TF s = item->beg_u;
-    for( PI ni = 0; ; ++ni ) {
-        if ( ni == 200 )
-            throw runtime_error( "optimize_agglomerate max iter reached" );
-        
-        TF b = s;
+    // Newton
+    const TF b = newton_1D<TF>( item->beg_u, 0, inv_cdf_values.size() - 1 - m, x_tol, [&]( TF b ) {
         TF e = 0, d = 0;
-        TF xb = inv_cdf( b );
-        TF db = der_inv_cdf( b );
+        TF x0 = inv_cdf( b );
+        TF d0 = der_inv_cdf( b );
         for( PI n = item->beg_n; n < item->end_n; ++n ) {
             b += dirac_masses[ n ];
 
-            const TF xe = inv_cdf( b );
-            const TF de = der_inv_cdf( b );
+            const TF x1 = inv_cdf( b );
+            const TF d1 = der_inv_cdf( b );
             const TF xd = sys.sorted_dirac_positions[ n ];
 
-            e += pow( xe - xd, 2 ) - pow( xb - xd, 2 );
-            d += 2 * ( de * ( xe - xd ) - db * ( xb - xd ) );
+            e += pow( x1 - xd, 2 ) - pow( x0 - xd, 2 );
+            d += 2 * ( d1 * ( x1 - xd ) - d0 * ( x0 - xd ) );
 
-            db = de;
-            xb = xe;
+            d0 = d1;
+            x0 = x1;
         }
 
-        // P( ni, e );
-        // if ( abs( e ) > abs( old_e ) )
-        //     throw runtime_error( "optimize_aggregate" );
-        old_e = e;
-
-        const TF a = max( TF( 0 ), min( TF( inv_cdf_values.size() - 1 - m ), s - e / d ) ) - s;
-        s += a;
-
-        if ( abs( a ) < x_tol )
-            break;
-    }
+        // const TF e = inv_cdf( b ) + inv_cdf( b + m ) - 2 * x;
+        // const TF d = der_inv_cdf( b ) + der_inv_cdf( b + m );
+        return std::pair<TF,TF>{ e, d };
+    } );
       
-    item->end_u = s + m;
-    item->beg_u = s;
+    item->end_u = b + m;
+    item->beg_u = b;
 
     // for( Ag *item = last_ag; item; item = item->prev ) {
     //     if ( item->len_n() == 1 )

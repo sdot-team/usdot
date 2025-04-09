@@ -4,6 +4,8 @@
 #include <iostream>
 #include <cmath>
 
+namespace usdot {
+
 template<class Func,class TF>
 TF dichotomy( const Func &func, TF tol, TF beg_x, TF end_x, TF beg_y, TF end_y, int max_iter = 50000 ) {
     using namespace std;
@@ -57,3 +59,5 @@ TF dichotomy_growing_from_zero( const Func &func, TF tol, TF mid ) {
 
     return dichotomy( func, tol, beg_x, end_x, beg_y, end_y );
 }
+
+} // namespace usdot

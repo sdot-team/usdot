@@ -42,6 +42,8 @@ DTP void UTP::update_weights() {
 
 DTP void UTP::solve() {
     initialize_weights();
+    plot();
+
     update_weights();
 
     if ( verbosity >= 2 && stream )
@@ -213,16 +215,17 @@ DTP void UTP::set_dirac_positions( const VF &dirac_positions, TF min_dirac_separ
     sorted_dirac_num_offsets.reserve( dirac_positions.size() );
     sorted_dirac_num_values.reserve( dirac_positions.size() );
     sorted_dirac_positions.reserve( dirac_positions.size() );
-    for( PI i = 0; i < dirac_positions.size(); ++i ) {
+    for( PI i = 0; i < sorted_dirac_nums.size(); ++i ) {
         const PI s = sorted_dirac_num_values.size();
-        const TF p = dirac_positions[ i ];
+        const PI n = sorted_dirac_nums[ i ];
+        const TF p = dirac_positions[ n ];
         if ( s && sorted_dirac_positions.back() + min_dirac_separation >= p ) {
-            sorted_dirac_num_values.push_back( i );
+            sorted_dirac_num_values.push_back( n );
             continue;
         }
 
         sorted_dirac_num_offsets.push_back( s );
-        sorted_dirac_num_values.push_back( i );
+        sorted_dirac_num_values.push_back( n );
         sorted_dirac_positions.push_back( p );
     }
     sorted_dirac_num_offsets.push_back( sorted_dirac_num_values.size() );

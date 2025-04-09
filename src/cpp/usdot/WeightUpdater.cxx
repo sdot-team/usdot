@@ -365,6 +365,7 @@ DTP void UTP::run() {
 
     // get the first system
     get_system( connected_cells, opt_weights, max_a, cell_error, has_bad_cell, sys.sorted_dirac_weights );
+    P( cell_error, has_bad_cell );
     if ( has_bad_cell )
         throw std::runtime_error( "bad initialization" );
     if ( sys.verbosity >= 3 && sys.stream )
@@ -372,6 +373,7 @@ DTP void UTP::run() {
     nb_iterations = 0;
     if ( cell_error < sys.target_max_mass_error / sys.nb_sorted_diracs() )
         return;
+
 
     // iterate
     VF new_sorted_dirac_weights;
@@ -403,7 +405,7 @@ DTP void UTP::run() {
                     break;
                 }
 
-                // P( has_bad_cell, new_cell_error, cell_error, a );
+                P( has_bad_cell, new_cell_error, cell_error, a );
             }
             // P( esw );
         }
