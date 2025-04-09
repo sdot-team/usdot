@@ -277,3 +277,6 @@ TODO:
 * dichotomie si Newton échoue
 * vérifier les masses relatives
 * gérer les diracs placés de façon identique
+* vérifier si le poids final de l'init peut poser problème
+* max_mass_ratio_error_target
+* readme

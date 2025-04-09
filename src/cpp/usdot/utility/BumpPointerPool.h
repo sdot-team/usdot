@@ -29,9 +29,6 @@ public:
     void        clear          ();
     void        free           ();
 
-    static auto include_path   () { return "tl/support/BumpPointerPool.h"; }
-    static auto type_name      () { return "TL_NAMESPACE::BumpPointerPool"; }
-
 private:
     struct      Frame          { Frame *prev_frame; char *ending_ptr; char content[ 8 ]; };
     struct      Item           { virtual ~Item() {} Item *prev; };

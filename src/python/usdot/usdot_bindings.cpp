@@ -126,6 +126,7 @@ OtResult from_p1_grid( Array &dirac_positions, TF global_mass_ratio, Array &rela
     GridDensity<TF> gd( std::move( dv ) );
 
     System<TF,GridDensity<TF>> si;
+    si.target_max_mass_error = parms.max_mass_ratio_error_target;
     si.verbosity = parms.verbosity;
     si.stream = &std::cout;
 
@@ -201,7 +202,7 @@ PYBIND11_MODULE( usdot_bindings, m ) {
 /* 
 <%
 setup_pybind11(cfg)
-cfg['extra_compile_args'] = ['-std=c++14']
+cfg['extra_compile_args'] = ['-std=c++11']
 
 # cfg['sources'] = ['extra_source1.cpp', 'extra_source2.cpp']
 # cfg['include_dirs'] += [ '../../../ext' ]
