@@ -37,4 +37,24 @@ void glot( std::vector<TF> xs, Funcs &&...funcs ) {
 //     fs << "pyplot.show()\n";
 // }
 
+template<class... Funcs>
+void glot_vec_ys( Funcs &&...ys ) {
+    std::ofstream fs( "glot.py" );
+    fs << "from matplotlib import pyplot\n";
+    int cpt = 0;
+    auto pf = [&]( auto &&y ) {
+        fs << "pyplot.plot( [ ";
+        for( std::size_t i = 0; i < y.size(); ++i )
+            fs << i << ", ";
+        fs << " ], [ ";
+        for( auto v : y )
+            fs << v << ", ";
+        fs << " ], label='" << cpt++ << "' )\n";
+    };
+    ( pf( ys ), ... );
+    if ( cpt > 1 )
+        fs << "pyplot.legend()\n";
+    fs << "pyplot.show()\n";
+}
+
 } // namespace usdot

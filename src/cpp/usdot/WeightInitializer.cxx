@@ -12,7 +12,7 @@ namespace usdot {
 #define UTP WeightInitializer<TF,Density>
 
 DTP UTP::WeightInitializer( Sys &sys ) : last_ag( nullptr ), sys( sys ) {
-    sys.density->get_inv_cdf( inv_cdf_values, mul_coeff, 10 );
+    sys.density->get_inv_cdf( inv_cdf_values, mul_coeff, 100 );
     
     dirac_masses.resize( sys.nb_sorted_diracs() );
     for( PI n = 0; n < sys.nb_sorted_diracs(); ++n )
@@ -71,6 +71,9 @@ DTP void UTP::make_isolated_aggregates() {
         const TF x = sys.sorted_dirac_positions[ n ];
         const TF m = dirac_masses[ n ];
         const TF c = cdf( x );
+
+        glot_vec_ys( inv_cdf_values );
+        P( x, c );
 
         // find the cell position
         auto solve = [&]() {

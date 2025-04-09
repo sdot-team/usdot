@@ -8,6 +8,7 @@
 #include <limits>
 #include <numeric>
 #include <fstream>
+#include <stdexcept>
 
 namespace usdot {
     
@@ -240,6 +241,9 @@ DTP void UTP::set_density( const Density *density ) {
 }
 
 DTP void UTP::_update_system( bool need_weights ) const {
+    if ( ! density )
+        throw std::runtime_error( "density is not defined" );
+    
     if ( sorted_dirac_masses.empty() ) {
         total_dirac_mass = global_mass_ratio * density->mass();
         const TF bm = total_dirac_mass / nb_original_diracs();

@@ -1,10 +1,12 @@
 #pragma once
 
+#include <tl/support/string/to_string.h>
 #include <tl/support/operators/sp.h>
+#include <tl/support/ASSERT.h>
+#include <tl/support/P.h>
+
 #include "ShapeRegistration.h"
-#include "ConvGridSolver.h"
-#include "partial1D/ConvGridSolverInput.h"
-#include <fstream>
+#include "System.h"
 
 namespace usdot {
     
@@ -162,40 +164,38 @@ DTP std::tuple<TF,TF,Vec<TF>> UTP::projected_density( Pt proj_dir ) {
 }
 
 DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
-    ConvGridSolverInput<TF> solver_input;
-    solver_input.global_mass_ratio = mass_ratio;
-    solver_input.starting_filter_value = 0.5;
-    solver_input.target_mass_error = 1e-3;
-    solver_input.min_dirac_separation = 1e-4;
-
-    // diracs
-    solver_input.dirac_positions.resize( new_diracs.size() );
-    for( PI n = 0; n < new_diracs.size(); ++n )
-        solver_input.dirac_positions[ n ] = sp( new_diracs[ n ], proj_dir );
-
     // density
     std::tuple<TF,TF,Vec<TF>> de = projected_density( proj_dir );
-    solver_input.density_values = std::get<2>( de );
-    solver_input.beg_x_density = std::get<0>( de );
-    solver_input.end_x_density = std::get<1>( de );
+    GridDensity<TF> gd( std::move( std::get<2>( de ) ) );
+    TF beg_x_density = std::get<0>( de );
+    TF end_x_density = std::get<1>( de );
+    
+    // diracs
+    std::vector<TF> diracs( new_diracs.size() );
+    for( PI n = 0; n < new_diracs.size(); ++n )
+        diracs[ n ] = ( sp( new_diracs[ n ], proj_dir ) - beg_x_density ) * gd.width() / ( end_x_density - beg_x_density );
 
-    // solver
-    ConvGridSolver<TF> solver( std::move( solver_input ) );
-    solver.sorted_dirac_weights *= 40;
-    try {
-        solver.solve();
-    } catch ( std::runtime_error e ) {
-        // P( solver.dirac_positions() );
-        // P( mass_ratio );
-        // P( de );
-        solver.plot();
-        P( e.what() );
-        ASSERT( 0 );
-    }
-    // ASSERT( 0 );
+    System<TF> solver;
+    solver.set_global_mass_ratio( mass_ratio );
+    solver.set_dirac_positions( diracs );
+    solver.set_density( &gd );
+    solver.solve();
+
+    // } catch ( std::runtime_error e ) {
+    //     // P( solver.dirac_positions() );
+    //     // P( mass_ratio );
+    //     // P( de );
+    //     solver.plot();
+    //     P( e.what() );
+    //     ASSERT( 0 );
+    // }
 
     // delta
-    return solver.cell_barycenters() - solver.dirac_positions();
+    const auto ba = solver.cell_barycenters();
+    Vec<TF> res( FromSize(), diracs.size() );
+    for( PI n = 0; n < diracs.size(); ++n )
+        res[ n ] = beg_x_density + ( ba[ n ] - diracs[ n ] ) * ( end_x_density - beg_x_density ) / gd.width();
+    return res;
 }
 
 DTP void UTP::compute_new_diracs( PI nb_iter ) {

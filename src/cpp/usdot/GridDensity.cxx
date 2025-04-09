@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GridDensity.h"
+#include "usdot/utility/glot.h"
 #include <algorithm>
 
 namespace usdot {
@@ -111,22 +112,17 @@ DTP void UTP::get_inv_cdf( VF &inv_cdf_values, TF &mul_coeff, PI mul_bins ) cons
     mul_coeff = nb_bins / mass();
     inv_cdf_values.resize( nb_bins + 1 );
     for( PI n = 0; n + 1 < primitives.size(); ++n ) {
-        const TF p0 = primitives[ n + 0 ];
-        const TF p1 = primitives[ n + 1 ];
-        const TF v0 = values[ n + 0 ];
-        const TF v1 = values[ n + 1 ];
+        const TF y0 = primitives[ n + 0 ] * mul_coeff;
+        const TF y1 = primitives[ n + 1 ] * mul_coeff;
+        const TF v0 = values[ n + 0 ] * mul_coeff;
+        const TF v1 = values[ n + 1 ] * mul_coeff;
         
-        const TF by = p0 * mul_coeff;
-        const TF ey = p1 * mul_coeff;
-        for( PI y = PI( ceil( by ) ); y < min( PI( floor( ey ) ), nb_bins ); ++y ) {
+        for( PI y = PI( ceil( y0 ) ); y <= min( y1, TF( nb_bins ) ); ++y ) {
             if ( const TF a = v1 - v0 ) {
-                const TF d = v0 * v0 - 2 * a * ( p0 - y / mul_coeff );
-                inv_cdf_values[ y ] = n + ( a > 0 ? 
-                    ( sqrt( d ) + v0 ) / a :
-                    ( sqrt( d ) - v0 ) / a
-                );
-            } else if ( v0 ) {
-                inv_cdf_values[ y ] = n + ( y / mul_coeff - p0 ) / v0;
+                const TF d = max( TF( 0 ), v0 * v0 + 2 * a * ( y - y0 ) );
+                inv_cdf_values[ y ] = n + ( sqrt( d ) - v0 ) / a;
+            } else if ( y1 - y0 ) {
+                inv_cdf_values[ y ] = n + ( y - y0 ) / ( y1 - y0 );
             } else {
                 inv_cdf_values[ y ] = n;
             }

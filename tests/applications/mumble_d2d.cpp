@@ -1,4 +1,5 @@
-#include <partial1D/ShapeRegistration.h>
+#include <usdot/utility/glot.h>
+#include <usdot/ShapeRegistration.h>
 
 using namespace usdot;
 using namespace std;

@@ -31,7 +31,6 @@ public:
     void  get_inv_cdf      ( VF &inv_cdf_values, TF &mul_coeff, PI mul_bins = 10 ) const;
     void  plot             ( std::ostream &fs ) const;
 
-private:
     VF    x_primitives;    ///<
     VF    primitives;      ///<
     VF    values;          ///<

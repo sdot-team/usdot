@@ -1,11 +1,9 @@
 #pragma once
 
-#include <tl/support/containers/Opt.h>
-#include "AffineTransformation.h"
-#include "VtkOutput.h"
+#include "utility/AffineTransformation.h"
+#include "utility/VtkOutput.h"
 
 namespace usdot {
-
     
 /**
 */

@@ -13,7 +13,7 @@ using namespace std;
 using TF = double;
 
 TEST_CASE( "System", "" ) {
-    GridDensity<TF> gd( { 1, 1, 1 } );
+    GridDensity<TF> gd( { 1, 2, 1 } );
 
     System<TF,GridDensity<TF>> si;
     si.stream = &std::cout;

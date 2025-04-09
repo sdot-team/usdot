@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utility/common_macros.h"
-#include "GridDensity.h" // IWYU pragma: export
+#include "GridDensity.h"
 
 namespace usdot {
 template<class TF,class Density> class WeightInitializer;
@@ -9,7 +9,7 @@ template<class TF,class Density> class WeightUpdater;
     
 /**
 */
-template<class TF,class Density>
+template<class TF,class Density=GridDensity<TF>>
 class System {
 public:
     using          VI                               = std::vector<PI>;
