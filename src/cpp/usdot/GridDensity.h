@@ -28,7 +28,7 @@ public:
     TF    max_x            () const;
     TF    mass             () const;
 
-    void  get_inv_cdf      ( VF &inv_cdf_values, TF &mul_coeff, PI nb_bins ) const;
+    void  get_inv_cdf      ( VF &inv_cdf_values, TF &mul_coeff, PI mul_bins = 10 ) const;
     void  plot             ( std::ostream &fs ) const;
 
 private:

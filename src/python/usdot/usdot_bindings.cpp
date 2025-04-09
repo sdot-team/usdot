@@ -211,6 +211,7 @@ cfg['extra_compile_args'] = ['-std=c++11']
 # logging.basicConfig()
 
 cfg['dependencies'] = [
+    '../../cpp/usdot/utility/dichotomy.h',
     '../../cpp/usdot/WeightInitializer.cxx',
     '../../cpp/usdot/WeightInitializer.h',
     '../../cpp/usdot/WeightUpdater.cxx',

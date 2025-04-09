@@ -23,7 +23,7 @@ The other common parameters are:
     * `relative_mass_ratios`, an optional 1D array, that can be used to set individual dirac mass values (else, dirac masses are considered as uniform). This vector is automatically normalized (it does not change the global_mass_ratio).
 
 Currently, there are 1 solver procedure:
-    * `usdot.from_p1_grid( dirac_positions, density_values, density_beg, density_end, ... )`: compute an ot plan between a set of diracs and a continous piecewise affine density defined on a regular grid.
+    * `usdot.from_p1_grid( dirac_positions, density_values, density_beg, density_end, ... )`: compute an ot plan between a set of diracs and a continous piecewise affine density defined on a regular grid. By default, `density_end` is equal to `len( density_values ) - 1`
     <!-- * `usdot.d2p( diracs, dens_p, dens_v, ... )` is made to compute ot plan between a set of diracs and piecewise polynomial density. Polynomial order is determined by `dens_v.shape[ 1 ] - 1`. Each row gives the coefficients of a polynomial where x = 0 at the beginning of the interval and x = 1 at the end of the interval (intervals are determined by `dens_p`). -->
 
 

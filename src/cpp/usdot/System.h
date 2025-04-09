@@ -18,10 +18,10 @@ public:
 
     /**/           System                           ();
 
-    void           set_relative_dirac_masses        ( const VF &relative_dirac_masses );
-    void           set_global_mass_ratio            ( TF mass_ratio );
-    void           set_dirac_positions              ( const VF &dirac_positions );
-    void           set_mass_ratio                   ( TF mass_ratio );
+    void           set_relative_dirac_masses        ( const VF &relative_mass_ratios );
+    void           set_global_mass_ratio            ( const TF &global_mass_ratio );
+    void           set_dirac_positions              ( const VF &dirac_positions, TF min_dirac_separation = 1e-6 );
+    void           set_mass_ratio                   ( const TF &mass_ratio );
     void           set_density                      ( const Density *density );
 
     void           initialize_weights               ();
@@ -37,8 +37,9 @@ public:
 
     TF             density_value                    ( TF pos ) const;
     
+    PI             nb_original_diracs               () const;
+    PI             nb_sorted_diracs                 () const;
     TF             l2_mass_error                    () const; ///< 
-    PI             nb_diracs                        () const;
     TF             x_tol                            () const; ///<
     void           plot                             ( std::string filename = "glot.py" ) const;
 
@@ -66,10 +67,11 @@ private:
     TF             global_mass_ratio;               ///<
 
     // diracs 
+    VI             sorted_dirac_num_offsets;        ///< offsets in sorted_dirac_num_values. size = nb_sorted_diracs + 1
+    VI             sorted_dirac_num_values;         ///<
     VF             sorted_dirac_positions;          ///<
     mutable VF     sorted_dirac_weights;            ///<
     mutable VF     sorted_dirac_masses;             ///<
-    VI             sorted_dirac_nums;               ///<
     mutable TF     total_dirac_mass;                ///<
    
     // density

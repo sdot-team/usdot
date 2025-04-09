@@ -103,8 +103,10 @@ DTP TF UTP::mass() const {
     return primitives.back();
 }
 
-DTP void UTP::get_inv_cdf( VF &inv_cdf_values, TF &mul_coeff, PI nb_bins ) const {
+DTP void UTP::get_inv_cdf( VF &inv_cdf_values, TF &mul_coeff, PI mul_bins ) const {
     using namespace std;
+
+    const PI nb_bins = mul_bins * values.size();
 
     mul_coeff = nb_bins / mass();
     inv_cdf_values.resize( nb_bins + 1 );

@@ -21,6 +21,15 @@ class TestOt( unittest.TestCase ):
         self.assertTrue( np.allclose( res.barycenters, np.linspace( -0.9, +0.9, 10 ), atol = 1e-6 ) )
         self.assertTrue( np.allclose( res.masses, 0.2, atol = 1e-6 ) )
 
+    def test_same_pos( self ):
+        """ scaled density positions """
+        res = usdot.from_p1_grid( dirac_positions = [ 0, 0.5, 0.5, 1 ], density_values = [ 1, 1 ], density_beg = 0, density_end = 1 )
+ 
+        self.assertTrue( np.allclose( res.boundaries[ :, 0 ], [ 0, 0.25, 0.25, 0.75 ], atol = 1e-6 ) )
+        self.assertTrue( np.allclose( res.boundaries[ :, 1 ], [ 0.25, 0.75, 0.75, 1 ], atol = 1e-6 ) )
+        self.assertTrue( np.allclose( res.barycenters, [ 0.125, 0.5, 0.5, 0.875 ], atol = 1e-6 ) )
+        self.assertTrue( np.allclose( res.masses, 0.25, atol = 1e-6 ) )
+
     # def test_affine( self ):
     #     # ot with a continous piecewise affine function
     #     res = usdot.d2cap( np.linspace( 0, 1, 100 ), [ 0, 1, 2 ], [ 0, 1, 0 ] )

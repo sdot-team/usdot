@@ -18,7 +18,7 @@ DTP void UTP::get_system( VC &connected_cells, VP &opt_weights, TF &max_a, TF &c
     using namespace std;
 
     //
-    opt_weights.resize( sys.nb_diracs() );
+    opt_weights.resize( sys.nb_sorted_diracs() );
     connected_cells.clear();
     has_bad_cell = 0;
     cell_error = 0;
@@ -30,7 +30,7 @@ DTP void UTP::get_system( VC &connected_cells, VP &opt_weights, TF &max_a, TF &c
     TF dp = 0; // prev prev dirac position
     TF wp = 0; // prev prev weight
 
-    for( PI n = 0; n < sys.nb_diracs(); ++n ) {
+    for( PI n = 0; n < sys.nb_sorted_diracs(); ++n ) {
         // negative weight ?
         if ( w0 < 0 ) {
             has_bad_cell = 1;
@@ -38,8 +38,8 @@ DTP void UTP::get_system( VC &connected_cells, VP &opt_weights, TF &max_a, TF &c
         }
 
         // next intersection
-        const TF d1 = n + 1 < sys.nb_diracs() ? sys.sorted_dirac_positions[ n + 1 ] : numeric_limits<TF>::max();
-        const TF w1 = n + 1 < sys.nb_diracs() ? sys.sorted_dirac_weights[ n + 1 ] : 0;
+        const TF d1 = n + 1 < sys.nb_sorted_diracs() ? sys.sorted_dirac_positions[ n + 1 ] : numeric_limits<TF>::max();
+        const TF w1 = n + 1 < sys.nb_sorted_diracs() ? sys.sorted_dirac_weights[ n + 1 ] : 0;
         const TF i1 = ( d0 + d1 + ( w0 - w1 ) / ( d1 - d0 ) ) / 2;
         const TF r0 = sqrt( w0 );
         const TF b0 = d0 - r0;
@@ -327,7 +327,7 @@ DTP TF UTP::best_r_for_ib( const VP &polys, PI n, TF a ) const {
 }
 
 DTP int UTP::get_weights_for( VF &new_dirac_weights, const VC &connected_cells, const VP &polys, TF a ) {
-    new_dirac_weights.resize( sys.nb_diracs() );
+    new_dirac_weights.resize( sys.nb_sorted_diracs() );
     for( std::array<PI,2> inds : connected_cells ) {
         if ( inds[ 0 ] == inds[ 1 ] ) { 
             new_dirac_weights[ inds[ 0 ] ] = pow( polys[ inds[ 0 ] ].c0 + a * polys[ inds[ 0 ] ].ca, 2 );
@@ -347,7 +347,7 @@ DTP int UTP::get_weights_for( VF &new_dirac_weights, const VC &connected_cells, 
 }
 
 DTP void UTP::run() {
-    if ( sys.nb_diracs() == 0 )
+    if ( sys.nb_sorted_diracs() == 0 )
         return;
 
     // system content
@@ -370,7 +370,7 @@ DTP void UTP::run() {
     if ( sys.verbosity >= 3 && sys.stream )
         *sys.stream << "cell_error:" << cell_error << " (first iteration)" << std::endl;
     nb_iterations = 0;
-    if ( cell_error < sys.target_max_mass_error / sys.nb_diracs() )
+    if ( cell_error < sys.target_max_mass_error / sys.nb_sorted_diracs() )
         return;
 
     // iterate
@@ -398,7 +398,7 @@ DTP void UTP::run() {
                     if ( sys.verbosity > 0 && sys.stream )
                         *sys.stream << "cell_error:" << cell_error << " a:" << a << std::endl;
 
-                    if ( sqrt( cell_error ) < sys.target_max_mass_error / sys.nb_diracs() )
+                    if ( sqrt( cell_error ) < sys.target_max_mass_error / sys.nb_sorted_diracs() )
                         return;
                     break;
                 }

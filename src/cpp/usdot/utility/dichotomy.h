@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <iostream>
 #include <cmath>
 
 template<class Func,class TF>
@@ -13,8 +14,10 @@ TF dichotomy( const Func &func, TF tol, TF beg_x, TF end_x, TF beg_y, TF end_y, 
     //
     for( int num_iter = 0; ; ++num_iter ) {
         const TF mid_x = ( beg_x * end_y - end_x * beg_y ) / ( end_y - beg_y );
-        if ( num_iter == max_iter )
+        if ( num_iter == max_iter ) {
+            std::cout << " beg_x:" << beg_x << " end_x:" << end_x << " beg_y:" << beg_y << " end_y:" << end_y << std::endl;
             throw runtime_error( "dichotomy pb" );
+        }
 
         const TF mid_y = func( mid_x );
         if ( abs( mid_y ) < tol || beg_x == end_x )

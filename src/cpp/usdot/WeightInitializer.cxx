@@ -2,7 +2,7 @@
 
 // #include "utility/dichotomy.h"
 #include "WeightInitializer.h"
-// #include <tl/support/P.h>
+#include <algorithm>
 #include <stdexcept>
 #include <limits>
 
@@ -12,26 +12,26 @@ namespace usdot {
 #define UTP WeightInitializer<TF,Density>
 
 DTP UTP::WeightInitializer( Sys &sys ) : last_ag( nullptr ), sys( sys ) {
-    sys.density->get_inv_cdf( inv_cdf_values, mul_coeff, 50000 );
+    sys.density->get_inv_cdf( inv_cdf_values, mul_coeff, 10 );
     
-    dirac_masses.resize( sys.nb_diracs() );
-    for( PI n = 0; n < sys.nb_diracs(); ++n )
+    dirac_masses.resize( sys.nb_sorted_diracs() );
+    for( PI n = 0; n < sys.nb_sorted_diracs(); ++n )
         dirac_masses[ n ] = mul_coeff * sys.sorted_dirac_masses[ n ];
 }
 
 DTP void UTP::run() {
     make_isolated_aggregates();
 
+    // P( inv_cdf_values.size() - 1 );
+    // for( Ag *item = last_ag; item; item = item->prev ) {
+    //     P( item->beg_u, item->end_u );
+    // }
+    
     for( nb_iterations = 0; last_ag_to_optimize; ++nb_iterations ) {
         for( Ag *item = last_ag_to_optimize; item; item = item->prev_opt )
             optimize_aggregate( item, sys.x_tol() );
         merge_touching_aggregates();
     }
-
-    // P( inv_cdf_values.size() - 1 );
-    // for( Ag *item = last_ag; item; item = item->prev ) {
-    //     P( item->beg_u, item->end_u );
-    // }
 
     set_the_weights();
 }
@@ -63,10 +63,11 @@ DTP void UTP::make_isolated_aggregates() {
     using namespace std;
 
     // push cells without taking care of the surrounding and start the first phase of agglomeration
+    const TF eps_u = max_u() * 100 * numeric_limits<TF>::epsilon();
     last_ag_to_optimize = nullptr;
     const TF x_tol = sys.x_tol();
     last_ag = nullptr;
-    for( PI n = 0; n < sys.nb_diracs(); ++n ) {
+    for( PI n = 0; n < sys.nb_sorted_diracs(); ++n ) {
         const TF x = sys.sorted_dirac_positions[ n ];
         const TF m = dirac_masses[ n ];
         const TF c = cdf( x );
@@ -102,7 +103,7 @@ DTP void UTP::make_isolated_aggregates() {
         // const TF b = dichotomy( err, 1e-6 * m, u, v );
 
         // create or place in an agglomerate
-        if ( last_ag == nullptr || last_ag->end_u <= b ) { // non touching cell ?
+        if ( last_ag == nullptr || last_ag->end_u + eps_u <= b ) { // non touching cell ?
             Ag *item = pool.create<Ag>();
             item->beg_n = n + 0;
             item->end_n = n + 1;
@@ -128,11 +129,12 @@ DTP void UTP::make_isolated_aggregates() {
 DTP void UTP::merge_touching_aggregates() {
     using namespace std;
    
+    const TF eps_u = max_u() * 100 * numeric_limits<TF>::epsilon();
     last_ag_to_optimize = nullptr;
     for( Ag *item = last_ag; item; item = item->prev ) {
         while ( Ag *prev = item->prev ) {
             const TF delta = prev->end_u - item->beg_u;
-            if ( delta <= 0 )
+            if ( delta + eps_u <= 0 )
                 break;
 
             if ( last_ag_to_optimize != item ) {
@@ -151,6 +153,7 @@ DTP void UTP::merge_touching_aggregates() {
 DTP void UTP::set_the_weights() {
     using namespace std;
 
+    const TF eps_u = max_u() * 100 * numeric_limits<TF>::epsilon();
     for( Ag *item = last_ag; item; item = item->prev ) {
         TF d0 = sys.sorted_dirac_positions[ item->beg_n ];
         TF u0 = item->beg_u;
@@ -158,10 +161,21 @@ DTP void UTP::set_the_weights() {
         TF w0 = pow( d0 - x0, 2 );
 
         if ( item->beg_n + 1 == item->end_n ) { // cell with only 1 dirac
+            if ( item->beg_u <= eps_u ) {
+                if ( item->end_u >= max_u() - eps_u ) {
+                    w0 = pow( sys.density->width(), 2 ); // a large enough w0
+                } else {
+                    const PI en = item->end_n - 1;
+                    const TF d1 = sys.sorted_dirac_positions[ en ];
+                    const TF u1 = item->end_u;
+                    const TF x1 = inv_cdf( u1 );
+                    w0 = pow( d1 - x1, 2 );
+                }
+            }
             sys.sorted_dirac_weights[ item->beg_n ] = w0;
         } else { // several cells in item
-            if ( item->beg_u == 0 ) {
-                if ( item->end_u == max_u() ) {
+            if ( item->beg_u <= eps_u ) {
+                if ( item->end_u >= max_u() - eps_u ) {
                     TF w0 = pow( sys.density->width(), 2 ); // a large enough w0
                     for( PI n = item->beg_n; ; ++n ) {
                         sys.sorted_dirac_weights[ n ] = w0;
