@@ -24,6 +24,8 @@ public:
     TF    value            ( TF x ) const;
 
     TF    width            () const;
+    TF    min_x            () const;
+    TF    max_x            () const;
     TF    mass             () const;
 
     void  get_inv_cdf      ( VF &inv_cdf_values, TF &mul_coeff, PI nb_bins ) const;

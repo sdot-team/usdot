@@ -30,7 +30,6 @@ DTP void UTP::get_system( VC &connected_cells, VP &opt_weights, TF &max_a, TF &c
     TF dp = 0; // prev prev dirac position
     TF wp = 0; // prev prev weight
 
-    PI bi_ind; // index of the bi cell
     for( PI n = 0; n < sys.nb_diracs(); ++n ) {
         // negative weight ?
         if ( w0 < 0 ) {

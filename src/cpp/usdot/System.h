@@ -28,14 +28,14 @@ public:
     void           update_weights                   ();
     void           solve                            ();
 
-    VF             dirac_barycenters                () const;
+    VF             dirac_positions                  () const;
+    VF             dirac_weights                    () const;
 
     VF             cell_barycenters                 () const;
     VB             cell_boundaries                  () const;
     VF             cell_masses                      () const;
 
     TF             density_value                    ( TF pos ) const;
-
     
     TF             l2_mass_error                    () const; ///< 
     PI             nb_diracs                        () const;
@@ -62,6 +62,7 @@ private:
     T_T void       for_each_cell                    ( const T &func ) const;
 
     // 
+    VF             relative_mass_ratios;            ///<
     TF             global_mass_ratio;               ///<
 
     // diracs 

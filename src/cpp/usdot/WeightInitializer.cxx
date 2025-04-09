@@ -11,7 +11,7 @@ namespace usdot {
 #define DTP template<class TF,class Density>
 #define UTP WeightInitializer<TF,Density>
 
-DTP UTP::WeightInitializer( Sys &sys ) : sys( sys ), last_ag( nullptr ) {
+DTP UTP::WeightInitializer( Sys &sys ) : last_ag( nullptr ), sys( sys ) {
     sys.density->get_inv_cdf( inv_cdf_values, mul_coeff, 50000 );
     
     dirac_masses.resize( sys.nb_diracs() );

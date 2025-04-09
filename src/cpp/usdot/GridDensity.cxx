@@ -15,7 +15,7 @@ DTP UTP::GridDensity( VF &&values ) : values( std::move( values ) ) {
     // primitives
     x_primitives.resize( this->values.size() );
     primitives.resize( this->values.size() );
-    TF o = 0, x_o = 0, der_o = 0;
+    TF o = 0, x_o = 0;
     for( PI i = 0; i + 1 < this->values.size(); ++i ) {
         const TF v0 = this->values[ i + 0 ]; 
         const TF v1 = this->values[ i + 1 ]; 
@@ -85,6 +85,14 @@ DTP TF UTP::x_integral( TF x0, TF x1 ) const {
 
 DTP TF UTP::integral( TF x0, TF x1 ) const {
     return primitive( x1 ) - primitive( x0 );
+}
+
+DTP TF UTP::min_x() const {
+    return 0;
+}
+
+DTP TF UTP::max_x() const {
+    return values.size() - 1;
 }
 
 DTP TF UTP::width() const {

@@ -54,10 +54,17 @@ DTP TF UTP::density_value( TF pos ) const {
     return density->value( pos );
 }
 
-DTP typename UTP::VF UTP::dirac_barycenters() const {
+DTP typename UTP::VF UTP::dirac_positions() const {
     VF res( nb_diracs() );
     for( PI i = 0; i < nb_diracs(); ++i )
         res[ sorted_dirac_nums[ i ] ] = sorted_dirac_positions[ i ];
+    return res;
+}
+
+DTP typename UTP::VF UTP::dirac_weights() const {
+    VF res( nb_diracs() );
+    for( PI i = 0; i < nb_diracs(); ++i )
+        res[ sorted_dirac_nums[ i ] ] = sorted_dirac_weights[ i ];
     return res;
 }
 
@@ -132,20 +139,38 @@ DTP T_T void UTP::for_each_cell( const T &func ) const {
     func( nb_diracs() - 1, max( i0, b0 ), e0 );
 }
 
-DTP typename UTP::VF UTP::cell_masses() const {
+DTP typename UTP::VF UTP::cell_barycenters() const {
     _update_system();
+
     VF res( nb_diracs() );
     for_each_cell( [&]( PI n, TF b, TF e ) {
-        res[ sorted_dirac_nums[ n ] ] = density->integral( b, e );
+        const TF it = density->integral( b, e );
+        res[ sorted_dirac_nums[ n ] ] = it ? density->x_integral( b, e ) / it : 0;
     } );
     return res;
 }
 
 DTP typename UTP::VB UTP::cell_boundaries() const {
+    using namespace std;
+
     _update_system();
+
     VB res( nb_diracs() );
+    TF mi = density->min_x();
+    TF ma = density->max_x();
     for_each_cell( [&]( PI n, TF b, TF e ) {
+        b = max( mi, min( ma, b ) );
+        e = max( mi, min( ma, e ) );
         res[ sorted_dirac_nums[ n ] ] = { b, e };
+    } );
+    return res;
+}
+
+DTP typename UTP::VF UTP::cell_masses() const {
+    _update_system();
+    VF res( nb_diracs() );
+    for_each_cell( [&]( PI n, TF b, TF e ) {
+        res[ sorted_dirac_nums[ n ] ] = density->integral( b, e );
     } );
     return res;
 }
@@ -180,8 +205,12 @@ DTP void UTP::set_dirac_positions( const VF &dirac_positions ) {
     }
 }
 
+DTP void UTP::set_relative_dirac_masses( const VF &relative_dirac_masses ) {
+    this->relative_mass_ratios = relative_mass_ratios;
+}
+
 DTP void UTP::set_global_mass_ratio( TF mass_ratio ) {
-    global_mass_ratio = mass_ratio;
+    this->global_mass_ratio = mass_ratio;
 }
 
 DTP void UTP::set_density( const Density *density ) {
