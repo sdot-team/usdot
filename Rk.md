@@ -274,7 +274,6 @@ Prop: on fait un vecteur de polynômes qui donnent les interfaces en fonction du
   Pb: on peut donner la suite de poids uniquement pour une densité connue. Lorsqu'on décale les cellules, les densité peuvent changer radicalement et la représentation polynomiale devient dégueulasse.
   
 TODO:
-* dichot si Newton échoue
+* dichotomie si Newton échoue
 * vérifier les masses relatives
 * gérer les diracs placés de façon identique
-* python

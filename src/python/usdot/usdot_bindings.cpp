@@ -3,6 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <iostream>
 
 namespace py = pybind11;
 using namespace usdot;
@@ -200,10 +201,10 @@ PYBIND11_MODULE( usdot_bindings, m ) {
 /* 
 <%
 setup_pybind11(cfg)
-cfg['include_dirs'] += [ '../../../ext' ]
-cfg['extra_compile_args'] = ['-std=c++20']
+cfg['extra_compile_args'] = ['-std=c++14']
 
 # cfg['sources'] = ['extra_source1.cpp', 'extra_source2.cpp']
+# cfg['include_dirs'] += [ '../../../ext' ]
 
 # import logging
 # logging.basicConfig()
