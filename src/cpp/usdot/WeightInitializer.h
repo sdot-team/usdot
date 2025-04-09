@@ -30,18 +30,19 @@ private:
         Ag* prev;
     };
     
-    void             make_isolated_aggregates();
-    void             optimize_aggregate      ( Ag *item, TF x_tol );
-    void             optimize_and_merge      (); ///< optimize and merge the touching agglomerate
-    void             set_the_weights         ();
-    TF               der_inv_cdf             ( TF u ) const;
-    TF               inv_cdf                 ( TF u ) const;
-    TF               cdf                     ( TF x ) const;
-        
-    Ag*              last_ag_to_optimize;    ///<
-    VF               inv_cdf_values;   
-    VF               dirac_masses;           ///< normalized
-    TF               mul_coeff;              ///<
+    void             merge_touching_aggregates(); ///< 
+    void             make_isolated_aggregates ();
+    void             optimize_aggregate       ( Ag *item, TF x_tol );
+    void             set_the_weights          ();
+    TF               der_inv_cdf              ( TF u ) const;
+    TF               inv_cdf                  ( TF u ) const;
+    TF               max_u                    () const { return inv_cdf_values.size() - 1; }
+    TF               cdf                      ( TF x ) const;
+         
+    Ag*              last_ag_to_optimize;     ///<
+    VF               inv_cdf_values;    
+    VF               dirac_masses;            ///< normalized
+    TF               mul_coeff;               ///<
     Ag*              last_ag;
     BumpPointerPool  pool;
     Sys&             sys;

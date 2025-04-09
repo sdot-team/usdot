@@ -19,13 +19,15 @@ TEST_CASE( "System", "" ) {
     si.verbosity = 2;
 
     // si.set_dirac_positions( Vec<TF>::cellspace( 1.6, 2.0, 15 ) );
-    si.set_dirac_positions( cellspace<TF>( 1.0, 2.0, 5 ) );
-    si.set_global_mass_ratio( 0.75 );
+    si.set_dirac_positions( cellspace<TF>( 0.0, 2.0, 5 ) );
+    si.set_global_mass_ratio( 1 );
     si.set_density( &gd );
 
     si.initialize_weights();
+    //si.update_weights();
     //si.solve();
     si.plot();
+    P( si.l2_mass_error() );
 
     // P( si.cell_boundaries() );
     // P( si.cell_masses() );

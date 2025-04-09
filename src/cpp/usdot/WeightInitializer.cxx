@@ -2,6 +2,9 @@
 
 #include "utility/dichotomy.h"
 #include "WeightInitializer.h"
+#include <tl/support/P.h>
+#include <stdexcept>
+#include <limits>
 
 namespace usdot {
     
@@ -14,6 +17,23 @@ DTP UTP::WeightInitializer( Sys &sys ) : sys( sys ), last_ag( nullptr ) {
     dirac_masses.resize( sys.nb_diracs() );
     for( PI n = 0; n < sys.nb_diracs(); ++n )
         dirac_masses[ n ] = mul_coeff * sys.sorted_dirac_masses[ n ];
+}
+
+DTP void UTP::run() {
+    make_isolated_aggregates();
+
+    for( nb_iterations = 0; last_ag_to_optimize; ++nb_iterations ) {
+        for( Ag *item = last_ag_to_optimize; item; item = item->prev_opt )
+            optimize_aggregate( item, sys.x_tol() );
+        merge_touching_aggregates();
+    }
+
+    // P( inv_cdf_values.size() - 1 );
+    // for( Ag *item = last_ag; item; item = item->prev ) {
+    //     P( item->beg_u, item->end_u );
+    // }
+
+    set_the_weights();
 }
 
 DTP TF UTP::der_inv_cdf( TF u ) const {
@@ -53,12 +73,20 @@ DTP void UTP::make_isolated_aggregates() {
 
         // find the cell position
         auto solve = [&]() {
-            TF b = c;
-            for( PI ni = 0; ni < 10; ++ni ) {
+            TF b = c, old_e = numeric_limits<TF>::max();
+            for( PI ni = 0; ; ++ni ) {
+                if ( ni == 100 )
+                    throw runtime_error( "max iter in make_isolated_aggregates" );
                 const TF e = inv_cdf( b ) + inv_cdf( b + m ) - 2 * x;
+                //P( ni, e );
+                // if ( abs( e ) > abs( old_e ) )
+                //     throw runtime_error( "Convergence PB in make_isolated_aggregates" );
+                old_e = e;
+
                 const TF d = der_inv_cdf( b ) + der_inv_cdf( b + m );
-                const TF a = e / d;
-                b -= a;
+                const TF a = max( TF( 0 ), min( TF( inv_cdf_values.size() - 1 - m ), b - e / d ) ) - b;
+                b += a;
+
                 if ( abs( a ) < x_tol )
                     break;
             }
@@ -97,42 +125,27 @@ DTP void UTP::make_isolated_aggregates() {
     }
 }
 
-DTP void UTP::optimize_and_merge() {
+DTP void UTP::merge_touching_aggregates() {
     using namespace std;
    
-    const TF x_tol = sys.x_tol();
-    nb_iterations = 0;
-    for( ; last_ag_to_optimize; ++nb_iterations ) {
-        // change the positions
-        for( Ag *item = last_ag_to_optimize; item; item = item->prev_opt )
-            optimize_aggregate( item, x_tol );
+    last_ag_to_optimize = nullptr;
+    for( Ag *item = last_ag; item; item = item->prev ) {
+        while ( Ag *prev = item->prev ) {
+            const TF delta = prev->end_u - item->beg_u;
+            if ( delta <= 0 )
+                break;
 
-        // merge the touching agglomerates
-        last_ag_to_optimize = nullptr;
-        for( Ag *item = last_ag; item; item = item->prev ) {
-            while ( Ag *prev = item->prev ) {
-                const TF delta = prev->end_u - item->beg_u;
-                if ( delta <= 0 )
-                    break;
-
-                if ( last_ag_to_optimize != item ) {
-                    item->prev_opt = last_ag_to_optimize;
-                    last_ag_to_optimize = item;
-                    item->test_width = 0;
-                }
-                item->test_width += delta;
-                item->beg_n = prev->beg_n;
-                item->beg_u = prev->beg_u;
-                item->prev = prev->prev;
+            if ( last_ag_to_optimize != item ) {
+                item->prev_opt = last_ag_to_optimize;
+                last_ag_to_optimize = item;
+                item->test_width = 0;
             }
+            item->test_width += delta;
+            item->beg_n = prev->beg_n;
+            item->beg_u = prev->beg_u;
+            item->prev = prev->prev;
         }
     }
-}
-
-DTP void UTP::run() {
-    make_isolated_aggregates();
-    optimize_and_merge();
-    set_the_weights();
 }
 
 DTP void UTP::set_the_weights() {
@@ -147,20 +160,64 @@ DTP void UTP::set_the_weights() {
         if ( item->beg_n + 1 == item->end_n ) { // cell with only 1 dirac
             sys.sorted_dirac_weights[ item->beg_n ] = w0;
         } else { // several cells in item
-            for( PI n = item->beg_n; ; ++n ) {
-                sys.sorted_dirac_weights[ n ] = w0;
-                if ( n + 1 == item->end_n )
-                    break;
-                                
-                const TF d1 = sys.sorted_dirac_positions[ n + 1 ];
-                const TF u1 = u0 + dirac_masses[ n ];
-                const TF x1 = inv_cdf( u1 );
-                const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
+            if ( item->beg_u == 0 ) {
+                if ( item->end_u == max_u() ) {
+                    TF w0 = pow( sys.density->width(), 2 ); // a large enough w0
+                    for( PI n = item->beg_n; ; ++n ) {
+                        sys.sorted_dirac_weights[ n ] = w0;
+                        if ( n + 1 == item->end_n )
+                            break;
+                                        
+                        const TF d1 = sys.sorted_dirac_positions[ n + 1 ];
+                        const TF u1 = u0 + dirac_masses[ n ];
+                        const TF x1 = inv_cdf( u1 );
+                        const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
+    
+                        d0 = d1;
+                        u0 = u1;
+                        x0 = x1;
+                        w0 = w1;
+                    }
+                } else {
+                    PI n = item->end_n - 1;
 
-                d0 = d1;
-                u0 = u1;
-                x0 = x1;
-                w0 = w1;
+                    TF d1 = sys.sorted_dirac_positions[ n ];
+                    TF u1 = item->end_u;
+                    TF x1 = inv_cdf( u1 );
+                    TF w1 = pow( d1 - x1, 2 );
+
+                    for( ; ; --n ) {
+                        sys.sorted_dirac_weights[ n ] = w1;
+                        if ( n == item->beg_n )
+                            break;
+                                        
+                        const TF d0 = sys.sorted_dirac_positions[ n - 1 ];
+                        const TF u0 = u1 - dirac_masses[ n ];
+                        const TF x0 = inv_cdf( u0 );
+                        const TF w0 = w1 - ( d1 - d0 ) * ( d0 + d1 - 2 * x0 );
+    
+                        d1 = d0;
+                        u1 = u0;
+                        x1 = x0;
+                        w1 = w0;
+                    }
+                }
+            } else {
+                for( PI n = item->beg_n; ; ++n ) {
+                    sys.sorted_dirac_weights[ n ] = w0;
+                    if ( n + 1 == item->end_n )
+                        break;
+                                    
+                    const TF d1 = sys.sorted_dirac_positions[ n + 1 ];
+                    const TF u1 = u0 + dirac_masses[ n ];
+                    const TF x1 = inv_cdf( u1 );
+                    const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
+
+                    d0 = d1;
+                    u0 = u1;
+                    x0 = x1;
+                    w0 = w1;
+                }
             }
         }
     }
@@ -169,9 +226,16 @@ DTP void UTP::set_the_weights() {
 DTP void UTP::optimize_aggregate( Ag *item, TF x_tol ) {
     using namespace std;
 
+    // mass of the aggregate
+    TF m = 0;
+    for( PI n = item->beg_n; n < item->end_n; ++n )
+        m += dirac_masses[ n ];
+
+    // try Newton
+    TF old_e = numeric_limits<TF>::max();
     TF s = item->beg_u;
     for( PI ni = 0; ; ++ni ) {
-        if ( ni == 20 )
+        if ( ni == 200 )
             throw runtime_error( "optimize_agglomerate max iter reached" );
         
         TF b = s;
@@ -192,16 +256,17 @@ DTP void UTP::optimize_aggregate( Ag *item, TF x_tol ) {
             xb = xe;
         }
 
-        const TF a = e / d;
-        s -= a;
+        // P( ni, e );
+        // if ( abs( e ) > abs( old_e ) )
+        //     throw runtime_error( "optimize_aggregate" );
+        old_e = e;
+
+        const TF a = max( TF( 0 ), min( TF( inv_cdf_values.size() - 1 - m ), s - e / d ) ) - s;
+        s += a;
 
         if ( abs( a ) < x_tol )
             break;
     }
-
-    TF m = 0;
-    for( PI n = item->beg_n; n < item->end_n; ++n )
-        m += dirac_masses[ n ];
       
     item->end_u = s + m;
     item->beg_u = s;

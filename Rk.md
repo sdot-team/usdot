@@ -273,3 +273,6 @@ Prop: on fait un vecteur de polynômes qui donnent les interfaces en fonction du
   L'objectif, c'est d'optimiser la poids de la première cellule à chaque ajout dans le pack.
   Pb: on peut donner la suite de poids uniquement pour une densité connue. Lorsqu'on décale les cellules, les densité peuvent changer radicalement et la représentation polynomiale devient dégueulasse.
   
+TODO:
+* saturation en 0 pour les poids
+* dichot si Newton échoue
