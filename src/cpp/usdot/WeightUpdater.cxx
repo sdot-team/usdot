@@ -552,8 +552,8 @@ DTP std::pair<typename UTP::VF,TF> UTP::newton_dir() const {
     TF prev_v = 0;
     TF err = 0;
     on_newton_item( [&]( PI index, TF m0, TF m1, TF v, int bad_cell ) {
-        // if ( index == 0 && global_mass_ratio == 1 && current_contrast_ratio == 0 )
-        //     m0 += 1;
+        if ( index == 0 && sys.global_mass_ratio == 1 )
+            m0 *= 2;
         if ( bad_cell )
             has_bad_cell = bad_cell;
 
@@ -583,6 +583,8 @@ DTP void UTP::newton_update( PI max_iter ) {
 
     VF old_dirac_weights( sys.nb_sorted_diracs() );
     std::pair<VF,TF> dir = newton_dir();
+    if ( dir.second < 1e-3 )
+        return;
 
     for( PI num_iter = 0; ; ++num_iter ) {
         if ( num_iter == max_iter )

@@ -269,9 +269,9 @@ DTP TF UTP::der_inv_cdf_no_check( TF u ) const {
                 const TF a = dv / dx;
 
                 const TF d = max( TF( 0 ), v0 * v0 - 2 * a * c );
-                return pow( d, - 0.5 );
+                return d ? pow( d, - 0.5 ) : sqrt( numeric_limits<TF>::max() );
             }
-            return numeric_limits<TF>::max();
+            return sqrt( numeric_limits<TF>::max() );
         }
     }
 }

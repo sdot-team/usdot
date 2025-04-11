@@ -15,14 +15,16 @@ TF dichotomy( const Func &func, TF tol, TF beg_x, TF end_x, TF beg_y, TF end_y, 
 
     //
     for( int num_iter = 0; ; ++num_iter ) {
-        const TF mid_x = ( beg_x * end_y - end_x * beg_y ) / ( end_y - beg_y );
+        // const TF mid_x = ( beg_x + end_x ) / 2; // ( beg_x * end_y - end_x * beg_y ) / ( end_y - beg_y );
+        const TF f = max( 0.2, min( 0.8, abs( beg_y ) / ( abs( end_y ) + abs( beg_y ) ) ) );
+        const TF mid_x = ( 1 - f ) * beg_x + f * end_x;
         if ( num_iter == max_iter ) {
             std::cout << " beg_x:" << beg_x << " end_x:" << end_x << " beg_y:" << beg_y << " end_y:" << end_y << std::endl;
             throw runtime_error( "dichotomy pb" );
         }
 
         const TF mid_y = func( mid_x );
-        if ( abs( mid_y ) < tol || beg_x == end_x )
+        if ( abs( mid_y ) <= tol || beg_x == end_x )
             return mid_x;
 
         if ( ( mid_y < 0 ) ^ ( beg_y > end_y ) ) {
@@ -40,6 +42,30 @@ TF dichotomy( const Func &func, TF tol, TF beg_x, TF end_x, TF beg_y, TF end_y, 
 template<class Func,class TF>
 TF dichotomy( const Func &func, TF tol, TF beg_x, TF end_x ) {
     return dichotomy( func, tol, beg_x, end_x, func( beg_x ), func( end_x ) );
+}
+
+template<class Func,class TF>
+TF dichotomy_unbounded( TF beg_x, TF err_tol, const Func &func ) {
+    TF beg_y = func( beg_x );
+    if ( abs( beg_y ) <= err_tol )
+        return beg_x;
+
+    // bounds
+    TF end_x;
+    TF end_y;
+    for( TF a = 1; ; a *= 2 ) {
+        end_x = beg_x + a;
+        end_y = func( end_x );
+        if ( beg_y * end_y <= 0 )
+            break;
+
+        end_x = beg_x - a;
+        end_y = func( end_x );
+        if ( beg_y * end_y <= 0 )
+            break;
+    }
+        
+    return dichotomy( func, err_tol, beg_x, end_x, beg_y, end_y );
 }
 
 template<class Func,class TF>
