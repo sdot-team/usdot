@@ -5,10 +5,11 @@
 #include "utility/linspace.h"
 #include "WeightUpdater.h"
 #include "System.h"
-#include <limits>
+
+#include <stdexcept>
 #include <numeric>
 #include <fstream>
-#include <stdexcept>
+#include <limits>
 
 namespace usdot {
     
@@ -16,9 +17,7 @@ namespace usdot {
 #define UTP System<TF,Density>
 
 DTP UTP::System() {
-    // using namespace std;
     global_mass_ratio = 1;
-    total_dirac_mass = -1;
     density = nullptr;
 }
 
@@ -79,7 +78,7 @@ DTP typename UTP::VF UTP::dirac_weights() const {
 }
 
 DTP TF UTP::x_tol() const {
-    return target_max_mass_error * global_mass_ratio * density->width() / nb_sorted_diracs();
+    return target_max_mass_error * global_mass_ratio * density->ptp_x() / nb_sorted_diracs();
 }
 
 DTP void UTP::plot( Str filename ) const {
@@ -261,8 +260,7 @@ DTP void UTP::_update_system( bool need_weights ) const {
         throw std::runtime_error( "density is not defined" );
     
     if ( sorted_dirac_masses.empty() ) {
-        total_dirac_mass = global_mass_ratio * density->mass();
-        const TF bm = total_dirac_mass / nb_original_diracs();
+        const TF bm = global_mass_ratio / nb_original_diracs();
         sorted_dirac_masses.resize( nb_sorted_diracs() );
         for( PI i = 0; i < nb_sorted_diracs(); ++i )
             sorted_dirac_masses[ i ] = bm * ( sorted_dirac_num_offsets[ i + 1 ] - sorted_dirac_num_offsets[ i + 0 ] );

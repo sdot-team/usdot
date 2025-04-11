@@ -18,36 +18,47 @@ namespace usdot {
 template<class TF,int regular_positions=0>
 class GridDensity {
 public:
-    using VF               = std::vector<TF>;
-    using VI               = std::vector<PI>;
+    using VF                  = std::vector<TF>;
+    using VI                  = std::vector<PI>;
+   
+    /**/  GridDensity         ( TF beg_positions, TF end_positions, const VF &values );
+    /**/  GridDensity         ( const VF &positions, const VF &values );
+    /**/  GridDensity         ( const VF &values );
+   
+    TF    x_primitive         ( TF x ) const; ///< primitive( x d\rho )
+    TF    x_integral          ( TF x0, TF x1 ) const; ///< integral( x d\rho, x0, x1 )
+   
+    TF    primitive           ( TF x ) const;
+    TF    integral            ( TF x0, TF x1 ) const;
+    TF    value               ( TF x ) const;
+   
+    TF    position            ( PI i ) const;
+    TF    min_x               () const;
+    TF    max_x               () const;
+    TF    ptp_x               () const;
+       
+    TF    inv_cdf_no_check    ( TF u ) const;
+    TF    inv_cdf             ( TF u, TF ext_density ) const;
+    TF    inv_cdf             ( TF u ) const;
+    TF    cdf                 ( TF x, TF ext_density ) const;
+    TF    cdf                 ( TF x ) const { return primitive( x ); }
 
-    /**/  GridDensity      ( TF beg_positions, TF end_positions, const VF &values );
-    /**/  GridDensity      ( const VF &positions, const VF &values );
-    /**/  GridDensity      ( const VF &values );
-
-    TF    x_primitive      ( TF x ) const; ///< primitive( x d\rho )
-    TF    x_integral       ( TF x0, TF x1 ) const; ///< integral( x d\rho, x0, x1 )
-
-    TF    primitive        ( TF x ) const;
-    TF    integral         ( TF x0, TF x1 ) const;
-    TF    value            ( TF x ) const;
-
-    TF    width            () const;
-    TF    min_x            () const;
-    TF    max_x            () const;
-
-    void  plot             ( std::ostream &fs ) const;
-
-    VF    x_primitives;    ///<
-    VF    primitives;      ///<
-    VF    positions;       ///<
-    VF    values;          ///<
-
-    TF    opt_pos_coeff;   ///<
-    VI    opt_pos_begs;    ///<
-    VI    opt_pos_ends;    ///<
-    TF    opt_pos_beg;     ///<
-    TF    opt_pos_end;     ///<
+    TF    der_inv_cdf_no_check( TF u ) const;
+    TF    der_inv_cdf         ( TF u, TF ext_density ) const; ///< der inv cdf
+   
+    void  plot                ( std::ostream &fs ) const;
+   
+    VF    x_primitives;       ///<
+    VF    primitives;         ///<
+    VF    positions;          ///<
+    VF    values;             ///<
+   
+    TF    opt_pos_coeff;      ///<
+    VI    opt_pos_begs;       ///<
+    TF    opt_pos_beg;        ///<
+    TF    opt_pos_end;        ///<
+   
+    VI    opt_cdf_begs;       ///<
 };
 
 } // namespace usdot

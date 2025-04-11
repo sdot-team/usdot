@@ -26,14 +26,14 @@ TEST_CASE( "System", "" ) {
     si.set_density( &gd );
 
     si.initialize_weights();
-    si.update_weights();
+    // si.update_weights();
     //si.solve();
     si.plot();
     P( si.l2_mass_error() );
 
-    P( si.dirac_weights() );
-    P( si.cell_boundaries() );
-    P( si.cell_masses() );
+    // P( si.cell_boundaries() );
+    // P( si.dirac_weights() );
+    // P( si.cell_masses() );
     // P( si.l2_mass_error() );
 
     // si.dirac_positions = Vec<TF>::cellspace( 0, 1, 200 );

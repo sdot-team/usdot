@@ -72,7 +72,6 @@ private:
     VF             sorted_dirac_positions;          ///<
     mutable VF     sorted_dirac_weights;            ///<
     mutable VF     sorted_dirac_masses;             ///<
-    mutable TF     total_dirac_mass;                ///<
    
     // density
     const Density* density;                         ///<

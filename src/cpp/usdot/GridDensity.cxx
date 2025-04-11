@@ -44,25 +44,35 @@ DTP UTP::GridDensity( const VF &positions, const VF &values ) : positions( posit
     primitives.back() = o;
 
     // normalization
-    for( TF &v : x_primitives )
+    for( TF &v : this->x_primitives )
         v /= o;
-    for( TF &v : primitives )
+    for( TF &v : this->primitives )
+        v /= o;
+    for( TF &v : this->values )
         v /= o;
 
     // opt_pos
-    const PI op_size = this->values.size() - 1;
-    opt_pos_begs.resize( op_size, numeric_limits<PI>::max() );
-    opt_pos_ends.resize( op_size, 0 );
+    const PI opt_pos_size = this->values.size() - 1;
+    opt_pos_begs.resize( opt_pos_size, numeric_limits<PI>::max() );
     opt_pos_beg = this->positions.front();
     opt_pos_end = this->positions.back();
-    opt_pos_coeff = op_size / ( opt_pos_end - opt_pos_beg );
+    opt_pos_coeff = opt_pos_size / ( opt_pos_end - opt_pos_beg );
     for( PI i = 0; i + 1 < this->values.size(); ++i ) {
         const PI x0 = floor( ( this->positions[ i + 0 ] - opt_pos_beg ) * opt_pos_coeff );
         const PI x1 = ceil( ( this->positions[ i + 1 ] - opt_pos_beg ) * opt_pos_coeff );
-        for( PI n = x0; n < min( x1, op_size ); ++n ) {
-            opt_pos_begs[ n ] = min( opt_pos_begs[ n ], i + 0 );
-            opt_pos_ends[ n ] = max( opt_pos_ends[ n ], i + 1 );
-        }
+        for( PI n = x0; n < min( x1, opt_pos_size ); ++n )
+            opt_pos_begs[ n ] = min( opt_pos_begs[ n ], i );
+    }
+
+    // opt_cdf
+    const PI mul_opt_cdf = 2;
+    const PI opt_cdf_size = mul_opt_cdf * this->values.size();
+    opt_cdf_begs.resize( opt_cdf_size, numeric_limits<PI>::max() );
+    for( PI i = 0; i + 1 < this->primitives.size(); ++i ) {
+        const PI x0 = floor( this->primitives[ i + 0 ] * opt_cdf_size );
+        const PI x1 = ceil( this->primitives[ i + 1 ] * opt_cdf_size );
+        for( PI n = x0; n < min( x1, opt_cdf_size ); ++n )
+            opt_cdf_begs[ n ] = min( opt_cdf_begs[ n ], i );
     }
 }
 
@@ -102,10 +112,8 @@ DTP TF UTP::x_primitive( TF x ) const {
     if ( x > opt_pos_end )
         return x_primitives.back();
 
-    const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_ends.size() - 1 );
+    const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_begs.size() - 1 );
     for( PI i = opt_pos_begs[ ox ]; ; ++i ) {
-        if ( i == opt_pos_ends[ ox ] )
-            throw std::runtime_error( "density issue" );
         if ( positions[ i + 1 ] >= x ) {
             const TF p0 = positions[ i + 0 ];
             const TF p1 = positions[ i + 1 ];
@@ -149,19 +157,17 @@ DTP TF UTP::primitive( TF x ) const {
     if ( x > opt_pos_end )
         return primitives.back();
 
-    const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_ends.size() - 1 );
+    const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_begs.size() - 1 );
     for( PI i = opt_pos_begs[ ox ]; ; ++i ) {
-        if ( i == opt_pos_ends[ ox ] )
-            throw std::runtime_error( "density issue" );
         if ( positions[ i + 1 ] >= x ) {
-            const TF p0 = positions[ i + 0 ];
-            const TF p1 = positions[ i + 1 ];
-            if ( const TF de = p1 - p0 ) {
+            const TF x0 = positions[ i + 0 ];
+            const TF x1 = positions[ i + 1 ];
+            if ( const TF dx = x1 - x0 ) {
                 const TF v0 = values[ i + 0 ];
                 const TF v1 = values[ i + 1 ];
-                const TF dx = x - p0;
-        
-                TF res = dx * v0 + dx * dx * ( v1 - v0 ) / ( 2 * de );
+                const TF xd = x - x0;
+              
+                TF res = xd * v0 + xd * xd / dx * ( v1 - v0 ) / 2;
                 return primitives[ i ] + res;
             }
             return primitives[ i ];
@@ -184,10 +190,8 @@ DTP TF UTP::value( TF x ) const {
     if ( x < opt_pos_beg || x > opt_pos_end )
         return 0;
 
-    const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_ends.size() - 1 );
+    const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_begs.size() - 1 );
     for( PI i = opt_pos_begs[ ox ]; ; ++i ) {
-        if ( i == opt_pos_ends[ ox ] )
-            throw std::runtime_error( "density issue" );
         if ( positions[ i + 1 ] >= x ) {
             if ( const TF de = positions[ i + 1 ] - positions[ i + 0 ] ) {
                 TF f = ( x - positions[ i + 0 ] ) / de;
@@ -196,6 +200,112 @@ DTP TF UTP::value( TF x ) const {
             return values[ i ];
         }
     }
+}
+
+DTP TF UTP::position( PI i ) const {
+    if ( regular_positions == 2 )
+        return i;
+    if ( regular_positions == 1 )
+        return opt_pos_beg + i / opt_pos_coeff;
+    return positions[ i ];
+}
+
+DTP TF UTP::inv_cdf_no_check( TF u ) const {
+    using namespace std;
+
+    const PI os = opt_cdf_begs.size() - 1;
+    const PI ox = std::min( PI( u * os ), os );
+    for( PI i = opt_cdf_begs[ ox ]; ; ++i ) {
+        if ( primitives[ i + 1 ] >= u ) {
+            const TF p0 = primitives[ i + 0 ];
+            const TF p1 = primitives[ i + 1 ];
+            if ( const TF dp = p1 - p0 ) {
+                const TF x0 = position( i + 0 );
+                const TF x1 = position( i + 1 );
+                const TF v0 = values[ i + 0 ];
+                const TF v1 = values[ i + 1 ];
+                const TF dx = x1 - x0;
+                const TF dv = v1 - v0;
+                
+                if ( x0 == x1 || v0 == v1 ) {
+                    const TF f = ( u - p0 ) / dp;
+                    return x0 * ( 1 - f ) + x1 * f;
+                }
+
+                const TF c = ( primitives[ i ] - u );
+                const TF a = dv / dx;
+
+                const TF d = max( TF( 0 ), v0 * v0 - 2 * a * c );
+                const TF x = ( sqrt( d ) - v0 ) / a; // 
+                return x0 + x;
+
+            }
+            return positions[ i ];
+        }
+    }
+}
+
+DTP TF UTP::der_inv_cdf_no_check( TF u ) const {
+    using namespace std;
+
+    const PI os = opt_cdf_begs.size() - 1;
+    const PI ox = std::min( PI( u * os ), os );
+    for( PI i = opt_cdf_begs[ ox ]; ; ++i ) {
+        if ( primitives[ i + 1 ] >= u ) {
+            const TF p0 = primitives[ i + 0 ];
+            const TF p1 = primitives[ i + 1 ];
+            if ( const TF dp = p1 - p0 ) {
+                const TF x0 = position( i + 0 );
+                const TF x1 = position( i + 1 );
+                const TF v0 = values[ i + 0 ];
+                const TF v1 = values[ i + 1 ];
+                const TF dx = x1 - x0;
+                const TF dv = v1 - v0;
+                
+                if ( x0 == x1 || v0 == v1 )
+                    return ( x1 - x0 ) / dp;
+
+                const TF c = ( primitives[ i ] - u );
+                const TF a = dv / dx;
+
+                const TF d = max( TF( 0 ), v0 * v0 - 2 * a * c );
+                return pow( d, - 0.5 );
+            }
+            return numeric_limits<TF>::max();
+        }
+    }
+}
+
+DTP TF UTP::inv_cdf( TF u ) const {
+    if ( u > 1 )
+        return 1;
+    if ( u < 0 )
+        return 0;
+    return inv_cdf_no_check( u );
+}
+
+DTP TF UTP::inv_cdf( TF u, TF ext_density ) const {
+    if ( u > 1 )
+        return opt_pos_end + ( u - 1 ) / ext_density;
+    if ( u < 0 )
+        return opt_pos_beg + u / ext_density;
+    return inv_cdf_no_check( u );
+}
+
+DTP TF UTP::der_inv_cdf( TF u, TF ext_density ) const {
+    if ( u > 1 )
+        return 1 / ext_density;
+    if ( u < 0 )
+        return 1 / ext_density;
+    return der_inv_cdf_no_check( u );
+}
+
+DTP TF UTP::cdf( TF x, TF ext_density ) const {
+    if ( x < opt_pos_beg )
+        return ( x - opt_pos_beg ) * ext_density;
+    if ( x > opt_pos_end )
+        return 1 + ( x - opt_pos_end ) * ext_density;
+    return cdf( x );
 }
 
 DTP TF UTP::x_integral( TF x0, TF x1 ) const {
@@ -207,43 +317,16 @@ DTP TF UTP::integral( TF x0, TF x1 ) const {
 }
 
 DTP TF UTP::min_x() const {
-    return 0;
+    return opt_pos_beg;
 }
 
 DTP TF UTP::max_x() const {
-    return values.size() - 1;
+    return opt_pos_end;
 }
 
-DTP TF UTP::width() const {
-    return values.size() - 1;
+DTP TF UTP::ptp_x() const {
+    return max_x() - min_x();
 }
-
-// DTP void UTP::get_inv_cdf( VF &inv_cdf_values, TF &mul_coeff, PI mul_bins ) const {
-//     using namespace std;
-
-//     const PI nb_bins = mul_bins * values.size();
-
-//     mul_coeff = nb_bins / mass();
-//     inv_cdf_values.resize( nb_bins + 1 );
-//     for( PI n = 0; n + 1 < primitives.size(); ++n ) {
-//         const TF y0 = primitives[ n + 0 ] * mul_coeff;
-//         const TF y1 = primitives[ n + 1 ] * mul_coeff;
-//         const TF v0 = values[ n + 0 ] * mul_coeff;
-//         const TF v1 = values[ n + 1 ] * mul_coeff;
-        
-//         for( PI y = PI( ceil( y0 ) ); y <= min( y1, TF( nb_bins ) ); ++y ) {
-//             if ( const TF a = v1 - v0 ) {
-//                 const TF d = max( TF( 0 ), v0 * v0 + 2 * a * ( y - y0 ) );
-//                 inv_cdf_values[ y ] = n + ( sqrt( d ) - v0 ) / a;
-//             } else if ( y1 - y0 ) {
-//                 inv_cdf_values[ y ] = n + ( y - y0 ) / ( y1 - y0 );
-//             } else {
-//                 inv_cdf_values[ y ] = n;
-//             }
-//         }
-//     }
-//     inv_cdf_values.back() = primitives.size() - 1;
-// }
 
 DTP void UTP::plot( std::ostream &fs ) const {
     fs << "pyplot.plot( ["; 
