@@ -280,3 +280,6 @@ TODO:
 * vérifier si le poids final de l'init peut poser problème
 * max_mass_ratio_error_target
 * readme
+
+Pb: la dérivée de l'erreur de positionnement des agrégats n'est pas une fonction croissante. Du coup, on ne peut pas vraiment utiliser les valeurs extrêmes pour sortir d'un Newton...
+  

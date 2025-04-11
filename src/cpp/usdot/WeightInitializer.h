@@ -40,7 +40,8 @@ private:
     TF               cdf                      ( TF x ) const;
          
     Ag*              last_ag_to_optimize;     ///<
-    VF               inv_cdf_values;    
+    TF               coeff_ext_inv_cdf;       ///<
+    VF               inv_cdf_values;          ///<     
     VF               dirac_masses;            ///< normalized
     TF               mul_coeff;               ///<
     Ag*              last_ag;

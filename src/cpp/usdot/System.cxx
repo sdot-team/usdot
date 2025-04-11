@@ -35,16 +35,16 @@ DTP void UTP::update_weights() {
     _update_system( true );
 
     WeightUpdater<TF,Density> wi( *this );
-    wi.run();
+    wi.newton_update();
+    // wi.run();
 
     nb_iterations_update = wi.nb_iterations;
 }
 
 DTP void UTP::solve() {
     initialize_weights();
-    plot();
-
     update_weights();
+    
 
     if ( verbosity >= 2 && stream )
         *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
@@ -86,8 +86,11 @@ DTP void UTP::plot( Str filename ) const {
     std::ofstream fs( filename );
 
     fs << "from matplotlib import pyplot\n";
+
+    // density
     density->plot( fs );
 
+    // boundaries
     TF y = 0;
     for( auto c : cell_boundaries() ) {
         const TF x0 = c[ 0 ];
@@ -97,6 +100,16 @@ DTP void UTP::plot( Str filename ) const {
         fs << "pyplot.plot( [ " << x0 << ", " << x1 << ", " << x1 << ", " << x0 << ", " << x0 << " ], ";
         fs << "[ " << y0 << ", " << y0 << ", " << y1 << ", " << y1 << ", " << y0 << " ] )\n";
     }
+
+    // diracs
+    fs << "pyplot.plot( [ ";
+    for( auto c : dirac_positions() )
+        fs << c << ", ";
+    fs << " ], [";
+    for( auto c : dirac_positions() )
+        fs << 0 << ", ";
+    fs << " ], '+' )\n";
+
 
     fs << "pyplot.show()\n";
 }

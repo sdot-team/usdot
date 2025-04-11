@@ -25,4 +25,11 @@ template<class TF> std::vector<TF> fill( std::size_t size, TF value ) {
     return std::vector<TF>( size, value );
 }
 
+template<class TF> std::vector<TF> iota( std::size_t size ) {
+    std::vector<TF> res( size );
+    for( std::size_t i = 0; i < size; ++i )
+        res[ i ] = i;
+    return res;
+}
+
 } // namespace usdot

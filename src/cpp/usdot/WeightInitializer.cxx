@@ -3,7 +3,6 @@
 #include "utility/newton_1D.h"
 #include "WeightInitializer.h"
 #include <algorithm>
-#include <stdexcept>
 #include <limits>
 
 namespace usdot {
@@ -13,7 +12,8 @@ namespace usdot {
 
 DTP UTP::WeightInitializer( Sys &sys ) : last_ag( nullptr ), sys( sys ) {
     sys.density->get_inv_cdf( inv_cdf_values, mul_coeff, 100 );
-    
+    coeff_ext_inv_cdf = 1e8;
+
     dirac_masses.resize( sys.nb_sorted_diracs() );
     for( PI n = 0; n < sys.nb_sorted_diracs(); ++n )
         dirac_masses[ n ] = mul_coeff * sys.sorted_dirac_masses[ n ];
@@ -34,12 +34,22 @@ DTP void UTP::run() {
     }
 
     set_the_weights();
+
+    // P( sys.sorted_dirac_weights );
+    // for( Ag *item = last_ag; item; item = item->prev )
+    //     P( item->beg_u, item->end_u, max_u() );
 }
 
 DTP TF UTP::der_inv_cdf( TF u ) const {
     using namespace std;
-    
-    PI n = min( inv_cdf_values.size() - 2, PI( u ) );
+
+    const PI m = inv_cdf_values.size() - 1;
+    if ( u >= m )
+        return + coeff_ext_inv_cdf;
+    if ( u < 0 )
+        return - coeff_ext_inv_cdf;
+
+    PI n = PI( u );
     return inv_cdf_values[ n + 1 ] - inv_cdf_values[ n + 0 ];
 }
 
@@ -47,9 +57,12 @@ DTP TF UTP::inv_cdf( TF u ) const {
     using namespace std;
 
     const PI m = inv_cdf_values.size() - 1;
-    u = max( TF( 0 ), min( TF( m ), u ) );
+    if ( u >= m )
+        return inv_cdf_values.back() + ( u - m ) * coeff_ext_inv_cdf;
+    if ( u < 0 )
+        return u * coeff_ext_inv_cdf;
 
-    PI n = min( m - 1, PI( u ) );
+    PI n = PI( u );
     TF f = u - n;
     
     return inv_cdf_values[ n + 0 ] * ( 1 - f ) + inv_cdf_values[ n + 1 ] * f;
@@ -73,7 +86,7 @@ DTP void UTP::make_isolated_aggregates() {
         const TF c = cdf( x );
 
         // find the cell position
-        const TF b = newton_1D<TF>( c, 0, inv_cdf_values.size() - 1 - m, x_tol, [&]( TF b ) {
+        const TF b = newton_1D<TF>( c, -1, inv_cdf_values.size() - m, x_tol, [&]( TF b ) {
             const TF e = inv_cdf( b ) + inv_cdf( b + m ) - 2 * x;
             const TF d = der_inv_cdf( b ) + der_inv_cdf( b + m );
             return std::pair<TF,TF>{ e, d };
@@ -184,6 +197,7 @@ DTP void UTP::set_the_weights() {
                     TF u1 = item->end_u;
                     TF x1 = inv_cdf( u1 );
                     TF w1 = pow( d1 - x1, 2 );
+                    P( d1, x1, w1 );
 
                     for( ; ; --n ) {
                         sys.sorted_dirac_weights[ n ] = w1;
@@ -200,6 +214,7 @@ DTP void UTP::set_the_weights() {
                         x1 = x0;
                         w1 = w0;
                     }
+                    P( w0 );
                 }
                 // P( w0, sys.density->integral( d0 - sqrt( w0 ), x0 ) );
             } else {
@@ -232,8 +247,14 @@ DTP void UTP::optimize_aggregate( Ag *item, TF x_tol ) {
     for( PI n = item->beg_n; n < item->end_n; ++n )
         m += dirac_masses[ n ];
 
+    // if ( int( item->beg_u ) == 2208 ) {
+    //     // glot( linspace( min_x, max_x, 1000 ), [&]( TF x ) { return func(x).first; } );
+    //     sys.plot();
+    //     assert( 0 );
+    // }
+
     // Newton
-    const TF b = newton_1D<TF>( item->beg_u, 0, inv_cdf_values.size() - 1 - m, x_tol, [&]( TF b ) {
+    const TF b = newton_1D<TF>( item->beg_u, -1, max_u() - m, x_tol, [&]( TF b ) {
         TF e = 0, d = 0;
         TF x0 = inv_cdf( b );
         TF d0 = der_inv_cdf( b );
