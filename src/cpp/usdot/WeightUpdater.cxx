@@ -586,8 +586,8 @@ DTP void UTP::newton_update( PI max_iter ) {
     if ( dir.second < 1e-3 )
         return;
 
-    for( PI num_iter = 0; ; ++num_iter ) {
-        if ( num_iter == max_iter )
+    for( nb_iterations = 0; ; ++nb_iterations ) {
+        if ( nb_iterations == max_iter )
             throw runtime_error( "failed to converge" );
     
         // find a first relaxation coeff

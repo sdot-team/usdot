@@ -17,6 +17,7 @@ public:
      
     void             run                  (); ///<
 
+    PI               max_nb_iterations = 0; ///<
     PI               nb_iterations;       ///<
     
 private:

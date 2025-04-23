@@ -27,11 +27,16 @@ int main() {
     sr.transformation = Sr::Tr::rotation( 15 * M_PI / 180 ) * Sr::Tr::translation( { 4, -6, 0 } );
     sr.mass_ratio = TF( sr.diracs.size() ) / 3000;
 
-    //  
-    sr.compute_new_diracs();
-
-    P( sr.solve_steps );
-
-    // ouptut
-    sr.display_vtk( "results/mumble_sitting" );
+    //
+    for( PI ni = 0; ni < 5; ++ni ) {
+        sr.compute_new_diracs( 20 );
+        sr.display_vtk( "results/mumble_sitting", ni );
+        
+        P( sr.nb_iterations_update );
+        P( sr.nb_iterations_init );
+        P( sr.time_in_update );
+        P( sr.time_in_init );
+     
+        P( sr.iteration_SVD() );
+    }
 }

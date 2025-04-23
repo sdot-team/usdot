@@ -52,6 +52,8 @@ public:
     // output
     PI             nb_iterations_update             = 0; ///<
     PI             nb_iterations_init               = 0; ///<
+    TF             time_in_update                   = 0; ///<
+    TF             time_in_init                     = 0; ///<
 
 private:
     friend class   WeightInitializer                <TF,Density>;

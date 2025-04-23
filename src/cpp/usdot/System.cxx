@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <numeric>
 #include <fstream>
+#include <chrono>
 #include <limits>
 
 namespace usdot {
@@ -24,27 +25,35 @@ DTP UTP::System() {
 DTP void UTP::initialize_weights() {
     _update_system( true );
 
+    auto t0 = std::chrono::high_resolution_clock::now();
+
     WeightInitializer<TF,Density> wi( *this );
+    wi.max_nb_iterations = 80;
     wi.run();
 
     nb_iterations_init = wi.nb_iterations;
+    auto t1 = std::chrono::high_resolution_clock::now();
+    time_in_init = std::chrono::duration<double>{ t1 - t0 }.count();
 }
 
 DTP void UTP::update_weights() {
     _update_system( true );
 
+    auto t0 = std::chrono::high_resolution_clock::now();
+
     WeightUpdater<TF,Density> wi( *this );
     wi.newton_update();
-    // wi.run();
 
     nb_iterations_update = wi.nb_iterations;
+    auto t1 = std::chrono::high_resolution_clock::now();
+    time_in_update = std::chrono::duration<double>{ t1 - t0 }.count();
 }
 
 DTP void UTP::solve() {
     initialize_weights();
-    update_weights();
-    
+    update_weights();    
 
+    // P( l2_mass_error() );
     if ( verbosity >= 2 && stream )
         *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
 }

@@ -16,12 +16,14 @@ DTP UTP::WeightInitializer( Sys &sys ) : last_ag( nullptr ), sys( sys ) {
 DTP void UTP::run() {
     make_isolated_aggregates();
     for( nb_iterations = 0; last_ag_to_optimize; ++nb_iterations ) {
+        if ( max_nb_iterations && nb_iterations == max_nb_iterations )
+            break;
         optimize_the_new_aggregates();
         merge_touching_aggregates();
     }
 
-    for( Ag *item = last_ag; item; item = item->prev )
-        P( item->beg_u, item->end_u, item->len_n() );
+    // for( Ag *item = last_ag; item; item = item->prev )
+    //     P( item->beg_u, item->end_u, item->len_n() );
 
     set_the_weights();
 }

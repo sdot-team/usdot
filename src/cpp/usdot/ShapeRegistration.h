@@ -28,7 +28,8 @@ public:
       
     void          compute_new_diracs       ( PI nb_iter = 50 ); ///<
     Vec<TF>       delta_for_dir            ( Pt dir );
-  
+    TF            iteration_SVD            ();
+
     static void   glot                     ( Vec<TF> xs, auto &&...funcs );    
 
     Vec<PI>       solve_steps;
@@ -42,6 +43,11 @@ public:
     TF            mass_ratio               = 1;
     Vec<Pt>       diracs;     
        
+    PI            nb_iterations_update    = 0; ///<
+    PI            nb_iterations_init      = 0; ///<
+    TF            time_in_update          = 0; ///<
+    TF            time_in_init            = 0; ///<
+
     PI            nb_projection_dirs       = 25;
     PI            nb_bins                  = 100;
 };  

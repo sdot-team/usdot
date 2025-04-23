@@ -283,3 +283,11 @@ TODO:
 
 Pb: la dérivée de l'erreur de positionnement des agrégats n'est pas une fonction croissante. Du coup, on ne peut pas vraiment utiliser les valeurs extrêmes pour sortir d'un Newton...
   
+En gros, l'initialisation doit être parfaite pour pouvoir démarrer les newtons.
+  Le problème, c'est qu'on a plein d'itérations lorsqu'on fonctionne en mode "conservatif"
+
+Rq: si la densité est constante, il est trivial d'initialiser les poids, y compris en partiel.
+  L'idée de regulariser la densité est séduisantes, mais ça veut dire qu'il faut calculer les dérivées de la solution.
+  Quel critère prendre pour 
+
+Sunny G-

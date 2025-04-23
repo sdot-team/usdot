@@ -25,9 +25,9 @@ TEST_CASE( "System", "" ) {
     si.set_global_mass_ratio( 1 );
     si.set_density( &gd );
 
-    si.initialize_weights();
-    si.update_weights();
-    //si.solve();
+    // si.initialize_weights();
+    // si.update_weights();
+    si.solve();
     si.plot();
     P( si.l2_mass_error() );
 

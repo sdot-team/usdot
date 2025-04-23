@@ -173,13 +173,20 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     // diracs
     std::vector<TF> diracs( new_diracs.size() );
     for( PI n = 0; n < new_diracs.size(); ++n )
-        diracs[ n ] = ( sp( new_diracs[ n ], proj_dir ) - beg_x_density ) * gd.width() / ( end_x_density - beg_x_density );
+        diracs[ n ] = ( sp( new_diracs[ n ], proj_dir ) - beg_x_density ) * gd.ptp_x() / ( end_x_density - beg_x_density );
 
     System<TF> solver;
     solver.set_global_mass_ratio( mass_ratio );
     solver.set_dirac_positions( diracs );
     solver.set_density( &gd );
     solver.solve();
+
+    nb_iterations_update += solver.nb_iterations_update; ///<
+    nb_iterations_init += solver.nb_iterations_init; ///<
+    time_in_update += solver.time_in_update; ///<
+    time_in_init += solver.time_in_init; ///<
+
+    //P( nb_projection_dirs, num_iter_cnd );
 
     // } catch ( std::runtime_error e ) {
     //     // P( solver.dirac_positions() );
@@ -194,7 +201,7 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     const auto ba = solver.cell_barycenters();
     Vec<TF> res( FromSize(), diracs.size() );
     for( PI n = 0; n < diracs.size(); ++n )
-        res[ n ] = beg_x_density + ( ba[ n ] - diracs[ n ] ) * ( end_x_density - beg_x_density ) / gd.width();
+        res[ n ] = beg_x_density + ( ba[ n ] - diracs[ n ] ) * ( end_x_density - beg_x_density ) / gd.ptp_x();
     return res;
 }
 
@@ -203,8 +210,12 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
     for( PI n = 0; n < diracs.size(); ++n )
         new_diracs[ n ] = transformation.apply( diracs[ n ] );
 
+    nb_iterations_update = 0;
+    nb_iterations_init = 0;
+    time_in_update = 0;
+    time_in_init = 0;
+    
     for( PI num_iter_cnd = 0; num_iter_cnd < nb_iter; ++num_iter_cnd ) {
-        P( num_iter_cnd );
         Vec<Pt> proj_dirs = projection_dirs();
 
         Vec<Pt,dim> M;
@@ -251,57 +262,57 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
     }
 }
 
+DTP TF UTP::iteration_SVD() {
+    // centers
+    Pt center_old( FromItemValue(), 0 );
+    Pt center_new( FromItemValue(), 0 );
+    for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac ) {
+        Pt old_pos = transformation.apply( diracs[ num_dirac ] );
+        Pt new_pos = new_diracs[ num_dirac ];
+        center_old += old_pos;
+        center_new += new_pos;
+    }
+    center_old /= diracs.size();
+    center_new /= diracs.size();
+
+    // covariance
+    using TM = Eigen::Matrix<TF,dim,dim>;
+    TM cov = TM::Zero();
+    for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac ) {
+        Pt old_pos = transformation.apply( diracs[ num_dirac ] );
+        Pt new_pos = new_diracs[ num_dirac ];
+        for( PI r = 0; r < dim; ++r )
+            for( PI c = 0; c < dim; ++c )
+                cov.coeffRef( r, c ) += ( new_pos[ r ] - center_new[ r ] ) * ( old_pos[ c ] - center_old[ c ] );
+    }
+    Eigen::JacobiSVD<TM> svd( cov, Eigen::ComputeFullU | Eigen::ComputeFullV );
+    // std::cout << svd.singularValues() << std::endl;
+    // std::cout << svd.matrixU() << std::endl;
+    // std::cout << svd.matrixV() << std::endl;
+
+    TM orth = svd.matrixU() * svd.matrixV().transpose();
+    // std::cout << orth << std::endl;
+    // std::cout << "det " << orth.determinant() << std::endl;
+
+    TM rot = svd.matrixU() * svd.matrixV().transpose();
+    // PE( ( rot - TM::Identity() ).norm() );
+    double err = 0;
+    err += pow( 1 - rot( 0 ), 2 );
+    err += pow(     rot( 1 ), 2 );
+    err += pow(     rot( 2 ), 2 );
+    err += pow(     rot( 3 ), 2 );
+    err += pow( 1 - rot( 4 ), 2 );
+    err += pow(     rot( 5 ), 2 );
+    err += pow(     rot( 6 ), 2 );
+    err += pow(     rot( 7 ), 2 );
+    err += pow( 1 - rot( 8 ), 2 );
+
+    transformation *= Tr::translation( - center_old ) * Tr::linear( rot ) * Tr::translation( center_new );
+
+    return std::sqrt( err );
+}
+
 #undef DTP
 #undef UTP
-
-// TF iteration_SVD() {
-//     // centers
-//     Pt center_old( FromItemValue(), 0 );
-//     Pt center_new( FromItemValue(), 0 );
-//     for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac ) {
-//         Pt old_pos = dirac_trans.apply( diracs[ num_dirac ] );
-//         Pt new_pos = new_diracs[ num_dirac ];
-//         center_old += old_pos;
-//         center_new += new_pos;
-//     }
-//     center_old /= diracs.size();
-//     center_new /= diracs.size();
-
-//     // covariance
-//     TM cov = TM::Zero();
-//     for( PI num_dirac = 0; num_dirac < diracs.size(); ++num_dirac ) {
-//         Pt old_pos = dirac_trans.apply( diracs[ num_dirac ] );
-//         Pt new_pos = new_diracs[ num_dirac ];
-//         for( PI r = 0; r < dim; ++r )
-//             for( PI c = 0; c < dim; ++c )
-//                 cov.coeffRef( r, c ) += ( new_pos[ r ] - center_new[ r ] ) * ( old_pos[ c ] - center_old[ c ] );
-//     }
-//     Eigen::JacobiSVD<TM> svd( cov, Eigen::ComputeFullU | Eigen::ComputeFullV );
-//     // std::cout << svd.singularValues() << std::endl;
-//     // std::cout << svd.matrixU() << std::endl;
-//     // std::cout << svd.matrixV() << std::endl;
-
-//     TM orth = svd.matrixU() * svd.matrixV().transpose();
-//     // std::cout << orth << std::endl;
-//     // std::cout << "det " << orth.determinant() << std::endl;
-
-//     TM rot = svd.matrixU() * svd.matrixV().transpose();
-//     // PE( ( rot - TM::Identity() ).norm() );
-//     double err = 0;
-//     err += pow( 1 - rot( 0 ), 2 );
-//     err += pow(     rot( 1 ), 2 );
-//     err += pow(     rot( 2 ), 2 );
-//     err += pow(     rot( 3 ), 2 );
-//     err += pow( 1 - rot( 4 ), 2 );
-//     err += pow(     rot( 5 ), 2 );
-//     err += pow(     rot( 6 ), 2 );
-//     err += pow(     rot( 7 ), 2 );
-//     err += pow( 1 - rot( 8 ), 2 );
-//     std::cout << std::sqrt( err ) << std::endl;
-
-//     dirac_trans *= Tr::translation( - center_old ) * Tr::linear( rot ) * Tr::translation( center_new );
-
-//     return std::sqrt( err );
-// }
 
 } // namespace usdot
