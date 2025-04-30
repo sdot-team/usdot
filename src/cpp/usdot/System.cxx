@@ -1,9 +1,9 @@
 #pragma once
 
 
-#include "WeightInitializer.h"
+// #include "WeightInitializer.h"
 #include "utility/linspace.h"
-#include "WeightUpdater.h"
+// #include "WeightUpdater.h"
 #include "System.h"
 
 #include <stdexcept>
@@ -22,40 +22,182 @@ DTP UTP::System() {
     density = nullptr;
 }
 
-DTP void UTP::initialize_weights() {
-    _update_system( true );
+// DTP void UTP::initialize_weights() {
+//     _update_system( true );
 
-    auto t0 = std::chrono::high_resolution_clock::now();
+//     auto t0 = std::chrono::high_resolution_clock::now();
 
-    WeightInitializer<TF,Density> wi( *this );
-    wi.max_nb_iterations = 80;
-    wi.run();
+//     WeightInitializer<TF,Density> wi( *this );
+//     wi.max_nb_iterations = 80;
+//     wi.run();
 
-    nb_iterations_init = wi.nb_iterations;
-    auto t1 = std::chrono::high_resolution_clock::now();
-    time_in_init = std::chrono::duration<double>{ t1 - t0 }.count();
-}
+//     nb_iterations_init = wi.nb_iterations;
+//     auto t1 = std::chrono::high_resolution_clock::now();
+//     time_in_init = std::chrono::duration<double>{ t1 - t0 }.count();
+// }
 
-DTP void UTP::update_weights() {
-    _update_system( true );
+// DTP void UTP::update_weights() {
+//     _update_system( true );
 
-    auto t0 = std::chrono::high_resolution_clock::now();
+//     auto t0 = std::chrono::high_resolution_clock::now();
 
-    WeightUpdater<TF,Density> wi( *this );
-    wi.newton_update();
+//     WeightUpdater<TF,Density> wi( *this );
+//     wi.newton_update();
 
-    nb_iterations_update = wi.nb_iterations;
-    auto t1 = std::chrono::high_resolution_clock::now();
-    time_in_update = std::chrono::duration<double>{ t1 - t0 }.count();
+//     nb_iterations_update = wi.nb_iterations;
+//     auto t1 = std::chrono::high_resolution_clock::now();
+//     time_in_update = std::chrono::duration<double>{ t1 - t0 }.count();
+// }
+DTP void UTP::initialize_with_flat_density() {
+    using namespace std;
+    _update_system( /*need_weights*/ false );
+
+    density->set_lag_ratio( 1 );
+
+    // make the agglomerates
+    struct Agglomerate {
+        TF beg_x;
+        TF end_x;
+        TF len_x;
+        PI beg_n;
+        PI end_n;
+    };
+    std::vector<Agglomerate> aggs;
+    aggs.reserve( nb_sorted_diracs() / 2 );
+    for( PI i = 0; i < nb_sorted_diracs(); ++i ) {
+        const TF l = sorted_dirac_masses[ i ] * density->ptp_x();
+        const TF b = min( density->max_x() - l, max( density->min_x(), sorted_dirac_positions[ i ] - l / 2 ) );
+        const TF d = aggs.back().end_x - b;
+        if ( aggs.empty() || d < 0 ) {
+            aggs.push_back( { b, b + l, l, i, i + 1 } );
+            continue;
+        }
+
+        Agglomerate &agg = aggs.back();
+
+        agg.len_x += l;
+        agg.beg_x -= d * l / agg.len_x;
+        agg.end_x = agg.beg_x + agg.len_x;
+        agg.end_n = i + 1;
+        if ( agg.beg_x < density->min_x() ) {
+            agg.beg_x = density->min_x();
+            agg.end_x = density->min_x() + agg.len_x;
+        }
+        if ( agg.end_x > density->max_x() ) {
+            agg.beg_x = density->max_x() - agg.len_x;
+            agg.end_x = density->max_x();
+        }
+
+        while ( true ) {
+            if ( aggs.size() < 2 )
+                break;
+            
+            Agglomerate &a0 = aggs[ aggs.size() - 2 ];
+            Agglomerate &a1 = aggs[ aggs.size() - 1 ];
+            const TF d = a0.end_x - a1.beg_x;
+            if ( d < 0 )
+                break;
+
+            a0.len_x += a1.len_x;
+            a0.beg_x -= d * a1.len_x / a0.len_x;
+            a0.end_x = a0.beg_x + a0.len_x;
+            a0.end_n = a1.end_n;
+            if ( a0.beg_x < density->min_x() ) {
+                a0.beg_x = density->min_x();
+                a0.end_x = density->min_x() + a0.len_x;
+            }
+            if ( a0.end_x > density->max_x() ) {
+                a0.beg_x = density->max_x() - a0.len_x;
+                a0.end_x = density->max_x();
+            }
+        
+            aggs.pop_back();
+        }
+    }
+
+    // set the weights
+    for( const Agglomerate &agg : aggs ) {
+        if ( agg.beg_x > density->min_x() ) {
+            PI i = agg.beg_n;
+
+            TF d0 = sorted_dirac_positions[ i ];
+            TF x0 = agg.beg_x;
+            TF w0 = pow( d0 - x0, 2 );
+
+            sorted_dirac_weights[ i ] = w0;
+
+            while( ++i < agg.end_n ) {
+                const TF d1 = sorted_dirac_positions[ i ];
+                const TF x1 = x0 + sorted_dirac_masses[ i ] * density->ptp_x();
+                const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
+
+                sorted_dirac_weights[ i ] = w1;
+
+                d0 = d1;
+                x0 = x1;
+                w0 = w1;
+            }
+
+            continue;
+        }
+
+        if ( agg.end_x < density->max_x() ) {
+            PI i = agg.end_n - 1;
+
+            TF d1 = sorted_dirac_positions[ i ];
+            TF x1 = agg.end_x;
+            TF w1 = pow( x1 - d1, 2 );
+            
+            sorted_dirac_weights[ i ] = w1;
+
+            while( i-- > agg.beg_n ) {
+                const TF d0 = sorted_dirac_positions[ i ];
+                const TF x0 = x1 - sorted_dirac_masses[ i ] * density->ptp_x();
+                const TF w0 = w1 - ( d1 - d0 ) * ( d0 + d1 - 2 * x0 );
+
+                sorted_dirac_weights[ i ] = w0;
+
+                d1 = d0;
+                x1 = x0;
+                w1 = w0;
+            }
+
+            continue;
+        }
+
+        //
+        PI i = agg.beg_n;
+
+        TF d0 = sorted_dirac_positions[ i ];
+        TF x0 = density->min_x();
+        TF w0 = max(
+            pow( sorted_dirac_positions[ agg.end_n - 1 ] - density->min_x(), 2 ),
+            pow( density->max_x() - sorted_dirac_positions[ agg.beg_n ], 2 )
+        );
+        sorted_dirac_weights[ i ] = w0;
+
+        while( ++i < agg.end_n ) {
+            const TF d1 = sorted_dirac_positions[ i ];
+            const TF x1 = x0 + sorted_dirac_masses[ i ] * density->ptp_x();
+            const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
+
+            sorted_dirac_weights[ i ] = w1;
+
+            d0 = d1;
+            x0 = x1;
+            w0 = w1;
+        }
+    }
 }
 
 DTP void UTP::solve() {
-    initialize_weights();
-    update_weights();    
+    initialize_with_flat_density();
+    // update_weights();    
+
 
     // P( l2_mass_error() );
-    if ( verbosity >= 2 && stream )
-        *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
+    // if ( verbosity >= 2 && stream )
+    //     *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
 }
 
 DTP PI UTP::nb_original_diracs() const {
@@ -109,6 +251,7 @@ DTP void UTP::plot( Str filename ) const {
         fs << "[ " << y0 << ", " << y0 << ", " << y1 << ", " << y1 << ", " << y0 << " ] )\n";
     }
 
+
     // diracs
     fs << "pyplot.plot( [ ";
     for( auto c : dirac_positions() )
@@ -117,7 +260,6 @@ DTP void UTP::plot( Str filename ) const {
     for( auto c : dirac_positions() )
         fs << 0 << ", ";
     fs << " ], '+' )\n";
-
 
     fs << "pyplot.show()\n";
 }
@@ -260,7 +402,7 @@ DTP void UTP::set_global_mass_ratio( const TF &global_mass_ratio ) {
     this->global_mass_ratio = global_mass_ratio;
 }
 
-DTP void UTP::set_density( const Density *density ) {
+DTP void UTP::set_density( Density *density ) {
     this->density = density;
 }
 

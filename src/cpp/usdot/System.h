@@ -22,10 +22,9 @@ public:
     void           set_global_mass_ratio            ( const TF &global_mass_ratio );
     void           set_dirac_positions              ( const VF &dirac_positions, TF min_dirac_separation = 1e-6 );
     void           set_mass_ratio                   ( const TF &mass_ratio );
-    void           set_density                      ( const Density *density );
+    void           set_density                      ( Density *density );
 
-    void           initialize_weights               ();
-    void           update_weights                   ();
+    void           initialize_with_flat_density     ();
     void           solve                            ();
 
     VF             dirac_positions                  () const;
@@ -76,7 +75,7 @@ private:
     mutable VF     sorted_dirac_masses;             ///<
    
     // density
-    const Density* density;                         ///<
+    Density*       density;                         ///<
 };
 
 
