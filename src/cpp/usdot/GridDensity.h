@@ -24,37 +24,40 @@ namespace usdot {
 template<class TF,int regular_positions=0>
 class GridDensity {
 public:
-    using SY                  = TridiagonalPlus1LineSymmetricMatrix<TF>;
-    using VF                  = std::vector<TF>;
-    using VI                  = std::vector<PI>;
-    using MF                  = std::vector<VF>;
-   
-    /**/  GridDensity         ( TF beg_original_positions, TF end_original_positions, const VF &original_values );
-    /**/  GridDensity         ( const VF &original_positions, const VF &original_values );
-    /**/  GridDensity         ( const VF &original_values );
-   
-    void  set_lag_ratio       ( TF t );
-
-    TF    x_primitive         ( TF x ) const; ///< primitive( x d\rho )
-    TF    x_integral          ( TF x0, TF x1 ) const; ///< integral( x d\rho, x0, x1 )
-   
-    TF    derivative          ( TF x ) const;
-    TF    primitive           ( TF x ) const;
-    TF    integral            ( TF x0, TF x1 ) const;
-    TF    value               ( TF x ) const;
-
-    TF    derivative          ( TF x, PI num_der_lag_ratio );
-    TF    value               ( TF x, PI num_der_lag_ratio );
-
-    TF    position            ( PI i ) const;
-    TF    min_x               () const;
-    TF    max_x               () const;
-    TF    ptp_x               () const;
+    using SY                      = TridiagonalPlus1LineSymmetricMatrix<TF>;
+    using VF                      = std::vector<TF>;
+    using VI                      = std::vector<PI>;
+    using MF                      = std::vector<VF>;
        
-    void  plot                ( std::ostream &fs ) const;
-
-    void  _append_der_value   ();
-    void  _set_values         ( TF t );
+    /**/  GridDensity             ( TF beg_original_positions, TF end_original_positions, const VF &original_values );
+    /**/  GridDensity             ( const VF &original_positions, const VF &original_values );
+    /**/  GridDensity             ( const VF &original_values );
+       
+    void  set_lag_ratio           ( TF t );
+    
+    TF    x_primitive             ( TF x ) const; ///< primitive( x d\rho )
+    TF    x_integral              ( TF x0, TF x1 ) const; ///< integral( x d\rho, x0, x1 )
+       
+    TF    derivative              ( TF x ) const;
+    TF    primitive               ( TF x ) const;
+    TF    integral                ( TF x0, TF x1 ) const;
+    TF    value                   ( TF x ) const;
+    
+    TF    derivative              ( TF x, PI num_der_lag_ratio );
+    TF    primitive               ( TF x, PI num_der_lag_ratio );
+    TF    integral                ( TF x0, TF x1, PI num_der_lag_ratio );
+    TF    value                   ( TF x, PI num_der_lag_ratio );
+    
+    TF    position                ( PI i ) const;
+    TF    min_x                   () const;
+    TF    max_x                   () const;
+    TF    ptp_x                   () const;
+           
+    void  plot                    ( std::ostream &fs ) const;
+    
+    void  _append_der_value       ();
+    VF    _primitive_of           ( const VF &values ) const;
+    void  _set_values             ( TF t );
 
     TF    beg_original_positions; ///<
     TF    end_original_positions; ///<
@@ -67,6 +70,7 @@ public:
     VF    values;                 ///<
 
     TF    current_lag_ratio;      ///<
+    MF    der_primitives;         ///<
     MF    der_values;             ///<
     SY    system;                 ///<
    

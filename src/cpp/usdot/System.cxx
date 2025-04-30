@@ -190,8 +190,302 @@ DTP void UTP::initialize_with_flat_density() {
     }
 }
 
+DTP T_T void UTP::_for_each_newton_item( const T &func ) const {
+    _for_each_unintersected_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF d0, TF d1, TF c0, TF c1 ) {
+        const TF v = sorted_dirac_masses[ num_dirac ];
+        if ( dirac_weight <= 0 )
+            return func( num_dirac, 0, 0, v, 1 );
+
+        const TF rd = sqrt( dirac_weight );
+        const TF b0 = dirac_position - rd;
+        const TF b1 = dirac_position + rd;
+
+        // "wrong" bounds ordering
+        if ( c0 > c1 ) {
+            // void cell
+            if ( c0 < b0 || c1 > b1 ) {
+                P( c0, c1 );
+                // plot();
+                return func( num_dirac, 0, 0, v, 2 );
+            }
+
+            // ball cut on the left
+            if ( b0 > c1 ) {
+                // ball cut on the right
+                if ( b1 < c0 ) {
+                    return func( num_dirac, 
+                        ( density->value( b0 ) + density->value( b1 ) ) / ( 2 * sqrt( dirac_weight ) ),
+                        0, 
+                        - density->integral( b0, b1 ),
+                        0
+                    );
+                }
+
+                // interface on the right
+                return func( num_dirac, 
+                    ( density->value( c0 ) / d0 - density->value( b0 ) / sqrt( dirac_weight ) ) / 2,
+                    0,
+                    - density->integral( b0, c0 ),
+                    0
+                );
+            }
+            
+            // interface on the left
+            if ( b1 < c0 ) { // ball cut on the right
+                const TF cl = density->value( c1 ) / ( 2 * d1 );
+                return func( num_dirac, 
+                    cl - density->value( b1 ) / ( 2 * sqrt( dirac_weight ) ),
+                    - cl,
+                    - density->integral( c1, b1 ),
+                    0
+                );
+            }
+            
+            // interface on the right
+            const TF cl = density->value( c1 ) / ( 2 * d1 );
+            const TF cr = density->value( c0 ) / ( 2 * d0 );
+            return func( num_dirac, 
+                - ( cl + cr ),
+                cr,
+                - density->integral( c1, c0 ),
+                0
+            );
+        }
+
+        // void cell
+        if ( c1 < b0 || c0 > b1 )
+            return func( num_dirac, 0, 0, v, 3 );
+
+        if ( b0 > c0 ) { // ball cut on the left
+            // ball cut on the right
+            if ( b1 < c1 ) { 
+                return func( num_dirac, 
+                    ( density->value( b0 ) + density->value( b1 ) ) / ( 2 * sqrt( dirac_weight ) ),
+                    0,
+                    density->integral( b0, b1 ),
+                    0
+                );
+            }
+
+            // interface on the right
+            const TF cr = density->value( c1 ) / ( 2 * d1 );
+            return func( num_dirac, 
+                density->value( b0 ) / ( 2 * sqrt( dirac_weight ) ) + cr,
+                - cr,
+                density->integral( b0, c1 ),
+                0
+            );
+        } 
+        
+        // interface on the left
+        if ( b1 < c1 ) { // ball cut on the right
+            const TF cl = density->value( c0 ) / ( 2 * d0 );
+            return func( num_dirac, 
+                cl + density->value( b1 ) / ( 2 * sqrt( dirac_weight ) ),
+                0,
+                density->integral( c0, b1 ),
+                0
+            );
+        }
+        
+        const TF cl = density->value( c0 ) / ( 2 * d0 );
+        const TF cr = density->value( c1 ) / ( 2 * d1 );
+        const TF in = density->integral( c0, c1 );
+        return func( num_dirac, cl + cr, - cr, in, 0 );
+    } );
+}
+
+DTP T_T void UTP::_for_each_newton_item( PI num_der, const T &func ) {
+    _for_each_unintersected_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF d0, TF d1, TF c0, TF c1 ) {
+        const TF v = sorted_dirac_masses[ num_dirac ];
+        if ( dirac_weight <= 0 )
+            return func( num_dirac, 0, 0, 0, 1 );
+
+        const TF rd = sqrt( dirac_weight );
+        const TF b0 = dirac_position - rd;
+        const TF b1 = dirac_position + rd;
+
+        // "wrong" bounds ordering
+        if ( c0 > c1 ) {
+            // void cell
+            if ( c0 < b0 || c1 > b1 )
+                return func( num_dirac, 0, 0, 0, 2 );
+
+            // ball cut on the left
+            if ( b0 > c1 ) {
+                // ball cut on the right
+                if ( b1 < c0 ) {
+                    return func( num_dirac, 
+                        ( density->value( b0, num_der ) + density->value( b1, num_der ) ) / ( 2 * sqrt( dirac_weight ) ),
+                        0, 
+                        - density->integral( b0, b1, num_der ),
+                        0
+                    );
+                }
+
+                // interface on the right
+                return func( num_dirac, 
+                    ( density->value( c0, num_der ) / d0 - density->value( b0, num_der ) / sqrt( dirac_weight ) ) / 2,
+                    0,
+                    - density->integral( b0, c0, num_der ),
+                    0
+                );
+            }
+            
+            // interface on the left
+            if ( b1 < c0 ) { // ball cut on the right
+                const TF cl = density->value( c1, num_der ) / ( 2 * d1 );
+                return func( num_dirac, 
+                    cl - density->value( b1, num_der ) / ( 2 * sqrt( dirac_weight ) ),
+                    - cl,
+                    - density->integral( c1, b1, num_der ),
+                    0
+                );
+            }
+            
+            // interface on the right
+            const TF cl = density->value( c1, num_der ) / ( 2 * d1 );
+            const TF cr = density->value( c0, num_der ) / ( 2 * d0 );
+            return func( num_dirac, 
+                - ( cl + cr ),
+                cr,
+                - density->integral( c1, c0, num_der ),
+                0
+            );
+        }
+
+        // void cell
+        if ( c1 < b0 || c0 > b1 )
+            return func( num_dirac, 0, 0, 0, 3 );
+
+        if ( b0 > c0 ) { // ball cut on the left
+            // ball cut on the right
+            if ( b1 < c1 ) { 
+                return func( num_dirac, 
+                    ( density->value( b0, num_der ) + density->value( b1, num_der ) ) / ( 2 * sqrt( dirac_weight ) ),
+                    0,
+                    density->integral( b0, b1, num_der ),
+                    0
+                );
+            }
+
+            // interface on the right
+            const TF cr = density->value( c1, num_der ) / ( 2 * d1 );
+            return func( num_dirac, 
+                density->value( b0, num_der ) / ( 2 * sqrt( dirac_weight ) ) + cr,
+                - cr,
+                density->integral( b0, c1, num_der ),
+                0
+            );
+        } 
+        
+        // interface on the left
+        if ( b1 < c1 ) { // ball cut on the right
+            const TF cl = density->value( c0, num_der ) / ( 2 * d0 );
+            return func( num_dirac, 
+                cl + density->value( b1, num_der ) / ( 2 * sqrt( dirac_weight ) ),
+                0,
+                density->integral( c0, b1, num_der ),
+                0
+            );
+        }
+        
+        const TF cl = density->value( c0, num_der ) / ( 2 * d0 );
+        const TF cr = density->value( c1, num_der ) / ( 2 * d1 );
+        const TF in = density->integral( c0, c1, num_der );
+        return func( num_dirac, cl + cr, - cr, in, 0 );
+    } );
+}
+
+DTP UTP::MF UTP::der_weights_wrt_lap_ratio( PI nb_ders ) {
+    // X
+    MF res;
+    res.push_back( newton_matrix_ldlt.solve_using_ldlt( newton_vector ) );
+
+    // X'
+    VF V( nb_sorted_diracs() );
+
+    _for_each_newton_item( 1, [&]( PI index, TF m0, TF m1, TF v, int ) {
+        V[ index ] = v;
+
+        V[ index ] -= m0 * res[ 0 ][ index ];
+        if ( m1 ) {
+            V[ index ] -= m1 * res[ 0 ][ index + 1 ];
+            V[ index + 1 ] -= m1 * res[ 0 ][ index ];
+        }
+    } );
+
+    res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+
+    //
+    return res;
+}
+
+DTP T_T void UTP::_for_each_unintersected_cell( const T &func ) const {
+    using namespace std;
+
+    TF i0 = numeric_limits<TF>::lowest();
+    TF d0 = sorted_dirac_positions[ 0 ];
+    TF w0 = sorted_dirac_weights[ 0 ];
+    TF od = numeric_limits<TF>::max();
+    for( PI n = 1; n < nb_sorted_diracs(); ++n ) {
+        const TF d1 = sorted_dirac_positions[ n ];
+        const TF w1 = sorted_dirac_weights[ n ];
+
+        const TF i1 = ( d0 + d1 + ( w0 - w1 ) / ( d1 - d0 ) ) / 2;
+        func( d0, w0, n - 1, od, d1 - d0, i0, i1 );
+
+        od = d1 - d0;
+        i0 = i1;
+        d0 = d1;
+        w0 = w1;
+    }
+
+    func( d0, w0, nb_sorted_diracs() - 1, od, numeric_limits<TF>::max(), i0, numeric_limits<TF>::max() );
+}
+
+DTP void UTP::_make_newton_system() {
+    using namespace std;
+
+    newton_matrix_ldlt.resize( nb_sorted_diracs() );
+    newton_vector.resize( nb_sorted_diracs() );
+    newton_error = 0;
+
+    bool has_bad_cell = false;
+    _for_each_newton_item( [&]( PI index, TF m0, TF m1, TF v, int bad_cell ) {
+        if ( bad_cell )
+            has_bad_cell = bad_cell;
+
+        newton_matrix_ldlt( index, index ) = m0;
+        if ( m1 )
+            newton_matrix_ldlt( index, index + 1 ) = m1;
+
+        v -= sorted_dirac_masses[ index ];
+        newton_vector[ index ] = v;
+        newton_error += v * v;
+    } );
+
+    if ( ! has_bad_cell )
+        newton_matrix_ldlt.inplace_ldlt_decomposition();
+}
+
+DTP void UTP::newton_iterations() {
+    //
+    _make_newton_system();
+
+    P( newton_error );
+}
+
 DTP void UTP::solve() {
     initialize_with_flat_density();
+
+    // 
+    while ( true ) {
+        newton_iterations();
+
+        P( der_weights_wrt_lap_ratio( 3 ) );
+        break;
+    }
     // update_weights();    
 
 

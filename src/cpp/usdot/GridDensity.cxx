@@ -249,6 +249,26 @@ DTP TF UTP::derivative( TF x, PI num_der_lag_ratio ) {
     throw std::runtime_error( "TODO" );
 }
 
+DTP UTP::VF UTP::_primitive_of( const VF &values ) const {
+    const PI n = values.size();
+    VF res( n );
+
+    TF o = 0;
+    for( PI i = 0; i + 1 < n; ++i ) {
+        const TF x0 = position( i + 0 ); 
+        const TF x1 = position( i + 1 ); 
+        const TF v0 = values[ i + 0 ]; 
+        const TF v1 = values[ i + 1 ];
+
+        res[ i ] = o;
+
+        o += ( x1 - x0 ) * ( v0 + v1 ) / 2;
+    }
+    res.back() = o;
+
+    return res;
+}
+
 DTP void UTP::_set_values( TF t ) {
     const PI n = original_values.size();
     const PI p = n - 1;
@@ -331,6 +351,7 @@ DTP void UTP::_append_der_value() {
                 E[ i ] = 2 * E[ i + 1 ] - E[ i + 2 ] + lam + original_values[ i + 1 ] - values[ i + 1 ];
 
             der_values.push_back( std::move( E ) );
+            der_primitives.push_back( _primitive_of( der_values.back() ) );
             return;
         }
 
@@ -345,6 +366,7 @@ DTP void UTP::_append_der_value() {
             E[ i ] = e;
         }
         der_values.push_back( system.solve_using_ldlt( E, 0 ) );
+        der_primitives.push_back( _primitive_of( der_values.back() ) );
         return;
     }
 
@@ -381,6 +403,7 @@ DTP void UTP::_append_der_value() {
             E[ i ] = 2 * E[ i + 1 ] - E[ i + 2 ] + lam - diu( i + 1 );
 
         der_values.push_back( std::move( E ) );
+        der_primitives.push_back( _primitive_of( der_values.back() ) );
         return;
     }
 
@@ -395,6 +418,7 @@ DTP void UTP::_append_der_value() {
         E[ i ] = nder * e;
     }
     der_values.push_back( system.solve_using_ldlt( E, 0 ) );
+    der_primitives.push_back( _primitive_of( der_values.back() ) );
 }
 
 DTP TF UTP::value( TF x, PI num_der_lag_ratio ) {
@@ -433,6 +457,62 @@ DTP TF UTP::value( TF x, PI num_der_lag_ratio ) {
         }
     }
 }
+
+DTP TF UTP::primitive( TF x, PI num_der_lag_ratio ) {
+    if ( num_der_lag_ratio == 0 )
+        return primitive( x );
+
+    // precomputation(s)
+    while ( der_values.size() < num_der_lag_ratio )
+        _append_der_value();
+
+    const auto &primitives = der_primitives[ num_der_lag_ratio - 1 ];
+    if ( regular_positions ) {
+        if ( regular_positions == 1 )
+            x = ( x - opt_pos_beg ) * opt_pos_coeff;
+        if ( x < 0 )
+            return 0;
+
+        const PI i( x );
+        if ( i >= primitives.size() - 1 )
+            return primitives.back();
+        
+        TF f = x - i;
+        const TF v0 = values[ i + 0 ];
+        const TF v1 = values[ i + 1 ];
+        TF res = f * v0 + f * f * ( v1 - v0 ) / 2;
+        if ( regular_positions == 1 )
+            res /= opt_pos_coeff;
+        return primitives[ i ] + res;
+    }
+
+    if ( x < opt_pos_beg )
+        return 0;
+    if ( x > opt_pos_end )
+        return primitives.back();
+
+    const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_begs.size() - 1 );
+    for( PI i = opt_pos_begs[ ox ]; ; ++i ) {
+        if ( positions[ i + 1 ] >= x ) {
+            const TF x0 = positions[ i + 0 ];
+            const TF x1 = positions[ i + 1 ];
+            if ( const TF dx = x1 - x0 ) {
+                const TF v0 = values[ i + 0 ];
+                const TF v1 = values[ i + 1 ];
+                const TF xd = x - x0;
+                
+                TF res = xd * v0 + xd * xd / dx * ( v1 - v0 ) / 2;
+                return primitives[ i ] + res;
+            }
+            return primitives[ i ];
+        }
+    }
+}
+
+DTP TF UTP::integral( TF x0, TF x1, PI num_der_lag_ratio ) {
+    return primitive( x1, num_der_lag_ratio ) - primitive( x0, num_der_lag_ratio );
+}
+
 
 DTP TF UTP::position( PI i ) const {
     if ( regular_positions == 2 )

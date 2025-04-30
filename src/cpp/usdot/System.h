@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility/common_macros.h"
+#include "utility/TridiagonalSymmetricMatrix.h"
 #include "GridDensity.h"
 
 namespace usdot {
@@ -12,8 +12,10 @@ template<class TF,class Density> class WeightUpdater;
 template<class TF,class Density=GridDensity<TF>>
 class System {
 public:
+    using          TSM                              = TridiagonalSymmetricMatrix<TF>;
     using          VI                               = std::vector<PI>;
     using          VF                               = std::vector<TF>;
+    using          MF                               = std::vector<VF>;
     using          VB                               = std::vector<std::array<TF,2>>;
 
     /**/           System                           ();
@@ -25,6 +27,8 @@ public:
     void           set_density                      ( Density *density );
 
     void           initialize_with_flat_density     ();
+    MF             der_weights_wrt_lap_ratio        ( PI nb_ders = 3 ); ///< assuming we're on a solution
+    void           newton_iterations                ();
     void           solve                            ();
 
     VF             dirac_positions                  () const;
@@ -58,6 +62,10 @@ private:
     friend class   WeightInitializer                <TF,Density>;
     friend class   WeightUpdater                    <TF,Density>;
 
+    T_T void       _for_each_unintersected_cell     ( const T &func ) const;
+    T_T void       _for_each_newton_item            ( PI num_der, const T &func );
+    T_T void       _for_each_newton_item            ( const T &func ) const;
+    void           _make_newton_system              ();
     void           _update_system                   ( bool need_weights = true ) const;
 
     static void    plot_bnds_evolution              ( const std::vector<VB> &bnds );
@@ -76,6 +84,11 @@ private:
    
     // density
     Density*       density;                         ///<
+
+    //
+    TSM            newton_matrix_ldlt;              ///<
+    VF             newton_vector;                   ///<
+    TF             newton_error;                    ///<
 };
 
 

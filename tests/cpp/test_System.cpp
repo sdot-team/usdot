@@ -22,7 +22,7 @@ TEST_CASE( "System", "" ) {
 
     // si.set_dirac_positions( Vec<TF>::cellspace( 1.6, 2.0, 15 ) );
     // si.set_dirac_positions( cellspace<TF>( 0.0, 2.0, 5 ) );
-    si.set_dirac_positions( { -10, -11, -12, 4, 0, 2 } );
+    si.set_dirac_positions( { -10, -11, -12, 4, 0, 1, 2 } );
     si.set_global_mass_ratio( 0.5 );
     si.set_density( &gd );
 
