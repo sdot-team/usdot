@@ -28,6 +28,16 @@ TEST_CASE( "System", "" ) {
 
     si.solve();
 
+    auto w0 = si.sorted_dirac_weights;
+
+    const TF eps = 1e-6;
+    gd.set_lag_ratio( 1 - eps );
+    si.newton_iterations();
+
+    auto w1 = si.sorted_dirac_weights;
+    for( PI i = 0; i < w0.size(); ++i )
+        P( ( w0[ i ] - w1[ i ] ) / eps );
+
     si.plot();
     P( si.l2_mass_error() );
 }

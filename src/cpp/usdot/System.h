@@ -58,7 +58,7 @@ public:
     TF             time_in_update                   = 0; ///<
     TF             time_in_init                     = 0; ///<
 
-private:
+// private:
     friend class   WeightInitializer                <TF,Density>;
     friend class   WeightUpdater                    <TF,Density>;
 

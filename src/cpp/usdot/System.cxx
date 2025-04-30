@@ -470,10 +470,17 @@ DTP void UTP::_make_newton_system() {
 }
 
 DTP void UTP::newton_iterations() {
-    //
-    _make_newton_system();
+    for( PI num_iter = 0; num_iter < 3; ++num_iter ) {
+        _make_newton_system();
 
-    P( newton_error );
+        VF v = newton_matrix_ldlt.solve_using_ldlt( newton_vector );
+        for( PI i = 0; i < v.size(); ++i )
+            sorted_dirac_weights[ i ] -= v[ i ];
+   
+        P( newton_error );
+        if ( newton_error < 1e-10 )
+            break;
+    }
 }
 
 DTP void UTP::solve() {
