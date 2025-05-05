@@ -77,7 +77,7 @@ DTP T_U void UTP::display( U &ds ) const {
     ds.end_array();
 }
 
-DTP UTP::PI UTP::size() const {
+DTP typename UTP::PI UTP::size() const {
     return ( values.size() + 1 ) / 2;
 }
 
@@ -115,7 +115,7 @@ void TridiagonalSymmetricMatrix<T>::inplace_ldlt_decomposition() {
 }
 
 template<class T>
-inline UTP::TV UTP::solve_using_ldlt( const TV &x ) const {
+inline typename UTP::TV UTP::solve_using_ldlt( const TV &x ) const {
     using std::pow;
 
     const PI n = size();

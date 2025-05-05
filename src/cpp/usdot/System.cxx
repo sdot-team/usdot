@@ -3,6 +3,7 @@
 
 // #include "WeightInitializer.h"
 #include "utility/linspace.h"
+#include "utility/glot.h"
 // #include "WeightUpdater.h"
 #include "System.h"
 
@@ -170,19 +171,19 @@ DTP void UTP::initialize_with_flat_density() {
 
         TF d0 = sorted_dirac_positions[ i ];
         TF x0 = density->min_x();
-        TF w0 = max(
+        TF w0 = 2 * max(
             pow( sorted_dirac_positions[ agg.end_n - 1 ] - density->min_x(), 2 ),
             pow( density->max_x() - sorted_dirac_positions[ agg.beg_n ], 2 )
         );
         sorted_dirac_weights[ i ] = w0;
-
+        
         while( ++i < agg.end_n ) {
             const TF d1 = sorted_dirac_positions[ i ];
             const TF x1 = x0 + sorted_dirac_masses[ i ] * density->ptp_x();
             const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
 
             sorted_dirac_weights[ i ] = w1;
-
+            
             d0 = d1;
             x0 = x1;
             w0 = w1;
@@ -194,7 +195,7 @@ DTP T_T void UTP::_for_each_newton_item( const T &func ) const {
     _for_each_unintersected_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF d0, TF d1, TF c0, TF c1 ) {
         const TF v = sorted_dirac_masses[ num_dirac ];
         if ( dirac_weight <= 0 )
-            return func( num_dirac, 0, 0, v, 1 );
+            return func( num_dirac, 0, 0, v, 1, false );
 
         const TF rd = sqrt( dirac_weight );
         const TF b0 = dirac_position - rd;
@@ -206,38 +207,44 @@ DTP T_T void UTP::_for_each_newton_item( const T &func ) const {
             if ( c0 < b0 || c1 > b1 ) {
                 P( c0, c1 );
                 // plot();
-                return func( num_dirac, 0, 0, v, 2 );
+                return func( num_dirac, 0, 0, v, 2, false );
             }
 
             // ball cut on the left
             if ( b0 > c1 ) {
                 // ball cut on the right
                 if ( b1 < c0 ) {
+                    const TF db = ( density->value( b0 ) + density->value( b1 ) ) / ( 2 * sqrt( dirac_weight ) );
                     return func( num_dirac, 
-                        ( density->value( b0 ) + density->value( b1 ) ) / ( 2 * sqrt( dirac_weight ) ),
-                        0, 
+                        db,
+                        0,
                         - density->integral( b0, b1 ),
-                        0
+                        0,
+                        db != 0
                     );
                 }
 
                 // interface on the right
+                const TF db = density->value( b0 ) / sqrt( dirac_weight );
                 return func( num_dirac, 
-                    ( density->value( c0 ) / d0 - density->value( b0 ) / sqrt( dirac_weight ) ) / 2,
+                    ( density->value( c0 ) / d0 - db ) / 2,
                     0,
                     - density->integral( b0, c0 ),
-                    0
+                    0,
+                    db != 0
                 );
             }
             
             // interface on the left
             if ( b1 < c0 ) { // ball cut on the right
                 const TF cl = density->value( c1 ) / ( 2 * d1 );
-                return func( num_dirac, 
-                    cl - density->value( b1 ) / ( 2 * sqrt( dirac_weight ) ),
+                const TF db = density->value( b1 ) / ( 2 * sqrt( dirac_weight ) );
+                return func( num_dirac,
+                    cl - db,
                     - cl,
                     - density->integral( c1, b1 ),
-                    0
+                    0,
+                    db != 0
                 );
             }
             
@@ -248,50 +255,57 @@ DTP T_T void UTP::_for_each_newton_item( const T &func ) const {
                 - ( cl + cr ),
                 cr,
                 - density->integral( c1, c0 ),
-                0
+                0,
+                false
             );
         }
 
         // void cell
         if ( c1 < b0 || c0 > b1 )
-            return func( num_dirac, 0, 0, v, 3 );
+            return func( num_dirac, 0, 0, v, 3, false );
 
         if ( b0 > c0 ) { // ball cut on the left
             // ball cut on the right
-            if ( b1 < c1 ) { 
+            if ( b1 < c1 ) {
+                const TF db = ( density->value( b0 ) + density->value( b1 ) ) / ( 2 * sqrt( dirac_weight ) );
                 return func( num_dirac, 
-                    ( density->value( b0 ) + density->value( b1 ) ) / ( 2 * sqrt( dirac_weight ) ),
+                    db,
                     0,
                     density->integral( b0, b1 ),
-                    0
+                    0,
+                    db != 0
                 );
             }
 
             // interface on the right
             const TF cr = density->value( c1 ) / ( 2 * d1 );
+            const TF db = density->value( b0 ) / ( 2 * sqrt( dirac_weight ) );
             return func( num_dirac, 
-                density->value( b0 ) / ( 2 * sqrt( dirac_weight ) ) + cr,
+                db + cr,
                 - cr,
                 density->integral( b0, c1 ),
-                0
+                0,
+                db != 0
             );
         } 
         
         // interface on the left
         if ( b1 < c1 ) { // ball cut on the right
             const TF cl = density->value( c0 ) / ( 2 * d0 );
+            const TF db = density->value( b1 ) / ( 2 * sqrt( dirac_weight ) );
             return func( num_dirac, 
-                cl + density->value( b1 ) / ( 2 * sqrt( dirac_weight ) ),
+                cl + db,
                 0,
                 density->integral( c0, b1 ),
-                0
+                0,
+                db != 0
             );
         }
         
         const TF cl = density->value( c0 ) / ( 2 * d0 );
         const TF cr = density->value( c1 ) / ( 2 * d1 );
         const TF in = density->integral( c0, c1 );
-        return func( num_dirac, cl + cr, - cr, in, 0 );
+        return func( num_dirac, cl + cr, - cr, in, 0, false );
     } );
 }
 
@@ -398,24 +412,31 @@ DTP T_T void UTP::_for_each_newton_item( PI num_der, const T &func ) {
 }
 
 DTP UTP::MF UTP::der_weights_wrt_lap_ratio( PI nb_ders ) {
-    // X
+    VF V( nb_sorted_diracs() );
     MF res;
-    res.push_back( newton_matrix_ldlt.solve_using_ldlt( newton_vector ) );
 
     // X'
-    VF V( nb_sorted_diracs() );
+    if ( nb_ders >= 1 ) {
+        _for_each_newton_item( 1, [&]( PI index, TF m0, TF m1, TF v, int ) {
+            V[ index ] = - v;
+        } );
+        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    }
 
-    _for_each_newton_item( 1, [&]( PI index, TF m0, TF m1, TF v, int ) {
-        V[ index ] = v;
-
-        V[ index ] -= m0 * res[ 0 ][ index ];
-        if ( m1 ) {
-            V[ index ] -= m1 * res[ 0 ][ index + 1 ];
-            V[ index + 1 ] -= m1 * res[ 0 ][ index ];
-        }
-    } );
-
-    res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    // X''
+    if ( nb_ders >= 2 ) {
+        _for_each_newton_item( 2, [&]( PI index, TF m0, TF m1, TF v, int ) {
+            V[ index ] = - v;
+        } );
+        _for_each_newton_item( 1, [&]( PI index, TF m0, TF m1, TF v, int ) {
+            V[ index ] -= 2 * m0 * res[ 0 ][ index ];
+            if ( m1 ) {
+                V[ index ] -= 2 * m1 * res[ 0 ][ index + 1 ];
+                V[ index + 1 ] -= 2 * m1 * res[ 0 ][ index ];
+            }
+        } );
+        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    }
 
     //
     return res;
@@ -452,9 +473,12 @@ DTP void UTP::_make_newton_system() {
     newton_error = 0;
 
     bool has_bad_cell = false;
-    _for_each_newton_item( [&]( PI index, TF m0, TF m1, TF v, int bad_cell ) {
+    bool has_arc = false;
+    _for_each_newton_item( [&]( PI index, TF m0, TF m1, TF v, int bad_cell, bool arc ) {
         if ( bad_cell )
             has_bad_cell = bad_cell;
+        if ( arc )
+            has_arc = arc;
 
         newton_matrix_ldlt( index, index ) = m0;
         if ( m1 )
@@ -464,6 +488,9 @@ DTP void UTP::_make_newton_system() {
         newton_vector[ index ] = v;
         newton_error += v * v;
     } );
+
+    if ( ! has_arc )
+        newton_matrix_ldlt( 0, 0 ) *= 2;
 
     if ( ! has_bad_cell )
         newton_matrix_ldlt.inplace_ldlt_decomposition();
@@ -476,9 +503,8 @@ DTP void UTP::newton_iterations() {
         VF v = newton_matrix_ldlt.solve_using_ldlt( newton_vector );
         for( PI i = 0; i < v.size(); ++i )
             sorted_dirac_weights[ i ] -= v[ i ];
-   
-        P( newton_error );
-        if ( newton_error < 1e-10 )
+        // P( num_iter, v, newton_error );
+        if ( newton_error < 1e-20 )
             break;
     }
 }
@@ -490,13 +516,28 @@ DTP void UTP::solve() {
     while ( true ) {
         newton_iterations();
 
-        P( der_weights_wrt_lap_ratio( 3 ) );
+        MF ders = der_weights_wrt_lap_ratio( 2 );
+        VF w0 = sorted_dirac_weights;
+        VF e1;
+        VF e2;
+        for( TF a = 0; a > -1; a -= 1e-2 ) {
+            density->set_lag_ratio( 1 + a );
+
+            sorted_dirac_weights = w0;
+            for( PI i = 0; i < nb_sorted_diracs(); ++i )
+                sorted_dirac_weights[ i ] += ders[ 0 ][ i ] * a;
+            e1.push_back( l2_mass_error() );
+
+            sorted_dirac_weights = w0;
+            for( PI i = 0; i < nb_sorted_diracs(); ++i )
+                sorted_dirac_weights[ i ] += ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * a * a / 2;
+            e2.push_back( l2_mass_error() );
+        }
+        glot_vec_ys( e1, e2 );
+
         break;
     }
-    // update_weights();    
 
-
-    // P( l2_mass_error() );
     // if ( verbosity >= 2 && stream )
     //     *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
 }

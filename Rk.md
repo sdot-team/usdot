@@ -290,4 +290,6 @@ Rq: si la densité est constante, il est trivial d'initialiser les poids, y comp
   L'idée de regulariser la densité est séduisantes, mais ça veut dire qu'il faut calculer les dérivées de la solution.
   Quel critère prendre pour 
 
-Sunny G-
+M x= V
+M x' + M' x = V' (avec x = 0)
+M x'' + 2 * M' x' + M'' x = V'' (avec x = 0)

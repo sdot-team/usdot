@@ -1,4 +1,6 @@
+import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 
 def mat( t, s = 10 ):
     res = np.zeros( [ s + 1, s + 1 ] )
@@ -91,34 +93,32 @@ t = 0.1
 # d3 = der_next( d2, t, 3 )
 # print( "D3:", ap_der( t, D, N = 3 ) )
 # print( "d3:", d3 )
-# import matplotlib.pyplot as plt
 
 # for t in np.linspace( 0.0, 0.999, 10 ):
 #     plt.plot( sol_from_D( t, D ) )
 #     print( np.sum( sol_from_D( t, D ) ) )
 # plt.show()
-import scipy
 
-n = 10
-A = np.zeros( [ n + 1, n + 1 ] )
-for i in range( n ):
-    if i and i + 1 < n:
-        A[ i, i ] = 2
-    else:
-        A[ i, i ] = 1
-    if i:
-        A[ i, i - 1 ] = -1
-    if i + 1 < n:
-        A[ i, i + 1 ] = -1
-    A[ -1, i ] = 1
-    A[ i, -1 ] = 1
-A[ -1,  0 ] = 0.5
-A[ -1, -2 ] = 0.5
-A[  0, -1 ] = 0.5
-A[ -2, -1 ] = 0.5
+# n = 10
+# A = np.zeros( [ n + 1, n + 1 ] )
+# for i in range( n ):
+#     if i and i + 1 < n:
+#         A[ i, i ] = 2
+#     else:
+#         A[ i, i ] = 1
+#     if i:
+#         A[ i, i - 1 ] = -1
+#     if i + 1 < n:
+#         A[ i, i + 1 ] = -1
+#     A[ -1, i ] = 1
+#     A[ i, -1 ] = 1
+# A[ -1,  0 ] = 0.5
+# A[ -1, -2 ] = 0.5
+# A[  0, -1 ] = 0.5
+# A[ -2, -1 ] = 0.5
 
-# E =np.array( [    0.111105,    0.111106,    0.111108,    0.111111,    0.111115,    -0.88889,    0.111116,    0.111113,    0.111111,     0.11111, 0 ] )
-E =np.array( [ -0.111109,  -0.0779788,   0.0792141,  0.00441568,   0.0230846,  -0.0559587,  -0.0992613,   0.0598843,    0.059993,    0.124323, 0 ] )
+# # E =np.array( [    0.111105,    0.111106,    0.111108,    0.111111,    0.111115,    -0.88889,    0.111116,    0.111113,    0.111111,     0.11111, 0 ] )
+# E =np.array( [ -0.111109,  -0.0779788,   0.0792141,  0.00441568,   0.0230846,  -0.0559587,  -0.0992613,   0.0598843,    0.059993,    0.124323, 0 ] )
 # print( np.linalg.solve( A, E ) )
 
 def an( n ):
@@ -178,4 +178,4 @@ def solve( M, Y ):
     print( X )
 
 
-solve( A, E )
+# solve( A, E )

@@ -467,6 +467,7 @@ DTP TF UTP::primitive( TF x, PI num_der_lag_ratio ) {
         _append_der_value();
 
     const auto &primitives = der_primitives[ num_der_lag_ratio - 1 ];
+    const auto &values = der_values[ num_der_lag_ratio - 1 ];
     if ( regular_positions ) {
         if ( regular_positions == 1 )
             x = ( x - opt_pos_beg ) * opt_pos_coeff;
