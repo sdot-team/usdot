@@ -28,7 +28,7 @@ public:
 
     void           initialize_with_flat_density     ();
     MF             der_weights_wrt_lap_ratio        ( PI nb_ders = 3 ); ///< assuming we're on a solution
-    void           newton_iterations                ();
+    int            newton_iterations                (); ///< return 0 if OK
     void           solve                            ();
 
     VF             dirac_positions                  () const;
@@ -42,6 +42,7 @@ public:
     
     PI             nb_original_diracs               () const;
     PI             nb_sorted_diracs                 () const;
+    TF             max_mass_error                   () const; ///< 
     TF             l2_mass_error                    () const; ///< 
     TF             x_tol                            () const; ///<
     void           plot                             ( std::string filename = "glot.py" ) const;
@@ -65,7 +66,7 @@ public:
     T_T void       _for_each_unintersected_cell     ( const T &func ) const;
     T_T void       _for_each_newton_item            ( PI num_der, const T &func );
     T_T void       _for_each_newton_item            ( const T &func ) const;
-    void           _make_newton_system              ();
+    int            _make_newton_system              ();
     void           _update_system                   ( bool need_weights = true ) const;
 
     static void    plot_bnds_evolution              ( const std::vector<VB> &bnds );

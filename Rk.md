@@ -293,3 +293,8 @@ Rq: si la densité est constante, il est trivial d'initialiser les poids, y comp
 M x= V
 M x' + M' x = V' (avec x = 0)
 M x'' + 2 * M' x' + M'' x = V'' (avec x = 0)
+M x''' + 3 * M' x'' + 3 * M'' x' + M''' x = V''' (avec x = 0)
+
+M x''' + 4 * M' x''' + 6 * M'' x'' + 4 * M''' x' + M'''' x = V'''' (avec x = 0)
+
+La proposition, c'est de tester une projection en regardant si le newton est capable de converger
