@@ -40,8 +40,8 @@ DTP UTP::DiffusionDensity( const VF &positions, const VF &original_values ) {
     for( PI &ind : opt_pos_beg_inds )
         ind = opt_size;
     for( PI i = 1; i < positions.size(); ++i ) {
-        const PI x0 = floor( ( positions[ i - 1 ] - opt_pos_beg_x ) * opt_pos_mul_x );
-        const PI x1 = ceil( ( positions[ i - 0 ] - opt_pos_beg_x ) * opt_pos_mul_x );
+        const PI x0 = PI( floor( ( positions[ i - 1 ] - opt_pos_beg_x ) * opt_pos_mul_x ) );
+        const PI x1 = PI( ceil( ( positions[ i - 0 ] - opt_pos_beg_x ) * opt_pos_mul_x ) );
         for( PI n = x0; n < std::min( x1, opt_size ); ++n )
             opt_pos_beg_inds[ n ] = std::min( opt_pos_beg_inds[ n ], i );
     }
@@ -119,7 +119,7 @@ DTP TF UTP::primitive( TF x ) const {
     if ( x < opt_pos_beg_x )
         return 0;
 
-    const PI ox = ( x - opt_pos_beg_x ) * opt_pos_mul_x;
+    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
     if ( ox >= opt_pos_beg_inds.size() )
         return primitives.back();
 
@@ -146,7 +146,7 @@ DTP TF UTP::value( TF x ) const {
     if ( x < opt_pos_beg_x )
         return 0;
 
-    const PI ox = ( x - opt_pos_beg_x ) * opt_pos_mul_x;
+    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
     if ( ox >= opt_pos_beg_inds.size() )
         return 0;
 

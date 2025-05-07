@@ -12,7 +12,7 @@ def config( options ):
     options.add_cpp_flag( '-O3' )
 
     # options.add_inc_path( '/opt/homebrew/Cellar/eigen/3.4.0_1/include' )
-    # options.add_inc_path( '/opt/homebrew/Cellar/boost/1.87.0/include' )
+    options.add_inc_path( '/opt/homebrew/Cellar/boost/1.87.0/include' )
     # options.add_inc_path( '../../ext/matplotlib-cpp/' )
     options.add_inc_path( '../../src/cpp' )
     options.add_inc_path( '../../ext' )

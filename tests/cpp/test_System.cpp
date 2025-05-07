@@ -5,13 +5,13 @@
 #include "catch_main.h"
 #include <iostream>
 
-// #include <usdot/utility/gmp.h>
-// using namespace boost::multiprecision;
-// using TF = number<backends::cpp_bin_float<40>>;
+#include <usdot/utility/gmp.h>
+using namespace boost::multiprecision;
+using TF = number<backends::cpp_bin_float<40>>;
 
 using namespace usdot;
 using namespace std;
-using TF = FP80;
+// using TF = FP80;
 
 // void check_ders( const TF eps = 1e-5 ) {
 //     GridDensity<TF,2> gd( { 1, 0.01, 1 } );
@@ -63,10 +63,10 @@ TEST_CASE( "System", "" ) {
     si.stream = &std::cout;
     si.verbosity = 2;
 
-    si.solve();
+    // si.solve();
 
-    // gd.set_flattening_ratio( 1 );
-    // si.initialize_with_flat_density();
+    gd.set_flattening_ratio( 1 );
+    si.initialize_with_flat_density();
     // si.newton_iterations();
     // auto w0 = si.sorted_dirac_weights;
     

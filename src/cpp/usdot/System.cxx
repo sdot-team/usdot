@@ -574,7 +574,8 @@ DTP void UTP::solve() {
     for( TF prev_flattening_ratio = 1; prev_flattening_ratio; ) {
         VF w0 = sorted_dirac_weights;
         MF ders = der_weights_wrt_lap_ratio( 3 );
-        for( TF trial_flattening_ratio = 0; ; trial_flattening_ratio = ( prev_flattening_ratio + trial_flattening_ratio ) / 2 ) {
+        TF trat = 0.75;
+        for( TF trial_flattening_ratio = 0; ; trial_flattening_ratio = ( 1 - trat ) * prev_flattening_ratio + trat * trial_flattening_ratio ) {
             const TF a = trial_flattening_ratio - prev_flattening_ratio;
             
             P( prev_flattening_ratio, trial_flattening_ratio, a );
