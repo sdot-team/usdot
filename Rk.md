@@ -298,3 +298,22 @@ M x''' + 3 * M' x'' + 3 * M'' x' + M''' x = V''' (avec x = 0)
 M x''' + 4 * M' x''' + 6 * M'' x'' + 4 * M''' x' + M'''' x = V'''' (avec x = 0)
 
 La proposition, c'est de tester une projection en regardant si le newton est capable de converger
+
+( ( 1 - t ) I + t ∇ ) X = ( 1 - t ) D
+
+min ∑ ( 2 * u_n - u_(n-1) - u_(n+1) )^2 / 2
+-> ∑ ( 2 * u_n - u_(n-1) - u_(n+1) )
+
+Le problème, c'est que ni Neuman ni Dirichlet ne fonctionnent, à moins de trouver comment les fixer 
+  On pourrait par exemple faire une fonction de la valeur de départ, avec l'idée de minimiser une fonction quadratique du genre somme( ( u_n - u_(n-1) )^2 )...
+  C'est quand même bien moins simple qu'un filtre. Ça ne va pas non plus bien se traduire en 2D ou +.
+
+Rq: dans le fond, on voudrait une diffusion sur un domaine plus large pour ne garder qu'une partie.
+
+Autre prop: on fait un blend entre la fonction et sa moyenne, mais on va plus ou moins vite pour y aller en fonction de la distance à un "évènement"... bof
+
+Autre prop: on résoud avec Dirichlet de moins en moins local... Rq: c'est peu coûteux en 1D mais après, ça revient à faire n^1/d convolutions. 
+
+Pb de la mort : les dérivées sont très discontinues. Prop: on essaye avec extrapolation
+
+d3 - 3 * d2 + 2 * d1 - d0

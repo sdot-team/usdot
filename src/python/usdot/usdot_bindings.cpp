@@ -123,9 +123,9 @@ OtResult from_p1_grid( Array &dirac_positions, TF global_mass_ratio, Array &rela
     }
 
     // prepare the system
-    GridDensity<TF> gd( std::move( dv ) );
+    GridDensity<TF,2> gd( std::move( dv ) );
 
-    System<TF,GridDensity<TF>> si;
+    System<TF,GridDensity<TF,2>> si;
     si.target_max_mass_error = parms.max_mass_ratio_error_target;
     si.verbosity = parms.verbosity;
     si.stream = &std::cout;
@@ -136,8 +136,8 @@ OtResult from_p1_grid( Array &dirac_positions, TF global_mass_ratio, Array &rela
     si.set_density( &gd );
 
     // solve it
-    si.solve();
-
+    si.solve_using_cdf();
+    
     // make a summary
     auto barycenters = si.cell_barycenters();
     auto boundaries = si.cell_boundaries();

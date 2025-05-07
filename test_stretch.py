@@ -2,92 +2,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 
-def system_with_extension( D, t, coeff_extension = 2 ):
-    s = len( D )
-    e = int( coeff_extension * s )
-    n = s + 2 * e
-    
-    m = np.mean( D )
+class Density:
+    def __init__( self, ys ):
+        self.xs = np.linspace( 0.0, 1.0, len( ys ), endpoint = True )
+        self.ys = ys
 
-    mat = np.zeros( [ n, n ] )
-    vec = np.zeros( [ n ] )
-    for i in range( n ):
-        c = t * s**1
-
-        # lapl
-        if i:
-            mat[ i, i - 1 ] -= c
-            mat[ i, i - 0 ] += c
-        if i + 1 < n:
-            mat[ i, i + 0 ] += c
-            mat[ i, i + 1 ] -= c
         
-        # id
-        if i >= e and i < e + s:
-            mat[ i, i ] += 1 - t
-            vec[ i ] = D[ i - e ] * ( 1 - t )
 
-    Y = np.linalg.solve( mat, vec )
-    return Y[ e : -e ]
-
-def system_without_bnd_eqs( D, t ):
-    s = len( D )
-    
-    # m = np.mean( D )
-
-    mat = np.zeros( [ s, s ] )
-    vec = np.zeros( [ s ] )
-    for i in range( s ):
-        c = t * s**1
-
-        mat[ i, i ] = 1 - t + 2 * c
-        if i:
-            mat[ i, i - 1 ] = - c
-        if i + 1 < s:
-            mat[ i, i + 1 ] = - c
-        
-        vec[ i ] = D[ i - e ] * ( 1 - t )
-
-    Y0 = np.linalg.solve( mat, vec )
-    G0 = Y0[ 1: ] - Y0[ :-1 ]
- 
-    dvec = vec.copy()
-    dvec[ 0 ] += 1
-    Y1 = np.linalg.solve( mat, dvec )
-    G1 = Y1[ 1: ] - Y1[ :-1 ]
-
-    dvec = vec.copy()
-    dvec[ -1 ] += 1
-    Y2 = np.linalg.solve( mat, dvec )
-    G2 = Y2[ 1: ] - Y2[ :-1 ]
-
-    nmat = np.empty( [ 2, 2 ] )
-    nvec = np.empty( [ 2 ] )
-    nmat[ 0, 0 ] = np.dot( G1, G1 )
-    nmat[ 0, 1 ] = np.dot( G1, G2 )
-    nmat[ 1, 0 ] = np.dot( G2, G1 )
-    nmat[ 1, 1 ] = np.dot( G2, G2 )
-    nvec[ 0 ] = np.dot( G0, G1 )
-    nvec[ 1 ] = np.dot( G0, G2 )
-
-    nsol = np.linalg.solve( nmat, nvec )
-    dvec = vec.copy()
-    dvec[ +0 ] -= nsol[ 0 ]
-    dvec[ -1 ] -= nsol[ 1 ]
-
-    return np.linalg.solve( mat, dvec )
-
-
-s = 50
+s = 100
 D = np.zeros( [ s ] )
 b = int( 0 * s / 10 )
-e = int( 8 * s / 10 )
+e = int( 5 * s / 10 )
 D[ b : e ] = 1
 D /= np.sum( D )
 
-for t in np.linspace( 0.1, 0.99, 10, endpoint = True ):
-    plt.plot( system_with_extension( D, t ) )
-    print( np.sum( system_with_extension( D, t ) ) )
+for t in np.linspace( 0.0, 1.0, 100, endpoint = True ):
+    plt.plot( system( D, t ) )
 plt.show()
 
 

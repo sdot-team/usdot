@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utility/TridiagonalSymmetricMatrix.h"
-#include "GridDensity.h"
+#include "DiffusionDensity.h"
 
 namespace usdot {
 template<class TF,class Density> class WeightInitializer;
@@ -9,7 +9,7 @@ template<class TF,class Density> class WeightUpdater;
     
 /**
 */
-template<class TF,class Density=GridDensity<TF>>
+template<class TF,class Density=DiffusionDensity<TF>>
 class System {
 public:
     using          TSM                              = TridiagonalSymmetricMatrix<TF>;
@@ -29,6 +29,7 @@ public:
     void           initialize_with_flat_density     ();
     MF             der_weights_wrt_lap_ratio        ( PI nb_ders = 3 ); ///< assuming we're on a solution
     int            newton_iterations                (); ///< return 0 if OK
+    void           solve_using_cdf                  ();
     void           solve                            ();
 
     VF             dirac_positions                  () const;
@@ -43,7 +44,7 @@ public:
     PI             nb_original_diracs               () const;
     PI             nb_sorted_diracs                 () const;
     TF             max_mass_error                   () const; ///< 
-    TF             l2_mass_error                    () const; ///< 
+    TF             l2_mass_error                    ( bool max_if_bad_cell = false ) const; ///< 
     TF             x_tol                            () const; ///<
     void           plot                             ( std::string filename = "glot.py" ) const;
 

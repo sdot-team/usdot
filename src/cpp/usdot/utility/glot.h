@@ -7,6 +7,14 @@
 
 namespace usdot {
     
+template<class Func>
+void glot_stream( const Func &func ) {
+    std::ofstream fs( "glot.py" );
+    fs << "from matplotlib import pyplot\n";
+    func( fs );
+    fs << "pyplot.show()\n";
+}
+
 template<class TF,class ...Funcs>
 void glot( std::vector<TF> xs, Funcs &&...funcs ) {
     std::ofstream fs( "glot.py" );

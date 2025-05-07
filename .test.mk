@@ -1,6 +1,7 @@
 # mamba run -n vfs vfs_build run tests/cpp/test_Density.cpp
 # mamba run -n vfs vfs_build run tests/cpp/test_Solver.cpp
 all:
+	# mamba run -n vfs vfs_build run tests/cpp/test_DiffusionDensity.cpp
 	mamba run -n vfs vfs_build run tests/cpp/test_System.cpp
 
 mu:

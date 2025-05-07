@@ -1,10 +1,10 @@
 #pragma once
 
 
-// #include "WeightInitializer.h"
+#include "WeightInitializer.h"
 #include "utility/linspace.h"
-#include "utility/glot.h"
-// #include "WeightUpdater.h"
+//#include "WeightUpdater.h"
+//#include "utility/glot.h"
 #include "System.h"
 
 #include <stdexcept>
@@ -23,37 +23,11 @@ DTP UTP::System() {
     density = nullptr;
 }
 
-// DTP void UTP::initialize_weights() {
-//     _update_system( true );
-
-//     auto t0 = std::chrono::high_resolution_clock::now();
-
-//     WeightInitializer<TF,Density> wi( *this );
-//     wi.max_nb_iterations = 80;
-//     wi.run();
-
-//     nb_iterations_init = wi.nb_iterations;
-//     auto t1 = std::chrono::high_resolution_clock::now();
-//     time_in_init = std::chrono::duration<double>{ t1 - t0 }.count();
-// }
-
-// DTP void UTP::update_weights() {
-//     _update_system( true );
-
-//     auto t0 = std::chrono::high_resolution_clock::now();
-
-//     WeightUpdater<TF,Density> wi( *this );
-//     wi.newton_update();
-
-//     nb_iterations_update = wi.nb_iterations;
-//     auto t1 = std::chrono::high_resolution_clock::now();
-//     time_in_update = std::chrono::duration<double>{ t1 - t0 }.count();
-// }
 DTP void UTP::initialize_with_flat_density() {
-    using namespace std;
     _update_system( /*need_weights*/ false );
+    using namespace std;
 
-    density->set_lag_ratio( 1 );
+    density->set_flattening_ratio( 1 );
 
     // make the agglomerates
     struct Agglomerate {
@@ -412,61 +386,88 @@ DTP T_T void UTP::_for_each_newton_item( PI num_der, const T &func ) {
 }
 
 DTP UTP::MF UTP::der_weights_wrt_lap_ratio( PI nb_ders ) {
+    const TF eps = 1e-6;
+    
     VF V( nb_sorted_diracs() );
     MF res;
 
-    // helpers
-    auto set_vec = [&]( PI nd ) {
-        _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
-            V[ index ] = - v;
-        } );
-    };
-    auto add_mat = [&]( PI nd, PI nr, TF coeff ) {
-        _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
-            V[ index ] -= 2 * m0 * res[ nr ][ index ];
-            if ( m1 ) {
-                V[ index ] -= 2 * m1 * res[ nr ][ index + 1 ];
-                V[ index + 1 ] -= 2 * m1 * res[ nr ][ index ];
-            }
-        } );
-    };
+    TF base_fr = density->current_flattening_ratio;
+    VF w0 = sorted_dirac_weights;
 
-    // X'
-    if ( nb_ders >= 1 ) {
-        set_vec( 1 );
-        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    }
+    density->set_flattening_ratio( base_fr - 1 * eps );
+    int err = newton_iterations();
+    if ( err )
+        throw std::runtime_error( "err newton in der w" );
+    VF w1 = sorted_dirac_weights;
 
-    // X''
-    if ( nb_ders >= 2 ) {
-        set_vec( 2 );
-        add_mat( 1, 0, 2 );
-        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    }
+    density->set_flattening_ratio( base_fr - 2 * eps );
+    err = newton_iterations();
+    if ( err )
+        throw std::runtime_error( "err newton in der w" );
+    VF w2 = sorted_dirac_weights;
 
-    // X''', ...
-    if ( nb_ders >= 3 ) {
-        set_vec( 3 );
-        add_mat( 2, 0, 3 );
-        add_mat( 1, 1, 3 );
-        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    }
+    VF d1( w0.size() );
+    for( PI i = 0; i < w0.size(); ++i )
+        d1[ i ] = ( w0[ i ] - w1[ i ] ) / eps; 
+    res.push_back( d1 );
 
-    // X'''', ...
-    if ( nb_ders >= 4 ) {
-        set_vec( 4 );
-        add_mat( 3, 0, 4 );
-        add_mat( 2, 1, 6 );
-        add_mat( 1, 2, 4 );
-        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    }
+    VF d2( w0.size() );
+    for( PI i = 0; i < w0.size(); ++i )
+        d1[ i ] = ( w0[ i ] + w2[ i ] - 2 * w1[ i ] ) / pow( eps, 2 ); 
+    res.push_back( d2 );
 
-    // ...
-    if ( nb_ders >= 5 ) {
-        throw std::runtime_error( "TODO: nb_ders >= 4" );
-    }
+    // // helpers
+    // auto set_vec = [&]( PI nd ) {
+    //     _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
+    //         V[ index ] = - v;
+    //     } );
+    // };
+    // auto add_mat = [&]( PI nd, PI nr, TF coeff ) {
+    //     _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
+    //         V[ index ] -= 2 * m0 * res[ nr ][ index ];
+    //         if ( m1 ) {
+    //             V[ index ] -= 2 * m1 * res[ nr ][ index + 1 ];
+    //             V[ index + 1 ] -= 2 * m1 * res[ nr ][ index ];
+    //         }
+    //     } );
+    // };
 
-    //
+    // // X'
+    // if ( nb_ders >= 1 ) {
+    //     set_vec( 1 );
+    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    // }
+
+    // // X''
+    // if ( nb_ders >= 2 ) {
+    //     set_vec( 2 );
+    //     add_mat( 1, 0, 2 );
+    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    // }
+
+    // // X''', ...
+    // if ( nb_ders >= 3 ) {
+    //     set_vec( 3 );
+    //     add_mat( 2, 0, 3 );
+    //     add_mat( 1, 1, 3 );
+    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    // }
+
+    // // X'''', ...
+    // if ( nb_ders >= 4 ) {
+    //     set_vec( 4 );
+    //     add_mat( 3, 0, 4 );
+    //     add_mat( 2, 1, 6 );
+    //     add_mat( 1, 2, 4 );
+    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    // }
+
+    // // ...
+    // if ( nb_ders >= 5 ) {
+    //     throw std::runtime_error( "TODO: nb_ders >= 4" );
+    // }
+
+    // //
     return res;
 }
 
@@ -535,7 +536,7 @@ DTP int UTP::newton_iterations() {
             throw std::runtime_error( "max iter" );
 
         int err = _make_newton_system();
-        P( num_iter, err, newton_error );
+        // P( num_iter, err, newton_error );
         if ( err || newton_error > prev_newton_error )
             return 1;
         prev_newton_error = newton_error;
@@ -544,9 +545,25 @@ DTP int UTP::newton_iterations() {
         for( PI i = 0; i < v.size(); ++i )
             sorted_dirac_weights[ i ] -= v[ i ];
     
-        if ( newton_error < 1e-10 )
+        if ( newton_error < 1e-20 ) {
+            P( num_iter );
             return 0;
+        }
     }
+}
+
+DTP void UTP::solve_using_cdf() {
+    // _update_system( true );
+
+    // auto t0 = std::chrono::high_resolution_clock::now();
+
+    // WeightInitializer<TF,Density> wi( *this );
+    // wi.max_nb_iterations = 800000;
+    // wi.run();
+
+    // nb_iterations_init = wi.nb_iterations;
+    // auto t1 = std::chrono::high_resolution_clock::now();
+    // time_in_init = std::chrono::duration<double>{ t1 - t0 }.count();
 }
 
 DTP void UTP::solve() {
@@ -554,30 +571,26 @@ DTP void UTP::solve() {
     newton_iterations();
 
     //     
-    for( TF prev_lag_ratio = 1; prev_lag_ratio; ) {
-        MF ders = der_weights_wrt_lap_ratio( 3 );
+    for( TF prev_flattening_ratio = 1; prev_flattening_ratio; ) {
         VF w0 = sorted_dirac_weights;
-        for( TF trial_lag_ratio = 0; ; trial_lag_ratio = ( prev_lag_ratio + trial_lag_ratio ) / 2 ) {
-            const TF a = trial_lag_ratio - prev_lag_ratio;
-            density->set_lag_ratio( trial_lag_ratio );
-
-            P( prev_lag_ratio, trial_lag_ratio, a );
-
+        MF ders = der_weights_wrt_lap_ratio( 3 );
+        for( TF trial_flattening_ratio = 0; ; trial_flattening_ratio = ( prev_flattening_ratio + trial_flattening_ratio ) / 2 ) {
+            const TF a = trial_flattening_ratio - prev_flattening_ratio;
+            
+            P( prev_flattening_ratio, trial_flattening_ratio, a );
+            
+            density->set_flattening_ratio( trial_flattening_ratio );
             for( PI i = 0; i < nb_sorted_diracs(); ++i )
-                sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a; // + ders[ 1 ][ i ] * pow( a, 2 ) / 2 + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
+                sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2; // + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
 
-            // glot_vec_ys( ders[ 0 ], ders[ 1 ] );
-            if ( trial_lag_ratio == 0.75 ) {
-                P( w0 );
-                P( sorted_dirac_weights, ders[ 0 ] );
-                plot();
-                return;
+            if ( abs( a ) < 1e-6 ) {
+                throw std::runtime_error( "TODO: low a" );
             }
 
             // test 
             int err = newton_iterations();
             if ( err == 0 ) {
-                prev_lag_ratio = trial_lag_ratio;
+                prev_flattening_ratio = trial_flattening_ratio;
                 break;
             }
         }
@@ -740,13 +753,18 @@ DTP typename UTP::VF UTP::cell_masses() const {
     return res;
 }
 
-DTP TF UTP::l2_mass_error() const {
+DTP TF UTP::l2_mass_error( bool max_if_bad_cell ) const {
     using namespace std;
     _update_system();
     TF res = 0;
+    bool has_bad_cell = false;
     for_each_cell( [&]( PI n, TF b, TF e ) {
+        if ( b >= e )
+            has_bad_cell = true;
         res += pow( sorted_dirac_masses[ n ] - density->integral( b, e ), 2 );
     } );
+    if ( has_bad_cell )    
+        return numeric_limits<TF>::max();
     return sqrt( res );
 }
 
