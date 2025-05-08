@@ -42,11 +42,11 @@ DTP void UTP::initialize_with_flat_density() {
     for( PI i = 0; i < nb_sorted_diracs(); ++i ) {
         const TF l = sorted_dirac_masses[ i ] * density->ptp_x();
         const TF b = min( density->max_x() - l, max( density->min_x(), sorted_dirac_positions[ i ] - l / 2 ) );
-        const TF d = aggs.back().end_x - b;
-        if ( aggs.empty() || d < 0 ) {
+        if ( aggs.empty() || aggs.back().end_x - b < 0 ) {
             aggs.push_back( { b, b + l, l, i, i + 1 } );
             continue;
         }
+        const TF d = aggs.back().end_x - b;
 
         Agglomerate &agg = aggs.back();
 
@@ -91,6 +91,7 @@ DTP void UTP::initialize_with_flat_density() {
     }
 
     // set the weights
+    sorted_dirac_weights.resize( nb_sorted_diracs() );
     for( const Agglomerate &agg : aggs ) {
         if ( agg.beg_x > density->min_x() ) {
             PI i = agg.beg_n;
@@ -386,7 +387,7 @@ DTP T_T void UTP::_for_each_newton_item( PI num_der, const T &func ) {
 }
 
 DTP UTP::MF UTP::der_weights_wrt_lap_ratio( PI nb_ders ) {
-    const TF eps = 1e-6;
+    const TF eps = 1e-10;
     
     VF V( nb_sorted_diracs() );
     MF res;
@@ -406,6 +407,13 @@ DTP UTP::MF UTP::der_weights_wrt_lap_ratio( PI nb_ders ) {
         throw std::runtime_error( "err newton in der w" );
     VF w2 = sorted_dirac_weights;
 
+    density->set_flattening_ratio( base_fr - 3 * eps );
+    err = newton_iterations();
+    if ( err )
+        throw std::runtime_error( "err newton in der w" );
+    VF w3 = sorted_dirac_weights;
+
+    // ----------------------
     VF d1( w0.size() );
     for( PI i = 0; i < w0.size(); ++i )
         d1[ i ] = ( w0[ i ] - w1[ i ] ) / eps; 
@@ -413,8 +421,18 @@ DTP UTP::MF UTP::der_weights_wrt_lap_ratio( PI nb_ders ) {
 
     VF d2( w0.size() );
     for( PI i = 0; i < w0.size(); ++i )
-        d1[ i ] = ( w0[ i ] + w2[ i ] - 2 * w1[ i ] ) / pow( eps, 2 ); 
+        d2[ i ] = ( w0[ i ] + w2[ i ] - 2 * w1[ i ] ) / pow( eps, 2 ); 
     res.push_back( d2 );
+
+    VF d3( w0.size() );
+    for( PI i = 0; i < w0.size(); ++i )
+        d3[ i ] = ( w0[ i ] - 3 * w1[ i ] + 3 * w2[ i ] - w3[ i ] ) / pow( eps, 3 ); 
+    res.push_back( d3 );
+
+    // VF d3( w0.size() );
+    // for( PI i = 0; i < w0.size(); ++i )
+    //     d1[ i ] = ( w0[ i ] + w2[ i ] - 2 * w1[ i ] ) / pow( eps, 2 ); 
+    // res.push_back( d2 );
 
     // // helpers
     // auto set_vec = [&]( PI nd ) {
@@ -545,7 +563,7 @@ DTP int UTP::newton_iterations() {
         for( PI i = 0; i < v.size(); ++i )
             sorted_dirac_weights[ i ] -= v[ i ];
     
-        if ( newton_error < 1e-20 ) {
+        if ( newton_error < 1e-40 ) {
             P( num_iter );
             return 0;
         }
@@ -570,23 +588,24 @@ DTP void UTP::solve() {
     initialize_with_flat_density();
     newton_iterations();
 
-    //     
-    for( TF prev_flattening_ratio = 1; prev_flattening_ratio; ) {
+    //
+    PI nb_deflat_steps = 0;
+    for( TF prev_flattening_ratio = 1; prev_flattening_ratio; ++nb_deflat_steps ) {
         VF w0 = sorted_dirac_weights;
         MF ders = der_weights_wrt_lap_ratio( 3 );
-        TF trat = 0.75;
+        TF trat = 0.8;
         for( TF trial_flattening_ratio = 0; ; trial_flattening_ratio = ( 1 - trat ) * prev_flattening_ratio + trat * trial_flattening_ratio ) {
             const TF a = trial_flattening_ratio - prev_flattening_ratio;
+            if ( abs( a ) < 1e-6 ) {
+                throw std::runtime_error( "low a" );
+            }
             
             P( prev_flattening_ratio, trial_flattening_ratio, a );
             
             density->set_flattening_ratio( trial_flattening_ratio );
             for( PI i = 0; i < nb_sorted_diracs(); ++i )
-                sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2; // + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
+                sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2 + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
 
-            if ( abs( a ) < 1e-6 ) {
-                throw std::runtime_error( "TODO: low a" );
-            }
 
             // test 
             int err = newton_iterations();
@@ -597,6 +616,7 @@ DTP void UTP::solve() {
         }
     }
 
+    P( nb_deflat_steps );
     // if ( verbosity >= 2 && stream )
     //     *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
 }

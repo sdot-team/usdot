@@ -7,7 +7,7 @@
 
 #include <usdot/utility/gmp.h>
 using namespace boost::multiprecision;
-using TF = number<backends::cpp_bin_float<40>>;
+using TF = number<backends::cpp_bin_float<64>>;
 
 using namespace usdot;
 using namespace std;
@@ -51,22 +51,21 @@ TEST_CASE( "System", "" ) {
     // check_ders();
     std::vector<TF> dv( 100 );
     for( PI i = 0; i < dv.size(); ++i )
-        dv[ i ] = ( i > dv.size() / 2 ? 0.5 : 1 );
+        dv[ i ] = ( i > dv.size() / 2 ? 0.1 : 1 );
         
     DiffusionDensity<TF> gd( dv );
 
     System<TF> si;
     si.set_dirac_positions( cellspace<TF>( 0.0, dv.size() / 2.0, 1000 ) );
-    si.set_global_mass_ratio( 0.9 );
+    si.set_global_mass_ratio( 0.8 );
     si.set_density( &gd );
 
     si.stream = &std::cout;
     si.verbosity = 2;
 
-    // si.solve();
+    si.solve();
 
-    gd.set_flattening_ratio( 1 );
-    si.initialize_with_flat_density();
+    // si.initialize_with_flat_density();
     // si.newton_iterations();
     // auto w0 = si.sorted_dirac_weights;
     

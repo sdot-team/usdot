@@ -41,9 +41,9 @@ public:
     TF    value                     ( TF x ) const;
       
     TF    derivative                ( TF x, PI num_der_lag_ratio );
-    TF    primitive                 ( TF x, PI num_der_lag_ratio );
-    TF    integral                  ( TF x0, TF x1, PI num_der_lag_ratio );
-    TF    value                     ( TF x, PI num_der_lag_ratio );
+    TF    primitive                 ( TF x, PI num_der_lag_ratio ) const;
+    TF    integral                  ( TF x0, TF x1, PI num_der_lag_ratio ) const;
+    TF    value                     ( TF x, PI num_der_lag_ratio ) const;
       
     TF    min_x                     () const;
     TF    max_x                     () const;
@@ -64,7 +64,9 @@ public:
     TF    current_flattening_ratio; ///<
     MF    der_primitives;           ///<
     MF    der_values;               ///<
-    SY    system;                   ///<
+    MF    sys_ders;                 ///<
+    SY    sys_mat;                  ///<
+    VF    sys_vec;                  ///<
      
     VI    opt_pos_beg_inds;         ///<
     TF    opt_pos_beg_x;            ///<

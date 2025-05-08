@@ -317,3 +317,6 @@ Autre prop: on résoud avec Dirichlet de moins en moins local... Rq: c'est peu c
 Pb de la mort : les dérivées sont très discontinues. Prop: on essaye avec extrapolation
 
 d3 - 3 * d2 + 2 * d1 - d0
+
+M x = V
+M x' + M' x = V' -> 

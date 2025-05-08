@@ -14,7 +14,7 @@ TEST_CASE( "DiffusionDensity der", "" ) {
         values[ i ] = i > values.size() / 2 ? 1 : 0.1; //rand() / double( RAND_MAX );
 
     DiffusionDensity<TF> gd( 0, 1, values );
-    gd.set_flattening_ratio( 0.015 );
+    gd.set_flattening_ratio( 1.0 );
 
     // glot_stream( [&]( std::ostream &fs ) {
     //     for( TF r = 0; r <= 1; r += 1. / 16 ) {
@@ -25,12 +25,13 @@ TEST_CASE( "DiffusionDensity der", "" ) {
     // } );
 
     TF eps = 1e-6;
+    DiffusionDensity<TF> ge = gd;
+    ge.set_flattening_ratio( gd.current_flattening_ratio - eps );
 
-    // DiffusionDensity<TF> ge = gd;
-    // ge.set_flattening_ratio( 0.5 - eps );
+    gd.compute_derivatives( 1 );
 
     glot( linspace<TF>( -0.1, 1.1, 100 ), 
-        [&]( TF x ) { return gd.value( x ) + 0.01; },
-        [&]( TF x ) { return ( gd.primitive( x + eps ) - gd.primitive( x ) ) / eps; }
+        [&]( TF x ) { return gd.value( x, 1 ) + 0.01; },
+        [&]( TF x ) { return ( gd.value( x ) - ge.value( x ) ) / eps; }
     );
 }

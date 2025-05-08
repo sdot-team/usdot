@@ -27,6 +27,8 @@ def system_with_extension( D, t, coeff_extension = 2 ):
             mat[ i, i ] += 1 - t
             vec[ i ] = D[ i - e ] * ( 1 - t )
 
+    print( mat )
+    
     Y = np.linalg.solve( mat, vec )
     return Y[ e : -e ]
 
@@ -78,17 +80,18 @@ def system_without_bnd_eqs( D, t ):
     return np.linalg.solve( mat, dvec )
 
 
-s = 50
+s = 3
 D = np.zeros( [ s ] )
 b = int( 0 * s / 10 )
 e = int( 8 * s / 10 )
 D[ b : e ] = 1
 D /= np.sum( D )
+plt.plot( system_with_extension( D, 1 ) )
 
-for t in np.linspace( 0.1, 0.99, 10, endpoint = True ):
-    plt.plot( system_with_extension( D, t ) )
-    print( np.sum( system_with_extension( D, t ) ) )
-plt.show()
+# for t in np.linspace( 0.1, 0.99, 10, endpoint = True ):
+#     plt.plot( system_with_extension( D, t ) )
+#     print( np.sum( system_with_extension( D, t ) ) )
+# plt.show()
 
 
 # def sol_from_D( t, D, b, e ):
