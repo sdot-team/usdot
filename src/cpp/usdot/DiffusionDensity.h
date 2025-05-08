@@ -64,7 +64,7 @@ public:
     TF    current_flattening_ratio; ///<
     MF    der_primitives;           ///<
     MF    der_values;               ///<
-    MF    sys_ders;                 ///<
+    TF    sys_div;                  ///<
     SY    sys_mat;                  ///<
     VF    sys_vec;                  ///<
      

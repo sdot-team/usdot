@@ -79,24 +79,29 @@ DTP void UTP::set_flattening_ratio( TF flattening_ratio ) {
     x_primitives.back() = x_o;
     primitives.back() = o;
 
-    // // normalization (actually, o should be equal to 1 by construction)
+    // normalization (actually, o should be equal to 1 by construction)
+    sys_div = o;
     for( TF &v : this->x_primitives )
-        v /= o;
+        v /= sys_div;
     for( TF &v : this->primitives )
-        v /= o;
+        v /= sys_div;
     for( TF &v : this->values )
-        v /= o;
+        v /= sys_div;
 }
 
 DTP void UTP::compute_derivatives( PI nb_derivatives ) {
     const PI n = positions.size();
-    const PI s = sys_mat.size();
+    const PI s = sys_vec.size();
     const PI e = ( s - n ) / 2;
 
     der_primitives.clear();
     der_values.clear();
 
-    // en 1
+    // 0
+    if ( current_flattening_ratio == 0 ) {
+        throw std::runtime_error( "TODO" );
+    }
+
     // const TF c = flattening_ratio * pow( n, 2 );
     // sys_mat = { n + 2 * e };
     // for( PI i = 0; i < n + 2 * e; ++i ) {
@@ -135,12 +140,46 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
         rhs[ i ] = r;
     }
 
-    VF der = sys_mat.solve_using_ldlt( rhs );
-    sys_ders.push_back( der );
+    // en 1
+    VF der;
+    if ( current_flattening_ratio == 1 ) {
+        TF v0 = 0, v1 = v0;
+        der.resize( s );
+        der[ 0 ] = v0;
+        der[ 1 ] = v1;
+        for( PI i = 2; i < s; ++i ) {
+            const TF v2 = 2 * v1 - v0 - rhs[ i - 1 ] / c;
 
+            der[ i ] = v2;
+
+            v0 = v1;
+            v1 = v2;
+        }
+
+        TF sum = 0;
+        for( PI i = 0; i < n; ++i )
+            sum += rhs[ e + i ] - der[ e + i ];        
+        sum /= n;
+    
+        for( TF &v : der )
+            v += sum;
+    } else
+        der = sys_mat.solve_using_ldlt( rhs );
+
+    // normalization
+    TF der_mul = 0;
+    for( PI i = 0; i + 1 < values.size(); ++i ) {
+        const TF x0 = positions[ i + 0 ]; 
+        const TF x1 = positions[ i + 1 ]; 
+        const TF v0 = der[ e + i + 0 ]; 
+        const TF v1 = der[ e + i + 1 ];
+        der_mul += ( x1 - x0 ) * ( v0 + v1 ) / 2;
+    }
+
+    //
     VF rst( n );
     for( PI i = 0; i < n; ++i )
-        rst[ i ] = der[ e + i ];
+        rst[ i ] = der[ e + i ] / sys_div - sys_vec[ e + i ] * der_mul / pow( sys_div, 2 );
     der_values.push_back( rst );
     der_primitives.push_back( _primitive_of( rst ) );
 }
@@ -274,6 +313,7 @@ DTP void UTP::_compute_values_for( TF flattening_ratio ) {
 
     const PI n = original_values.size();
     const PI e = n;
+    const PI s = n + 2 * e;
 
     //
     der_values.clear();
@@ -286,9 +326,15 @@ DTP void UTP::_compute_values_for( TF flattening_ratio ) {
 
     if ( flattening_ratio == 1 ) {
         const TF v = ptp_x();
+
         values.resize( n );
         for( PI i = 0; i < n; ++i )
             values[ i ] = v;
+
+        sys_vec.resize( s );
+        for( PI i = 0; i < s; ++i )
+            sys_vec[ i ] = v;
+
         return;
     }
 
