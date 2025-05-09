@@ -54,6 +54,7 @@ public:
     void  _compute_values_for       ( TF flattening_ratio );
     VF    _primitive_of             ( const VF &values ) const;
   
+    VF    extended_positions;       ///<
     VF    original_values;          ///<
     VF    positions;                ///<
     VF    values;                   ///<
@@ -62,11 +63,14 @@ public:
     VF    primitives;               ///<
 
     TF    current_flattening_ratio; ///<
+    TF    coeff_flattening_ratio;   ///<
     MF    der_primitives;           ///<
     MF    der_values;               ///<
     TF    sys_div;                  ///<
     SY    sys_mat;                  ///<
     VF    sys_vec;                  ///<
+
+    bool  normalization = 1;        ///<
      
     VI    opt_pos_beg_inds;         ///<
     TF    opt_pos_beg_x;            ///<

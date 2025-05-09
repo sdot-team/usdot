@@ -4,8 +4,6 @@
 #include "DiffusionDensity.h"
 
 namespace usdot {
-template<class TF,class Density> class WeightInitializer;
-template<class TF,class Density> class WeightUpdater;
     
 /**
 */
@@ -27,7 +25,7 @@ public:
     void           set_density                      ( Density *density );
 
     void           initialize_with_flat_density     ();
-    MF             der_weights_wrt_lap_ratio        ( PI nb_ders = 3 ); ///< assuming we're on a solution
+    MF             der_weights_wrt_flat_ratio       ( PI nb_ders = 3 ); ///< assuming we're on a solution
     int            newton_iterations                (); ///< return 0 if OK
     void           solve_using_cdf                  ();
     void           solve                            ();
@@ -55,15 +53,12 @@ public:
     std::ostream*  stream                           = nullptr; ///<
     
     // output
-    PI             nb_iterations_update             = 0; ///<
+    PI             nb_newton_iterations             = 0; ///<
     PI             nb_iterations_init               = 0; ///<
     TF             time_in_update                   = 0; ///<
     TF             time_in_init                     = 0; ///<
 
-// private:
-    friend class   WeightInitializer                <TF,Density>;
-    friend class   WeightUpdater                    <TF,Density>;
-
+private:
     T_T void       _for_each_unintersected_cell     ( const T &func ) const;
     T_T void       _for_each_newton_item            ( PI num_der, const T &func );
     T_T void       _for_each_newton_item            ( const T &func ) const;

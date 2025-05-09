@@ -321,5 +321,14 @@ d3 - 3 * d2 + 2 * d1 - d0
 M x = V
 M x' + M' x = V' -> 
 
-d = ( M^-1 V ) * ( 1 / sum( x[...] ) )
-d' = V' * sys_mul + V * ( - sum( x'[ ... ] ) / sum( x[...] )^2 )
+M x'' + 2 * M' x' + M'' x = V''
+
+
+
+d = X * ( 1 / sum( x[...] ) )
+d' = X' / sys_div - X * sum( x' ) / sum( x )^2
+
+d'' = X'' / sys_div
+    - 2 * X' * sum( x' ) / sum( x )^2
+    + 2 * X * sum( x' )^2 / sum( x )^3
+    - X * sum( x'' ) / sum( x )^2

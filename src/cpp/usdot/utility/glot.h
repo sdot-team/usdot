@@ -19,6 +19,7 @@ template<class TF,class ...Funcs>
 void glot( std::vector<TF> xs, Funcs &&...funcs ) {
     std::ofstream fs( "glot.py" );
     fs << "from matplotlib import pyplot\n";
+    int cpt = 0;
     auto pf = [&]( auto &&func ) {
         fs << "pyplot.plot( [ ";
         for( auto x : xs )
@@ -26,9 +27,11 @@ void glot( std::vector<TF> xs, Funcs &&...funcs ) {
         fs << " ], [ ";
         for( auto x : xs )
             fs << func( x ) << ", ";
-        fs << " ] )\n";
+        fs << " ], label='" << cpt++ << "' )\n";
     };
     ( pf( funcs ), ... );
+    if ( cpt > 1 )
+        fs << "pyplot.legend()\n";
     fs << "pyplot.show()\n";
 }
 

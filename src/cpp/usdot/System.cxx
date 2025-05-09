@@ -386,106 +386,106 @@ DTP T_T void UTP::_for_each_newton_item( PI num_der, const T &func ) {
     } );
 }
 
-DTP UTP::MF UTP::der_weights_wrt_lap_ratio( PI nb_ders ) {
-    const TF eps = 1e-10;
-    
+DTP UTP::MF UTP::der_weights_wrt_flat_ratio( PI nb_ders ) {
+    density->compute_derivatives( nb_ders );
     VF V( nb_sorted_diracs() );
     MF res;
 
-    TF base_fr = density->current_flattening_ratio;
-    VF w0 = sorted_dirac_weights;
+    // TF base_fr = density->current_flattening_ratio;
+    // VF w0 = sorted_dirac_weights;
+    // const TF eps = 1e-10;
 
-    density->set_flattening_ratio( base_fr - 1 * eps );
-    int err = newton_iterations();
-    if ( err )
-        throw std::runtime_error( "err newton in der w" );
-    VF w1 = sorted_dirac_weights;
+    // density->set_flattening_ratio( base_fr - 1 * eps );
+    // int err = newton_iterations();
+    // if ( err )
+    //     throw std::runtime_error( "err newton in der w" );
+    // VF w1 = sorted_dirac_weights;
 
-    density->set_flattening_ratio( base_fr - 2 * eps );
-    err = newton_iterations();
-    if ( err )
-        throw std::runtime_error( "err newton in der w" );
-    VF w2 = sorted_dirac_weights;
+    // density->set_flattening_ratio( base_fr - 2 * eps );
+    // err = newton_iterations();
+    // if ( err )
+    //     throw std::runtime_error( "err newton in der w" );
+    // VF w2 = sorted_dirac_weights;
 
-    density->set_flattening_ratio( base_fr - 3 * eps );
-    err = newton_iterations();
-    if ( err )
-        throw std::runtime_error( "err newton in der w" );
-    VF w3 = sorted_dirac_weights;
+    // density->set_flattening_ratio( base_fr - 3 * eps );
+    // err = newton_iterations();
+    // if ( err )
+    //     throw std::runtime_error( "err newton in der w" );
+    // VF w3 = sorted_dirac_weights;
 
-    // ----------------------
-    VF d1( w0.size() );
-    for( PI i = 0; i < w0.size(); ++i )
-        d1[ i ] = ( w0[ i ] - w1[ i ] ) / eps; 
-    res.push_back( d1 );
+    // // ----------------------
+    // VF d1( w0.size() );
+    // for( PI i = 0; i < w0.size(); ++i )
+    //     d1[ i ] = ( w0[ i ] - w1[ i ] ) / eps; 
+    // res.push_back( d1 );
 
-    VF d2( w0.size() );
-    for( PI i = 0; i < w0.size(); ++i )
-        d2[ i ] = ( w0[ i ] + w2[ i ] - 2 * w1[ i ] ) / pow( eps, 2 ); 
-    res.push_back( d2 );
+    // VF d2( w0.size() );
+    // for( PI i = 0; i < w0.size(); ++i )
+    //     d2[ i ] = ( w0[ i ] + w2[ i ] - 2 * w1[ i ] ) / pow( eps, 2 ); 
+    // res.push_back( d2 );
 
-    VF d3( w0.size() );
-    for( PI i = 0; i < w0.size(); ++i )
-        d3[ i ] = ( w0[ i ] - 3 * w1[ i ] + 3 * w2[ i ] - w3[ i ] ) / pow( eps, 3 ); 
-    res.push_back( d3 );
+    // VF d3( w0.size() );
+    // for( PI i = 0; i < w0.size(); ++i )
+    //     d3[ i ] = ( w0[ i ] - 3 * w1[ i ] + 3 * w2[ i ] - w3[ i ] ) / pow( eps, 3 ); 
+    // res.push_back( d3 );
 
     // VF d3( w0.size() );
     // for( PI i = 0; i < w0.size(); ++i )
     //     d1[ i ] = ( w0[ i ] + w2[ i ] - 2 * w1[ i ] ) / pow( eps, 2 ); 
     // res.push_back( d2 );
 
-    // // helpers
-    // auto set_vec = [&]( PI nd ) {
-    //     _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
-    //         V[ index ] = - v;
-    //     } );
-    // };
-    // auto add_mat = [&]( PI nd, PI nr, TF coeff ) {
-    //     _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
-    //         V[ index ] -= 2 * m0 * res[ nr ][ index ];
-    //         if ( m1 ) {
-    //             V[ index ] -= 2 * m1 * res[ nr ][ index + 1 ];
-    //             V[ index + 1 ] -= 2 * m1 * res[ nr ][ index ];
-    //         }
-    //     } );
-    // };
+    // helpers
+    auto set_vec = [&]( PI nd ) {
+        _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
+            V[ index ] = - v;
+        } );
+    };
+    auto add_mat = [&]( PI nd, PI nr, TF coeff ) {
+        _for_each_newton_item( nd, [&]( PI index, TF m0, TF m1, TF v, int ) {
+            V[ index ] -= 2 * m0 * res[ nr ][ index ];
+            if ( m1 ) {
+                V[ index ] -= 2 * m1 * res[ nr ][ index + 1 ];
+                V[ index + 1 ] -= 2 * m1 * res[ nr ][ index ];
+            }
+        } );
+    };
 
-    // // X'
-    // if ( nb_ders >= 1 ) {
-    //     set_vec( 1 );
-    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    // }
+    // X'
+    if ( nb_ders >= 1 ) {
+        set_vec( 1 );
+        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    }
 
-    // // X''
-    // if ( nb_ders >= 2 ) {
-    //     set_vec( 2 );
-    //     add_mat( 1, 0, 2 );
-    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    // }
+    // X''
+    if ( nb_ders >= 2 ) {
+        set_vec( 2 );
+        add_mat( 1, 0, 2 );
+        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    }
 
-    // // X''', ...
-    // if ( nb_ders >= 3 ) {
-    //     set_vec( 3 );
-    //     add_mat( 2, 0, 3 );
-    //     add_mat( 1, 1, 3 );
-    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    // }
+    // X''', ...
+    if ( nb_ders >= 3 ) {
+        set_vec( 3 );
+        add_mat( 2, 0, 3 );
+        add_mat( 1, 1, 3 );
+        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    }
+    
+    // X'''', ...
+    if ( nb_ders >= 4 ) {
+        set_vec( 4 );
+        add_mat( 3, 0, 4 );
+        add_mat( 2, 1, 6 );
+        add_mat( 1, 2, 4 );
+        res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
+    }
 
-    // // X'''', ...
-    // if ( nb_ders >= 4 ) {
-    //     set_vec( 4 );
-    //     add_mat( 3, 0, 4 );
-    //     add_mat( 2, 1, 6 );
-    //     add_mat( 1, 2, 4 );
-    //     res.push_back( newton_matrix_ldlt.solve_using_ldlt( V ) );
-    // }
+    // ...
+    if ( nb_ders >= 5 ) {
+        throw std::runtime_error( "TODO: nb_ders >= 4" );
+    }
 
-    // // ...
-    // if ( nb_ders >= 5 ) {
-    //     throw std::runtime_error( "TODO: nb_ders >= 4" );
-    // }
-
-    // //
+    //
     return res;
 }
 
@@ -549,12 +549,11 @@ DTP int UTP::_make_newton_system() {
 
 DTP int UTP::newton_iterations() {
     TF prev_newton_error = std::numeric_limits<TF>::max();
-    for( PI num_iter = 0; ; ++num_iter ) {
-        if ( num_iter == 30 )
+    for( nb_newton_iterations = 0; ; ++nb_newton_iterations ) {
+        if ( nb_newton_iterations == 300 )
             throw std::runtime_error( "max iter" );
 
         int err = _make_newton_system();
-        // P( num_iter, err, newton_error );
         if ( err || newton_error > prev_newton_error )
             return 1;
         prev_newton_error = newton_error;
@@ -563,8 +562,7 @@ DTP int UTP::newton_iterations() {
         for( PI i = 0; i < v.size(); ++i )
             sorted_dirac_weights[ i ] -= v[ i ];
     
-        if ( newton_error < 1e-40 ) {
-            P( num_iter );
+        if ( newton_error < 1e-6 ) {
             return 0;
         }
     }
@@ -586,37 +584,37 @@ DTP void UTP::solve_using_cdf() {
 
 DTP void UTP::solve() {
     initialize_with_flat_density();
+
+    density->set_flattening_ratio( 1 - 1e-6 );
     newton_iterations();
 
     //
     PI nb_deflat_steps = 0;
-    for( TF prev_flattening_ratio = 1; prev_flattening_ratio; ++nb_deflat_steps ) {
+    for( TF prev_flattening_ratio = density->current_flattening_ratio; prev_flattening_ratio; ++nb_deflat_steps ) {
         VF w0 = sorted_dirac_weights;
-        MF ders = der_weights_wrt_lap_ratio( 3 );
-        TF trat = 0.8;
+        MF ders = der_weights_wrt_flat_ratio( 2 );
+        TF trat = 0.5;
         for( TF trial_flattening_ratio = 0; ; trial_flattening_ratio = ( 1 - trat ) * prev_flattening_ratio + trat * trial_flattening_ratio ) {
             const TF a = trial_flattening_ratio - prev_flattening_ratio;
             if ( abs( a ) < 1e-6 ) {
                 throw std::runtime_error( "low a" );
             }
             
-            P( prev_flattening_ratio, trial_flattening_ratio, a );
-            
             density->set_flattening_ratio( trial_flattening_ratio );
             for( PI i = 0; i < nb_sorted_diracs(); ++i )
-                sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2 + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
-
+                sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2; // + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
 
             // test 
             int err = newton_iterations();
             if ( err == 0 ) {
                 prev_flattening_ratio = trial_flattening_ratio;
+                if ( verbosity >= 2 && stream )
+                    *stream << "  flattening_ratio: " << trial_flattening_ratio << " nb_newton_iterations: " << nb_newton_iterations << "\n";
                 break;
             }
         }
     }
 
-    P( nb_deflat_steps );
     // if ( verbosity >= 2 && stream )
     //     *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
 }
@@ -667,7 +665,7 @@ DTP void UTP::plot( Str filename ) const {
         const TF x0 = c[ 0 ];
         const TF x1 = c[ 1 ];
         const TF y0 = ( y++ ) / nb_sorted_diracs();
-        const TF y1 = y0 + 1;
+        const TF y1 = y0 + 0.5;
         fs << "pyplot.plot( [ " << x0 << ", " << x1 << ", " << x1 << ", " << x0 << ", " << x0 << " ], ";
         fs << "[ " << y0 << ", " << y0 << ", " << y1 << ", " << y1 << ", " << y0 << " ] )\n";
     }
@@ -679,7 +677,7 @@ DTP void UTP::plot( Str filename ) const {
         fs << c << ", ";
     fs << " ], [";
     for( auto c : dirac_positions() )
-        fs << 0 << ", ";
+        fs << -0.5 << ", ";
     fs << " ], '+' )\n";
 
     fs << "pyplot.show()\n";
