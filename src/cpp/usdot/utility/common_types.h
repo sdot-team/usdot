@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string_view>
+//#include <string_view>
 #include <cstdint>
 #include <string>
 
@@ -34,7 +34,7 @@ using FP64    = double;
 using FP32    = float;
 
 // common std types
-using StrView = std::string_view;
+//using StrView = std::string_view;
 using Str     = std::string;
 
 } // namespace usdot

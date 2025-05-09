@@ -659,7 +659,7 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
                 // P( sorted_dirac_weights );
                 // P( cell_boundaries() );
 
-                // density->set_flattening_ratio( prev_flattening_ratio );
+                 // density->set_flattening_ratio( prev_flattening_ratio );
                 // _make_newton_system();
 
                 // std::vector<VB> bnds;
