@@ -1,10 +1,14 @@
-#include <usdot/utility/glot.h>
 #include <usdot/ShapeRegistration.h>
+#include <usdot/utility/glot.h>
 
 using namespace usdot;
 using namespace std;
 
+// #include <usdot/utility/gmp.h>
+// using namespace boost::multiprecision;
+// using TF = number<backends::cpp_bin_float<64>>;
 using TF = double;
+
 using Sr = ShapeRegistration<TF,3>;
 
 int main() {

@@ -7,6 +7,7 @@
 
 #include "ShapeRegistration.h"
 #include "System.h"
+#include "usdot/utility/glot.h"
 
 namespace usdot {
     
@@ -166,25 +167,52 @@ DTP std::tuple<TF,TF,Vec<TF>> UTP::projected_density( Pt proj_dir ) {
 DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     // density
     std::tuple<TF,TF,Vec<TF>> de = projected_density( proj_dir );
-    GridDensity<TF> gd( std::move( std::get<2>( de ) ) );
-    TF beg_x_density = std::get<0>( de );
-    TF end_x_density = std::get<1>( de );
-    
+
+    auto dp = linspace( std::get<0>( de ), std::get<1>( de ), std::get<2>( de ).size() );
+    DiffusionDensity<TF> gd( dp, std::move( std::get<2>( de ) ) );
+    // TF beg_x_density = std::get<0>( de );
+    // TF end_x_density = std::get<1>( de );
+
+    // gd.set_flattening_ratio( 0.9 );
+    // P( gd.values );
+    // gd.coeff_flattening_ratio = 4;
+    // glot_stream( [&]( std::ostream &fs ) {
+    //     for( TF r = 0; r <= 1; r += 1. / 16 ) {
+    //         gd.set_flattening_ratio( max( .0, r - 1e-6 ) );
+    //         gd.plot( fs );
+    //     }
+    // } );
+
     // diracs
+    // diracs[ n ] = ( sp( new_diracs[ n ], proj_dir ) - beg_x_density ) * gd.ptp_x() / ( end_x_density - beg_x_density );
     std::vector<TF> diracs( new_diracs.size() );
     for( PI n = 0; n < new_diracs.size(); ++n )
-        diracs[ n ] = ( sp( new_diracs[ n ], proj_dir ) - beg_x_density ) * gd.ptp_x() / ( end_x_density - beg_x_density );
+        diracs[ n ] = sp( new_diracs[ n ], proj_dir );
 
     System<TF> solver;
-    solver.set_global_mass_ratio( mass_ratio );
+    solver.set_global_mass_ratio( mass_ratio ); // 
     solver.set_dirac_positions( diracs );
     solver.set_density( &gd );
-    solver.solve();
+    
 
-    nb_iterations_update += solver.nb_iterations_update; ///<
-    nb_iterations_init += solver.nb_iterations_init; ///<
-    time_in_update += solver.time_in_update; ///<
-    time_in_init += solver.time_in_init; ///<
+    solver.stream = &std::cout;
+    solver.verbosity = 2;
+    
+    try {
+        solver.solve();
+    } catch ( std::runtime_error e ) {
+        // P( solver.sorted_dirac_weights );
+        //solver.plot();
+        // glot_stream( [&]( std::ostream &fs ) {
+        //     // gd.plot( fs );
+        // } );
+        throw e;
+    }
+
+    // nb_iterations_update += solver.nb_iterations_update; ///<
+    // nb_iterations_init += solver.nb_iterations_init; ///<
+    // time_in_update += solver.time_in_update; ///<
+    // time_in_init += solver.time_in_init; ///<
 
     //P( nb_projection_dirs, num_iter_cnd );
 
@@ -200,8 +228,9 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     // delta
     const auto ba = solver.cell_barycenters();
     Vec<TF> res( FromSize(), diracs.size() );
+    //res[ n ] = beg_x_density + ( ba[ n ] - diracs[ n ] ) * ( end_x_density - beg_x_density ) / gd.ptp_x();
     for( PI n = 0; n < diracs.size(); ++n )
-        res[ n ] = beg_x_density + ( ba[ n ] - diracs[ n ] ) * ( end_x_density - beg_x_density ) / gd.ptp_x();
+        res[ n ] = ba[ n ] - diracs[ n ];
     return res;
 }
 
@@ -263,6 +292,8 @@ DTP void UTP::compute_new_diracs( PI nb_iter ) {
 }
 
 DTP TF UTP::iteration_SVD() {
+    using namespace std;
+
     // centers
     Pt center_old( FromItemValue(), 0 );
     Pt center_new( FromItemValue(), 0 );
@@ -296,20 +327,20 @@ DTP TF UTP::iteration_SVD() {
 
     TM rot = svd.matrixU() * svd.matrixV().transpose();
     // PE( ( rot - TM::Identity() ).norm() );
-    double err = 0;
-    err += pow( 1 - rot( 0 ), 2 );
-    err += pow(     rot( 1 ), 2 );
-    err += pow(     rot( 2 ), 2 );
-    err += pow(     rot( 3 ), 2 );
-    err += pow( 1 - rot( 4 ), 2 );
-    err += pow(     rot( 5 ), 2 );
-    err += pow(     rot( 6 ), 2 );
-    err += pow(     rot( 7 ), 2 );
-    err += pow( 1 - rot( 8 ), 2 );
+    TF err = 0;
+    err += pow( TF( 1 - rot( 0 ) ), 2 );
+    err += pow(         rot( 1 )  , 2 );
+    err += pow(         rot( 2 )  , 2 );
+    err += pow(         rot( 3 )  , 2 );
+    err += pow( TF( 1 - rot( 4 ) ), 2 );
+    err += pow(         rot( 5 )  , 2 );
+    err += pow(         rot( 6 )  , 2 );
+    err += pow(         rot( 7 )  , 2 );
+    err += pow( TF( 1 - rot( 8 ) ), 2 );
 
     transformation *= Tr::translation( - center_old ) * Tr::linear( rot ) * Tr::translation( center_new );
 
-    return std::sqrt( err );
+    return sqrt( err );
 }
 
 #undef DTP

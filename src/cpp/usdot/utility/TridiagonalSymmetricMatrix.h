@@ -29,7 +29,7 @@ public:
     T_U void display                   ( U &ds ) const;
     PI       size                      () const;
           
-    void     inplace_ldlt_decomposition();
+    int      inplace_ldlt_decomposition();
     TV       solve_using_ldlt          ( const TV &x ) const;
 
     TV       values;                   ///< M[0,0], M[0,1], M[1,1], M[1,2], ...
@@ -104,14 +104,19 @@ DTP void UTP::clear_values() {
 // }
 
 template<class T>
-void TridiagonalSymmetricMatrix<T>::inplace_ldlt_decomposition() {
+int TridiagonalSymmetricMatrix<T>::inplace_ldlt_decomposition() {
     for( PI i = 1; i < values.size(); i += 2 ) {
         const T p = values[ i - 1 ];
+        if ( p == 0 )
+            return 1;
         const T l = values[ i - 0 ] / p;
-
+        
         values[ i + 0 ] = l;
         values[ i + 1 ] -= l * l * p;
     }
+    if ( values.back() == 0 )
+        return 1;
+    return 0;
 }
 
 template<class T>

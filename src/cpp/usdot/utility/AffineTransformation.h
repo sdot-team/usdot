@@ -25,8 +25,9 @@ struct AffineTransformation {
     }
 
     static AffineTransformation rotation( TF angle ) {
-        TF c = std::cos( angle );
-        TF s = std::sin( angle );
+        using namespace std;
+        TF c = cos( angle );
+        TF s = sin( angle );
         
         AffineTransformation res;
         res.trans.coeffRef( 0, 0 ) =  c; res.trans.coeffRef( 0, 1 ) =  s;

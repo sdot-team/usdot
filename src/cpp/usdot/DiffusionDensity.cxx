@@ -113,6 +113,7 @@ DTP void UTP::set_flattening_ratio( TF flattening_ratio ) {
 
 DTP void UTP::compute_derivatives( PI nb_derivatives ) {
     const PI s = extended_positions.size();
+    const TF d = pow( ptp_x(), -2 );
     const PI n = positions.size();
     const PI e = ( s - n ) / 2;
 
@@ -139,7 +140,7 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
                 r += en() * sys_vec[ i + 1 ];
             
             if ( i >= e && i < n + e )
-                r -= ( ep() + en() - 1 ) * sys_vec[ i ] + original_values[ i - e ];
+                r -= ( ep() + en() - d ) * sys_vec[ i ] + d * original_values[ i - e ];
             else if ( i == 0 )
                 r -= en() * sys_vec[ i ];
             else if ( i + 1 == s )
@@ -218,7 +219,7 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
                 r += c2 * en() * sys_vec[ i + 1 ] + 2 * c1 * en() * der_1[ i + 1 ];
             
             if ( i >= e && i < n + e )
-                r -= c2 * ( ( ep() + en() - 1 ) * sys_vec[ i ] + original_values[ i - e ] ) + 2 * c1 * ( ep() + en() - 1 ) * der_1[ i ];
+                r -= c2 * ( ( ep() + en() - d ) * sys_vec[ i ] + d * original_values[ i - e ] ) + 2 * c1 * ( ep() + en() - d ) * der_1[ i ];
             else if ( i == 0 )
                 r -= c2 * en() * sys_vec[ i ] + 2 * c1 * en() * der_1[ i ];
             else if ( i + 1 == s )
@@ -479,28 +480,29 @@ DTP void UTP::_compute_values_for( TF flattening_ratio ) {
     }
 
     //
+    auto ep = [&]( PI i ) { return pow( extended_positions[ i - 0 ] - extended_positions[ i - 1 ], -2 ); };
+    auto en = [&]( PI i ) { return pow( extended_positions[ i + 1 ] - extended_positions[ i + 0 ], -2 ); };
     const TF c = pow( flattening_ratio, coeff_flattening_ratio );
+    const TF d = pow( ptp_x(), -2 );
     sys_mat = { n + 2 * e };
     for( PI i = 0; i < n + 2 * e; ++i ) {
-        auto ep = [&]() { return pow( extended_positions[ i - 0 ] - extended_positions[ i - 1 ], -2 ); };
-        auto en = [&]() { return pow( extended_positions[ i + 1 ] - extended_positions[ i + 0 ], -2 ); };
 
         if ( i )
-            sys_mat( i, i - 1 ) = - c * ep();
+            sys_mat( i, i - 1 ) = - c * ep( i );
         
         if ( i == 0 )
-            sys_mat( i, i ) = c * en();
+            sys_mat( i, i ) = c * en( i );
         else if ( i + 1 == n + 2 * e )
-            sys_mat( i, i ) = c * ep();
+            sys_mat( i, i ) = c * ep( i );
         else if ( i >= e && i < n + e )
-            sys_mat( i, i ) = c * ( ep() + en() ) + 1 - c;
+            sys_mat( i, i ) = c * ( ep( i ) + en( i ) ) + ( 1 - c ) * d;
         else
-            sys_mat( i, i ) = c * ( ep() + en() );
+            sys_mat( i, i ) = c * ( ep( i ) + en( i ) );
     }
 
     VF E( n + 2 * e, 0 );
     for( PI i = 0; i < n; ++i )
-        E[ e + i ] = ( 1 - c ) * original_values[ i ];
+        E[ e + i ] = ( 1 - c ) * d * original_values[ i ];
 
     sys_mat.inplace_ldlt_decomposition();
     sys_vec = sys_mat.solve_using_ldlt( E );
@@ -537,7 +539,7 @@ DTP TF UTP::ptp_x() const {
 
 DTP void UTP::plot( std::ostream &fs ) const {
     fs << "pyplot.plot( ["; 
-    for( PI n = 0; n < values.size(); ++n )
+    for( PI n = 0; n < positions.size(); ++n )
         fs << positions[ n ] << ", ";    
     fs << " ], [";
     for( PI n = 0; n < values.size(); ++n )

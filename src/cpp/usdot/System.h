@@ -25,10 +25,10 @@ public:
     void           set_density                      ( Density *density );
 
     void           initialize_with_flat_density     ();
-    MF             der_weights_wrt_flat_ratio       ( PI nb_ders = 3 ); ///< assuming we're on a solution
-    int            newton_iterations                (); ///< return 0 if OK
+    MF             der_weights_wrt_flat_ratio       ( PI nb_ders = 2, bool use_approx_for_ders = false ); ///< assuming we're on a solution
+    int            newton_iterations                ( TF min_relax = 1e-6 ); ///< return 0 if OK
     void           solve_using_cdf                  ();
-    void           solve                            ();
+    void           solve                            ( bool use_approx_for_ders = false );
 
     VF             dirac_positions                  () const;
     VF             dirac_weights                    () const;
@@ -58,7 +58,7 @@ public:
     TF             time_in_update                   = 0; ///<
     TF             time_in_init                     = 0; ///<
 
-private:
+// private:
     T_T void       _for_each_unintersected_cell     ( const T &func ) const;
     T_T void       _for_each_newton_item            ( PI num_der, const T &func );
     T_T void       _for_each_newton_item            ( const T &func ) const;
