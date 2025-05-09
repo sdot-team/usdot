@@ -111,32 +111,33 @@ static std::vector<std::array<TF,N>> vec_of_vec_from_array( const Array &array )
 //     return ot_solve( dirac_positions, global_mass_ratio, target_mass_ratios, de, parms );
 // }
 
-OtResult from_p1_grid( Array &dirac_positions, TF global_mass_ratio, Array &relative_mass_ratios, Array density_values, TF density_beg, TF density_end, OtParms &parms ) {
+OtResult from_p1_grid( Array &dirac_positions, TF global_mass_ratio, Array &relative_mass_ratios, Array density_positions, Array density_values, OtParms &parms ) {
     // normalize
-    std::vector<TF> dp = vec_from_array( dirac_positions );
+    std::vector<TF> dp = vec_from_array( density_positions );
+    std::vector<TF> di = vec_from_array( dirac_positions );
     std::vector<TF> dv = vec_from_array( density_values );
-    TF pos_ratio = 1;
-    if ( density_beg != 0 || density_end != dv.size() - 1 ) {
-        pos_ratio = ( dv.size() - 1 ) / ( density_end - density_beg );
-        for( TF &v : dp )
-            v = ( v - density_beg ) * pos_ratio;
-    }
+    // TF pos_ratio = 1;
+    // if ( density_beg != 0 || density_end != dv.size() - 1 ) {
+    //     pos_ratio = ( dv.size() - 1 ) / ( density_end - density_beg );
+    //     for( TF &v : dp )
+    //         v = ( v - density_beg ) * pos_ratio;
+    // }
 
     // prepare the system
-    GridDensity<TF,2> gd( std::move( dv ) );
+    DiffusionDensity<TF> gd( dp, dv );
 
-    System<TF,GridDensity<TF,2>> si;
+    System<TF,DiffusionDensity<TF>> si;
     si.target_max_mass_error = parms.max_mass_ratio_error_target;
     si.verbosity = parms.verbosity;
     si.stream = &std::cout;
 
     si.set_relative_dirac_masses( vec_from_array( relative_mass_ratios ) );
     si.set_global_mass_ratio( global_mass_ratio );
-    si.set_dirac_positions( dp );
+    si.set_dirac_positions( di );
     si.set_density( &gd );
 
     // solve it
-    si.solve_using_cdf();
+    si.solve();
     
     // make a summary
     auto barycenters = si.cell_barycenters();
@@ -144,20 +145,20 @@ OtResult from_p1_grid( Array &dirac_positions, TF global_mass_ratio, Array &rela
     auto weights = si.dirac_weights();
     auto masses = si.cell_masses();
 
-    if ( density_beg != 0 || density_end != dv.size() - 1 ) {
-        for( TF &v : barycenters )
-            v = density_beg + v / pos_ratio;
+    // if ( density_beg != 0 || density_end != dv.size() - 1 ) {
+    //     for( TF &v : barycenters )
+    //         v = density_beg + v / pos_ratio;
 
-        for( std::array<TF,2> &b : boundaries )
-            for( TF &v : b )
-                v = density_beg + v / pos_ratio;
+    //     for( std::array<TF,2> &b : boundaries )
+    //         for( TF &v : b )
+    //             v = density_beg + v / pos_ratio;
 
-        for( TF &v : weights )
-            v /= pow( pos_ratio, 2 );
+    //     for( TF &v : weights )
+    //         v /= pow( pos_ratio, 2 );
     
-        for( TF &v : masses )
-            v /= pos_ratio;
-    }
+    //     for( TF &v : masses )
+    //         v /= pos_ratio;
+    // }
 
     // make a summary
     OtResult res;
@@ -212,10 +213,8 @@ cfg['extra_compile_args'] = ['-std=c++11']
 
 cfg['dependencies'] = [
     '../../cpp/usdot/utility/dichotomy.h',
-    '../../cpp/usdot/WeightInitializer.cxx',
-    '../../cpp/usdot/WeightInitializer.h',
-    '../../cpp/usdot/WeightUpdater.cxx',
-    '../../cpp/usdot/WeightUpdater.h',
+    '../../cpp/usdot/DiffusionDensity.cxx',
+    '../../cpp/usdot/DiffusionDensity.h',
     '../../cpp/usdot/System.cxx',
     '../../cpp/usdot/System.h',
 ]

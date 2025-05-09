@@ -286,7 +286,7 @@ DTP T_T void UTP::_for_each_newton_item( const T &func ) const {
 
 DTP T_T void UTP::_for_each_newton_item( PI num_der, const T &func ) {
     _for_each_unintersected_cell( [&]( TF dirac_position, TF dirac_weight, PI num_dirac, TF d0, TF d1, TF c0, TF c1 ) {
-        const TF v = sorted_dirac_masses[ num_dirac ];
+        // const TF v = sorted_dirac_masses[ num_dirac ];
         if ( dirac_weight <= 0 )
             return func( num_dirac, 0, 0, 0, 1 );
 
@@ -386,7 +386,7 @@ DTP T_T void UTP::_for_each_newton_item( PI num_der, const T &func ) {
     } );
 }
 
-DTP UTP::MF UTP::der_weights_wrt_flat_ratio( PI nb_ders ) {
+DTP typename UTP::MF UTP::der_weights_wrt_flat_ratio( PI nb_ders ) {
     density->compute_derivatives( nb_ders );
     VF V( nb_sorted_diracs() );
     MF res;
@@ -589,8 +589,8 @@ DTP void UTP::solve() {
     newton_iterations();
 
     //
-    PI nb_deflat_steps = 0;
-    for( TF prev_flattening_ratio = density->current_flattening_ratio; prev_flattening_ratio; ++nb_deflat_steps ) {
+    //PI nb_deflat_steps = 0;
+    for( TF prev_flattening_ratio = density->current_flattening_ratio; prev_flattening_ratio; ) {
         VF w0 = sorted_dirac_weights;
         MF ders = der_weights_wrt_flat_ratio( 2 );
         TF trat = 0.5;

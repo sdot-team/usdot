@@ -128,7 +128,6 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
     if ( nb_derivatives >= 1 ) {
         VF rhs( s, 0 );
         const TF dc = coeff_flattening_ratio * pow( current_flattening_ratio, coeff_flattening_ratio - 1 );
-        const TF c = pow( current_flattening_ratio, coeff_flattening_ratio );
         for( PI i = 0; i < s; ++i ) {
             auto ep = [&]() { return pow( extended_positions[ i - 0 ] - extended_positions[ i - 1 ], -2 ); };
             auto en = [&]() { return pow( extended_positions[ i + 1 ] - extended_positions[ i + 0 ], -2 ); };
@@ -206,7 +205,7 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
     if ( nb_derivatives >= 2 ) {
         const TF c2 = ( coeff_flattening_ratio - 1 ) * coeff_flattening_ratio * pow( current_flattening_ratio, coeff_flattening_ratio - 2 );
         const TF c1 = coeff_flattening_ratio * pow( current_flattening_ratio, coeff_flattening_ratio - 1 );
-        const TF c0 = pow( current_flattening_ratio, coeff_flattening_ratio );
+        // const TF c0 = pow( current_flattening_ratio, coeff_flattening_ratio );
         VF rhs( s, 0 );
         for( PI i = 0; i < s; ++i ) {
             auto ep = [&]() { return pow( extended_positions[ i - 0 ] - extended_positions[ i - 1 ], -2 ); };
@@ -293,32 +292,32 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
 }
 
 DTP TF UTP::x_primitive( TF x ) const {
-    // if ( x < opt_pos_beg )
-    //     return 0;
-    // if ( x > opt_pos_end )
-    //     return x_primitives.back();
+    if ( x < opt_pos_beg_x )
+        return 0;
 
-    // const PI ox = std::min( PI( ( x - opt_pos_beg ) * opt_pos_coeff ), opt_pos_begs.size() - 1 );
-    // for( PI i = opt_pos_begs[ ox ]; ; ++i ) {
-    //     if ( positions[ i + 1 ] >= x ) {
-    //         const TF p0 = positions[ i + 0 ];
-    //         const TF p1 = positions[ i + 1 ];
-    //         if ( const TF dp = p1 - p0 ) {
-    //             const TF v0 = values[ i + 0 ];
-    //             const TF v1 = values[ i + 1 ];
-    //             const TF dv = v1 - v0;
-    //             const TF f = ( x - p0 ) / dp;
-    //             const TF f2 = f * f;
-    //             const TF f3 = f2 * f;
+    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
+    if ( ox >= opt_pos_beg_inds.size() )
+        return x_primitives.back();
+
+    for( PI i = opt_pos_beg_inds[ ox ]; i < positions.size(); ++i ) {
+        const TF x1 = positions[ i - 0 ];
+        if ( x1 >= x ) {
+            const TF x0 = positions[ i - 1 ];
+            if ( const TF dx = x1 - x0 ) {
+                const TF v0 = values[ i - 1 ];
+                const TF v1 = values[ i - 0 ];
+                const TF f = ( x - x0 ) / dx;
+                const TF dv = v1 - v0;
+                const TF f2 = f * f;
+                const TF f3 = f2 * f;
         
-    //             return x_primitives[ i ] + dp * ( f * v0 * p0 + f3 * dv * dp / 3 + ( f2 * ( v1 * p0 + v0 * p1 - 2 * v0 * p0 ) ) / 2 );
-    //         }
-    //         return x_primitives[ i ];
-    //     }
-    // }
-    throw std::runtime_error( "TODO" );
+                return x_primitives[ i - 1 ] + dx * ( f * v0 * x0 + f3 * dv * dx / 3 + ( f2 * ( v1 * x0 + v0 * x1 - 2 * v0 * x0 ) ) / 2 );
+            }
+            return x_primitives[ i - 1 ];
+        }
+    }
 
-    return 0;
+    return x_primitives.back();
 }
 
 DTP TF UTP::primitive( TF x ) const {
@@ -429,7 +428,7 @@ DTP TF UTP::primitive( TF x, PI num_der ) const {
     return primitives.back();
 }
 
-DTP UTP::VF UTP::_primitive_of( const VF &values ) const {
+DTP typename UTP::VF UTP::_primitive_of( const VF &values ) const {
     const PI n = values.size();
     VF res( n );
 
