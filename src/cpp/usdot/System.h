@@ -36,6 +36,7 @@ public:
     VF             cell_barycenters                 () const;
     VB             cell_boundaries                  () const;
     VF             cell_masses                      () const;
+    TF             cost                             () const;
 
     TF             density_value                    ( TF pos ) const;
     

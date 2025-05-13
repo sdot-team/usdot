@@ -32,6 +32,7 @@ public:
     void  set_flattening_ratio      ( TF flattening_ratio );
     void  compute_derivatives       ( PI nb_derivatives );
       
+    TF    x2_integral               ( TF x0, TF x1, TF di = 0 ) const; ///< integral( (x-di)^2 d\rho, x0, x1 )
     TF    x_primitive               ( TF x ) const; ///< primitive( x d\rho )
     TF    x_integral                ( TF x0, TF x1 ) const; ///< integral( x d\rho, x0, x1 )
        
@@ -49,7 +50,7 @@ public:
     TF    max_x                     () const;
     TF    ptp_x                     () const;
              
-    void  plot                      ( std::ostream &fs ) const;
+    void  plot                      ( std::ostream &fs, std::string linestyle = "-", double linewidth = 1 ) const;
       
     void  _compute_values_for       ( TF flattening_ratio );
     VF    _primitive_of             ( const VF &values ) const;

@@ -18,6 +18,7 @@ struct OtResult {
     Array boundaries;
     Array weights;
     Array masses;
+    TF    cost;
 };
 
 struct OtParms {
@@ -168,9 +169,11 @@ OtResult from_p1_grid( Array &dirac_positions, TF global_mass_ratio, Array &rela
     res.boundaries = array_from_vec( boundaries );
     res.weights = array_from_vec( weights );
     res.masses = array_from_vec( masses );
+    res.cost = si.cost();
     return res;
 }
 
+//
 PYBIND11_MODULE( usdot_bindings, m ) {
     pybind11::class_<OtResult>( m, "OtResult" )
         .def_readwrite( "norm_2_residual_history", &OtResult::norm_2_residual_history, "" )
@@ -179,6 +182,7 @@ PYBIND11_MODULE( usdot_bindings, m ) {
         .def_readwrite( "boundaries", &OtResult::boundaries, "" )
         .def_readwrite( "weights", &OtResult::weights, "" )
         .def_readwrite( "masses", &OtResult::masses, "" )
+        .def_readwrite( "cost", &OtResult::cost, "" )
         .def( "__repr__",
             []( const OtResult &a ) {
                 return "{ error_message: '" + a.error_message + "', barycenters: [...], boundaries: [...], weights: [...] }";
@@ -204,12 +208,13 @@ PYBIND11_MODULE( usdot_bindings, m ) {
 <%
 setup_pybind11(cfg)
 cfg['extra_compile_args'] = ['-std=c++11']
+# cfg['compiler_args'] = ['-std=c++11','-xc++']
 
 # cfg['sources'] = ['extra_source1.cpp', 'extra_source2.cpp']
 # cfg['include_dirs'] += [ '../../../ext' ]
 
-# import logging
-# logging.basicConfig()
+import logging
+logging.basicConfig()
 
 cfg['dependencies'] = [
     '../../cpp/usdot/utility/dichotomy.h',

@@ -9,6 +9,7 @@ p = np.linspace( 0, 1, 50 )
 v = 0.5 - abs( p - 0.5 )
 res = usdot.from_p1_grid( dirac_positions = np.linspace( 0, 1, 50 ), density_positions = p, density_values = v, global_mass_ratio = 0.5, ot_parms = parms )
 usdot.plot( res )
+print( res )
 
 # def system_with_extension( D, t, coeff_extension = 2 ):
 #     s = len( D )

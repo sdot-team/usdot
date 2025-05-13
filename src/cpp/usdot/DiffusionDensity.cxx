@@ -292,6 +292,33 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
     }
 }
 
+DTP TF UTP::x2_integral( TF b, TF e, TF di ) const {
+    using namespace std;
+    TF res = 0;
+    for( PI i = 1; i < positions.size(); ++i ) {
+        const TF x0 = positions[ i - 1 ];
+        const TF x1 = positions[ i - 0 ];
+        const TF i0 = max( x0, b );
+        const TF i1 = min( x1, e );
+        if ( i1 <= i0 )
+            continue;
+        const TF v0 = values[ i - 1 ];
+        const TF v1 = values[ i - 0 ];
+        // int( ( x - di ) ^ 2 * ( v0 + ( x - x0 ) / ( x1 - x0 ) * ( v1 - v0 ) ) )
+        res += (
+            i1 * (
+                + v0 * ( -12 * di*di * x1 - 4 * i1*i1 * ( 2 * di + x1 ) + 6 * i1 * di * ( di + 2 * x1 ) + 3 * i1*i1*i1 )
+                + v1 * ( +12 * di*di * x0 + 4 * i1*i1 * ( 2 * di + x0 ) - 6 * i1 * di * ( di + 2 * x0 ) - 3 * i1*i1*i1 )
+            ) - 
+            i0 * (
+                + v0 * ( -12 * di*di * x1 - 4 * i0*i0 * ( 2 * di + x1 ) + 6 * i0 * di * ( di + 2 * x1 ) + 3 * i0*i0*i0 )
+                + v1 * ( +12 * di*di * x0 + 4 * i0*i0 * ( 2 * di + x0 ) - 6 * i0 * di * ( di + 2 * x0 ) - 3 * i0*i0*i0 )
+            )
+        ) / ( 12 * ( x0 - x1 ) );
+    }
+    return res;
+}
+
 DTP TF UTP::x_primitive( TF x ) const {
     if ( x < opt_pos_beg_x )
         return 0;
@@ -537,14 +564,14 @@ DTP TF UTP::ptp_x() const {
     return max_x() - min_x();
 }
 
-DTP void UTP::plot( std::ostream &fs ) const {
+DTP void UTP::plot( std::ostream &fs, std::string linestyle, double linewidth ) const {
     fs << "pyplot.plot( ["; 
     for( PI n = 0; n < positions.size(); ++n )
         fs << positions[ n ] << ", ";    
     fs << " ], [";
     for( PI n = 0; n < values.size(); ++n )
         fs << values[ n ] << ", ";    
-    fs << "] )\n";
+    fs << "], '" << linestyle << "', linewidth = " << linewidth << " )\n";
 }
 
 #undef DTP

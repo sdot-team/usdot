@@ -659,7 +659,7 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
                 // P( sorted_dirac_weights );
                 // P( cell_boundaries() );
 
-                 // density->set_flattening_ratio( prev_flattening_ratio );
+                // density->set_flattening_ratio( prev_flattening_ratio );
                 // _make_newton_system();
 
                 // std::vector<VB> bnds;
@@ -678,7 +678,7 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
             }
   
             // test 
-            int err = newton_iterations( 1e-2 );
+            int err = newton_iterations( 1 );
             if ( err == 0 ) {
                 prev_flattening_ratio = trial_flattening_ratio;
                 if ( verbosity >= 2 && stream )
@@ -769,6 +769,7 @@ DTP void UTP::plot_bnds_evolution( const std::vector<VB> &bnds ) {
             fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
         }
     }
+    fs << "pyplot.legend()\n";
     fs << "pyplot.show()\n";
 }
 
@@ -831,6 +832,16 @@ DTP typename UTP::VB UTP::cell_boundaries() const {
             res[ sorted_dirac_num_values[ o ] ] = { b, e }; 
     } );
     return res;
+}
+
+DTP TF UTP::cost() const {
+    using namespace std;
+    _update_system();
+    TF res = 0;
+    for_each_cell( [&]( PI n, TF b, TF e ) {
+        res += density->x2_integral( b, e, sorted_dirac_positions[ n ] );
+    } );
+    return sqrt( res );
 }
 
 DTP typename UTP::VF UTP::cell_masses() const {
