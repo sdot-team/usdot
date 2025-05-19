@@ -9,6 +9,7 @@
 #include <numeric>
 #include <fstream>
 #include <limits>
+#include <utility>
 #include <vector>
 
 namespace usdot {
@@ -187,7 +188,7 @@ DTP T_T void UTP::_for_each_unintersected_cell( const T &func ) const {
     func( d0, w0, nb_sorted_diracs() - 1, od, numeric_limits<TF>::max(), i0, numeric_limits<TF>::max() );
 }
 
-DTP typename UTP::VF UTP::newton_dir_ap( TF eps ) {    
+DTP typename UTP::VF UTP::newton_dir_ap() {    
     using namespace std;
 
     // M
@@ -205,26 +206,58 @@ DTP typename UTP::VF UTP::newton_dir_ap( TF eps ) {
         VF U = mass_errors();
 
         for( PI c = max( r, 1ul ) - 1; c < min( r + 2, nb_sorted_diracs() ); ++c )
+        // for( PI c = 0; c < nb_sorted_diracs(); ++c )
             M.coeffRef( r, c ) = ( U[ c ] - V[ c ] ) / eps;
 
         ref_weight = old_weight;
     }
 
     TV Y = Eigen::Map<TV,Eigen::Unaligned>( V.data(), V.size() );
-    std::cout << M << std::endl;
     Eigen::FullPivLU<TM> lu( M );
 
-    Eigen::EigenSolver<TM> es( M );
-    std::cout << es.eigenvalues() << std::endl;
+    // Eigen::EigenSolver<TM> es( M );
+    // auto ev = es.eigenvalues();
+    // std::cout << "M: " << M << std::endl;
+    // std::cout << "ev: " << ev << std::endl;
+
+    // VF eigs = VF{ ev.begin(), ev.end() };
+    // std::sort( eigs.begin(), eigs.end() );
+    // P( eigs );
 
     auto X = lu.solve( Y );
     return VF{ X.begin(), X.end() };
 }
 
-DTP int UTP::newton_iterations(  TF min_relax ) {
+DTP int UTP::newton_iterations( TF min_relax ) {
     // 
-    P( newton_dir_ap( 1e-20 ) );
-    return 0;
+    for( nb_newton_iterations = 0; ; ++nb_newton_iterations ) {
+        if ( nb_newton_iterations == 50 )
+            throw std::runtime_error( "max iter" );
+
+        auto dir = newton_dir_ap();
+        VF w0 = sorted_dirac_weights;
+        for( TF a = 1; ; a /= 2 ) {
+            if ( a < min_relax ) {
+                sorted_dirac_weights = w0;
+                plot_bnds_evolution( bnds_evolution );
+                P( cell_boundaries() );
+                // plot();
+                return 2;
+            }
+
+            for( PI i = 0; i < w0.size(); ++i )
+                sorted_dirac_weights[ i ] = w0[ i ] - a * dir[ i ];
+
+            if ( max_relative_mass_error() < std::numeric_limits<TF>::max() ) {
+                P( nb_newton_iterations, a, max_relative_mass_error() );
+                bnds_evolution.push_back( cell_boundaries() );
+                break;
+            }
+        }
+            
+        if ( max_relative_mass_error() < 1e-3 )
+            return 0;
+    }
 }
 
 DTP void UTP::solve( bool use_approx_for_ders ) {
@@ -232,10 +265,12 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
 
     initialize_with_flat_density();
     
-    density->set_flattening_ratio( 1e-3 );
-    newton_iterations();
-
-    P( l2_mass_error() );
+    density->set_flattening_ratio( 0 );
+    int err = newton_iterations( 1e-20 );
+    if ( err ) {
+        P( err );
+        throw runtime_error( "err" );
+    }
 }
 
 DTP PI UTP::nb_original_diracs() const {
@@ -402,43 +437,64 @@ DTP typename UTP::VF UTP::cell_masses() const {
     return res;
 }
 
-DTP TF UTP::l2_mass_error( bool max_if_bad_cell ) const {
-    using namespace std;
-    _update_system();
-    TF res = 0;
-    bool has_bad_cell = false;
-    for_each_cell( [&]( PI n, TF b, TF e ) {
-        if ( b >= e )
-            has_bad_cell = true;
-        res += pow( sorted_dirac_masses[ n ] - density->integral( b, e ), 2 );
-    } );
-    if ( has_bad_cell )    
-        return numeric_limits<TF>::max();
-    return sqrt( res );
-}
+// DTP TF UTP::mass_error( bool max_if_bad_cell ) const {
+//     using namespace std;
+//     _update_system();
+
+//     TF res = 0;
+//     bool has_bad_cell = false;
+//     for_each_cell( [&]( PI n, TF b, TF e ) {
+//         if ( b >= e )
+//             has_bad_cell = true;
+//         const TF in = density->integral( b, e );
+//         const TF ma = sorted_dirac_masses[ n ];
+//         auto err = in / ma - inv_coeff * ma / in;
+//         res += pow( err, 2 );
+//     } );
+//     if ( has_bad_cell )    
+//         return numeric_limits<TF>::max();
+//     return res;
+// }
 
 DTP typename UTP::VF UTP::mass_errors() const {
     using namespace std;
     _update_system();
 
-    auto f = [&]( TF v ) {
-        return v + inv_coeff / v;
-    };
-
     VF res( nb_sorted_diracs() );
     for_each_cell( [&]( PI n, TF b, TF e ) {
-        res[ n ] = f( density->integral( b, e ) ) - f( sorted_dirac_masses[ n ] );
+        const TF in = density->integral( b, e );
+        const TF ma = sorted_dirac_masses[ n ];
+        res[ n ] = in / ma - inv_coeff * ma / in - ( 1 - inv_coeff );
     } );
     return res;
+    // VF res( nb_sorted_diracs() );
+    // TF V = mass_error();
+    // for( PI r = 0; r < nb_sorted_diracs(); ++r ) {
+    //     TF &ref_weight = sorted_dirac_weights[ r ];
+    //     TF old_weight = ref_weight;
+    //     ref_weight += eps;
+
+    //     TF U = mass_error();
+    //     res[ r ] = ( U - V ) / eps;
+
+    //     ref_weight = old_weight;
+    // }
+    // return res;
 }
 
 DTP TF UTP::max_relative_mass_error() const {
     using namespace std;
     _update_system();
     TF res = 0;
+    bool has_bad_cell = 0;
     for_each_cell( [&]( PI n, TF b, TF e ) {
-        res = max( res, abs( sorted_dirac_masses[ n ] - density->integral( b, e ) ) / sorted_dirac_masses[ n ] );
+        const TF m = density->integral( b, e );
+        if ( b >= e || m == 0 )
+            has_bad_cell = 1;
+        res = max( res, abs( sorted_dirac_masses[ n ] - m ) / sorted_dirac_masses[ n ] );
     } );
+    if ( has_bad_cell )
+        return numeric_limits<TF>::max();
     return res;
 }
 

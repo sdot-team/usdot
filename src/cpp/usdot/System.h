@@ -57,6 +57,7 @@ public:
 
     // directly modifiable inputs
     TF             target_max_mass_error            = 1e-4;
+    TF             target_newton_error              = std::numeric_limits<TF>::epsilon();
     bool           multithread                      = false; ///<
     int            verbosity                        = 0; ///<
     std::ostream*  stream                           = nullptr; ///<

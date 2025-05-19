@@ -307,12 +307,12 @@ DTP TF UTP::x2_integral( TF b, TF e, TF di ) const {
         // int( ( x - di ) ^ 2 * ( v0 + ( x - x0 ) / ( x1 - x0 ) * ( v1 - v0 ) ) )
         res += (
             i1 * (
-                + v0 * ( -12 * di*di * x1 - 4 * i1*i1 * ( 2 * di + x1 ) + 6 * i1 * di * ( di + 2 * x1 ) + 3 * i1*i1*i1 )
-                + v1 * ( +12 * di*di * x0 + 4 * i1*i1 * ( 2 * di + x0 ) - 6 * i1 * di * ( di + 2 * x0 ) - 3 * i1*i1*i1 )
+                + v0 * ( -12 * di * di * x1 - 4 * i1 * i1 * ( 2 * di + x1 ) + 6 * i1 * di * ( di + 2 * x1 ) + 3 * i1 * i1 * i1 )
+                + v1 * ( +12 * di * di * x0 + 4 * i1 * i1 * ( 2 * di + x0 ) - 6 * i1 * di * ( di + 2 * x0 ) - 3 * i1 * i1 * i1 )
             ) - 
             i0 * (
-                + v0 * ( -12 * di*di * x1 - 4 * i0*i0 * ( 2 * di + x1 ) + 6 * i0 * di * ( di + 2 * x1 ) + 3 * i0*i0*i0 )
-                + v1 * ( +12 * di*di * x0 + 4 * i0*i0 * ( 2 * di + x0 ) - 6 * i0 * di * ( di + 2 * x0 ) - 3 * i0*i0*i0 )
+                + v0 * ( -12 * di * di * x1 - 4 * i0 * i0 * ( 2 * di + x1 ) + 6 * i0 * di * ( di + 2 * x1 ) + 3 * i0 * i0 * i0 )
+                + v1 * ( +12 * di * di * x0 + 4 * i0 * i0 * ( 2 * di + x0 ) - 6 * i0 * di * ( di + 2 * x0 ) - 3 * i0 * i0 * i0 )
             )
         ) / ( 12 * ( x0 - x1 ) );
     }

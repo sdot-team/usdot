@@ -27,7 +27,7 @@ public:
     void           initialize_with_flat_density     ();
     MF             der_weights_wrt_flat_ratio       ( PI nb_ders = 2, bool use_approx_for_ders = false ); ///< assuming we're on a solution
     int            newton_iterations                ( TF min_relax = 1e-6 ); ///< return 0 if OK
-    VF             newton_dir_ap                    ( TF eps );
+    VF             newton_dir_ap                    ();
     void           solve                            ( bool use_approx_for_ders = false );
 
     VF             dirac_positions                  () const;
@@ -43,7 +43,7 @@ public:
     TF             max_relative_mass_error          () const; ///< 
     PI             nb_original_diracs               () const;
     PI             nb_sorted_diracs                 () const;
-    TF             l2_mass_error                    ( bool max_if_bad_cell = false ) const; ///< 
+    // TF          mass_error                       ( bool max_if_bad_cell = false ) const; ///< 
     VF             mass_errors                      () const; ///< 
     TF             x_tol                            () const; ///<
     void           plot                             ( std::string filename = "glot.py" ) const;
@@ -60,7 +60,8 @@ public:
     TF             time_in_update                   = 0; ///<
     TF             time_in_init                     = 0; ///<
 
-    TF             inv_coeff                        = 1; ///<
+    TF             inv_coeff                        = 1e-2; ///<
+    TF             eps                              = 1e-30; ///<
 
 // private:
     T_T void       _for_each_unintersected_cell     ( const T &func ) const;
@@ -75,6 +76,8 @@ public:
     // 
     VF             relative_mass_ratios;            ///<
     TF             global_mass_ratio;               ///<
+
+    std::vector<VB> bnds_evolution;
 
     // diracs 
     VI             sorted_dirac_num_offsets;        ///< offsets in sorted_dirac_num_values. size = nb_sorted_diracs + 1

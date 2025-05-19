@@ -5,7 +5,7 @@ import usdot
 parms = usdot.OtParms()
 parms.verbosity = 2 
 
-res = usdot.from_p1_grid( dirac_positions = np.random.random( [ 20 ] ), density_positions = np.linspace( 10, 11, 3, endpoint = True ), density_values = [1., .1, 1.], global_mass_ratio = 0.95, ot_parms = parms )
+res = usdot.from_p1_grid( dirac_positions = np.random.random( [ 20 ] ), density_positions = np.linspace( 100, 101, 3, endpoint = True ), density_values = [1., .1, 1.], global_mass_ratio = 0.95, ot_parms = parms )
 usdot.plot( res )
 print( res )
 

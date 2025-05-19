@@ -959,7 +959,7 @@ DTP int UTP::newton_iterations( TF min_relax ) {
             break;
         }
             
-        if ( newton_error < std::numeric_limits<TF>::epsilon() )
+        if ( newton_error < target_newton_error )
             return 0;
     }
 }
@@ -983,7 +983,7 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
 
     initialize_with_flat_density();
 
-    density->set_flattening_ratio( 1 - 1e-6 );
+    density->set_flattening_ratio( 1 );
     int err = newton_iterations( 1e-3 );
     if ( err )
         throw std::runtime_error( "bad init" );
@@ -997,21 +997,21 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
     // P( cell_boundaries()[ 1 ] );
     // P( density->min_x() );
 
-    density->set_flattening_ratio( 1e-3 );
-    err = newton_iterations( 1e-6 );
-    if ( err ) {
-        // glot( linspace<TF>( density->min_x() - 0, density->max_x() + 0, 1000 ), 
-        //     [&]( TF x ) { return density->value( x ); }
-        // );
-        plot();
+    // density->set_flattening_ratio( 1e-3 );
+    // err = newton_iterations( 1e-6 );
+    // if ( err ) {
+    //     // glot( linspace<TF>( density->min_x() - 0, density->max_x() + 0, 1000 ), 
+    //     //     [&]( TF x ) { return density->value( x ); }
+    //     // );
+    //     plot();
 
-        // P( cell_boundaries()[ 0 ] );
-        // P( cell_boundaries()[ 1 ] );
-        // P( density->min_x() );
-        // P( err );
-        throw std::runtime_error( "bad newton" );
-    }
-    return;
+    //     // P( cell_boundaries()[ 0 ] );
+    //     // P( cell_boundaries()[ 1 ] );
+    //     // P( density->min_x() );
+    //     // P( err );
+    //     throw std::runtime_error( "bad newton" );
+    // }
+    // return;
 
     //
     for( TF prev_flattening_ratio = density->current_flattening_ratio; prev_flattening_ratio; ) {
@@ -1132,7 +1132,7 @@ DTP void UTP::plot( Str filename ) const {
     for( auto c : dirac_positions() )
         fs << c << ", ";
     fs << " ], [";
-    for( auto c : dirac_positions() )
+    for( PI i = 0; i < nb_original_diracs(); ++i )
         fs << -0.5 << ", ";
     fs << " ], '+' )\n";
 
