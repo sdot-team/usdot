@@ -194,12 +194,17 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     solver.set_dirac_positions( diracs );
     solver.set_density( &gd );
     
-
-    solver.stream = &std::cout;
-    solver.verbosity = 2;
+    // solver.stream = &std::cout;
+    // solver.verbosity = 2;
     
     try {
-        solver.solve();
+        auto t0 = std::chrono::high_resolution_clock::now();
+
+        solver.solve( 0 );
+
+        auto t1 = std::chrono::high_resolution_clock::now();
+        P( std::chrono::duration<double>{ t1 - t0 } );
+        // assert( 0 );
     } catch ( std::runtime_error e ) {
         // P( solver.sorted_dirac_weights );
         //solver.plot();

@@ -768,9 +768,160 @@ def test_wasserstein():
     print( res.cost**2 )
     print( res.cost )
 
+def animation_L2():
+    n = 3000
+    a = np.zeros( [ n ] )
+    b = np.zeros( [ n ] )
+    x = np.linspace( 0, 1, n, endpoint = True )
+    # a += gaussian( x, 0.2, 0.05 )
+    # b += gaussian( x, 0.8, 0.05 )
+    a += .001 + 2 * gaussian( x, 0.2, 0.1 / 3 )
+    a += .001 + 1 * gaussian( x, 0.7, 0.2 / 3 )
+    b += .001 + 2 * gaussian( x, 0.4, 0.1 / 3 )
+    b += .001 + 1 * gaussian( x, 0.8, 0.2 / 3 )
+    a /= np.sum( a )
+    b /= np.sum( b )
+
+    # ax.set_ylim([ymin, ymax]
+    x1 = list( np.linspace( 0, 1, 20 ) )
+    x2 = list( np.linspace( 1, 0, 20 ) )
+    for i, t in enumerate( x1 + x2 ):
+        ax = plt.gca()
+        ax.set_xlim( [ 0, 1 ] )
+        # ax.set_ylim( [ 0.5, 2 ] )
+        plt.plot( x, a, '--', linewidth = 1, color = "blue" )
+        plt.plot( x, b, '--', linewidth = 1, color = "red" )
+        plt.plot( x, ( 1 - t ) * a + t * b, c = "black", linewidth = 2 )
+
+
+        # plt.show()
+        plt.savefig( f'f2f_{ 100 + i }.png', dpi = 300 )
+        plt.cla()
+
+    # parms = usdot.OtParms()
+    # parms.verbosity = 2 
+
+    # res = usdot.from_p1_grid( x, x, b, relative_mass_ratios = a, ot_parms = parms )
+
+    # t = 1
+    # p = ( 1 - t ) * x + t * res.barycenters
+    # y = ( 1 - t ) * a + t * a / ( res.boundaries[ :, 1 ] - res.boundaries[ :, 0 ] )
+    # plt.plot( p, y )
+    # plt.plot( x, a )
+    # plt.plot( x, b )
+
+def animation_transport_map():
+    import usdot
+
+    n = 1000  # nb samples
+    for num, ang in enumerate( np.linspace( 0, 2 * np.pi, 20, endpoint=1 ) ):
+        loc = 0.5 + 0.25 * np.cos( ang )
+        sca = 0.1 # + 0.05 * np.cos( ang )
+        samples = np.random.normal( loc=loc, scale=sca, size=[ n ] )
+        samples = np.maximum( 0., np.minimum( 1., samples ) )
+        samples = np.sort( samples )
+        parms = usdot.OtParms()
+        parms.verbosity = 2 
+
+        fig = plt.figure( figsize = ( 5*2, 2*2 ) )
+        ax1 = fig.add_subplot( 121 )
+        ax2 = fig.add_subplot( 122 )
+
+        ax1.vlines( samples[ ::20 ], 0, 1 )
+        ax1.set_xlim( [ +0, +1 ] )
+        ax1.set_ylim( [ +0, +1 ] )
+            
+        res = usdot.from_p1_grid( samples, [ 0, 1 ], [ 1, 1 ], ot_parms = parms )
+        ax2.plot( res.barycenters, samples, linewidth = 2 )
+        ax2.set_xlim( [ -0.01, +1.01 ] )
+        ax2.set_ylim( [ +0.0 , +1.0  ] )
+
+        plt.savefig( f'f2f_{ 100 + num }.png', dpi = 150, bbox_inches='tight' )
+        # plt.show()
+        plt.cla()
+
+def animation_transport_map_2D():
+    from pysdot.domain_types import ConvexPolyhedraAssembly
+    from pysdot import OptimalTransport
+    import numpy as np
+    import ot
+
+    n = 10000  # nb samples
+    for num, ang in enumerate( np.linspace( 0, 2 * np.pi, 30, endpoint=0 ) ):
+        mu_s = np.array( [ 0.5 + 0.2 * np.cos( ang ), 0.5 + 0.2 * np.sin( ang ) ] )
+        cov_s = np.array( [ [ 0.1 + 0.05 * np.cos( 2 * ang ), 0 ], [ 0, 0.1 + 0.05 * np.cos( 3 * ang ) ] ] )
+        samples = []
+        cpt = 0
+        while len( samples ) < n:
+            x = np.random.normal( mu_s[ 0 ], cov_s[ 0, 0 ] / 2 )
+            y = np.random.normal( mu_s[ 1 ], cov_s[ 1, 1 ] / 2 )
+            if x >= 0 and x <= 1 and y >= 0 and y <= 1:
+                samples.append( [ x, y ] )
+                cpt += 1
+        samples = np.array( samples )
+        print( samples.shape )
+
+        fig = plt.figure( figsize = ( 7*2, 2*2 ) )
+        ax1 = fig.add_subplot( 131 )
+        ax2 = fig.add_subplot( 132, projection='3d' )
+        ax3 = fig.add_subplot( 133, projection='3d' )
+
+        ax1.scatter( samples[ :, 0 ], samples[ :, 1 ], s = 1 )
+        ax1.set_xlim( [ +0, +1 ] )
+        ax1.set_ylim( [ +0, +1 ] )
+            
+        # res = usdot.from_p1_grid( samples, [ 0, 1 ], [ 1, 1 ], ot_parms = parms )
+        # ax2.plot( res.barycenters, samples, linewidth = 2 )
+        # ax2.set_xlim( [ -0.01, +1.01 ] )
+        # ax2.set_ylim( [ +0.0 , +1.0  ] )
+        domain = ConvexPolyhedraAssembly()
+        domain.add_box( [ 0, 0 ], [ 1, 1 ] )
+
+        ot = OptimalTransport( positions = samples, domain = domain )
+        ot.verbosity = 2
+
+        ot.adjust_weights()
+
+        #ot.pd.get_positions
+        centroids = ot.get_centroids()
+        xs = []
+        ys = []
+        zxs = []
+        zys = []
+        for y in np.linspace( 0, 1, 100 ):
+            for x in np.linspace( 0, 1, 100 ):
+                xs.append( x )
+                ys.append( y )
+                nd = np.argmin( np.linalg.norm( centroids - [ x, y ], axis = 1 ) )
+                zxs.append( samples[ nd, 0 ] )
+                zys.append( samples[ nd, 1 ] )
+        xs = np.reshape( xs, [ 100, 100 ] )
+        ys = np.reshape( ys, [ 100, 100 ] )
+        zxs = np.reshape( zxs, [ 100, 100 ] )
+        zys = np.reshape( zys, [ 100, 100 ] )
+
+        ax2.set_zlim( [ +0.0 , +1.0  ] )
+        ax3.set_zlim( [ +0.0 , +1.0  ] )
+
+        # from matplotlib import cbook, cm
+        # from matplotlib.colors import LightSource
+        # ls = LightSource(270, 45)
+        # rgb = ls.shade( zxs, cmap=cm.gist_earth, vert_exag=0.1, blend_mode='soft')
+
+        ax2.plot_surface( xs, ys, zxs, rstride=10, cstride=10, edgecolor='royalblue', alpha=0.3 ) # , linewidth=0, antialiased=False, shade=False 
+        ax3.plot_surface( xs, ys, zys, rstride=10, cstride=10, edgecolor='royalblue', alpha=0.3 ) # , rstride=1, cstride=1, facecolors=rgb, linewidth=0, antialiased=False, shade=False 
+
+        plt.savefig( f'f2f_{ 100 + num }.png', dpi = 150, bbox_inches='tight' )
+        # plt.show()
+        plt.cla()
+
+
 # timings()
 # lloyd_patat()
 
 # registration()
 # misfit()
-test_wasserstein()
+# test_wasserstein()
+# animation_L2()
+
+animation_transport_map_2D()

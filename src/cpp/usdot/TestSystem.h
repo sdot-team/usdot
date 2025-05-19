@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utility/TridiagonalSymmetricMatrix.h"
 #include "DiffusionDensity.h"
 
 namespace usdot {
@@ -8,17 +7,16 @@ namespace usdot {
 /**
 */
 template<class TF,class Density=DiffusionDensity<TF>>
-class System {
+class TestSystem {
 public:
-    using          ConnectedCells                   = std::vector<std::array<PI,2>>;
+    using          ConnectedCells                   = std::vector<std::array<PI,2>>; ///< [ beg, end ]
     struct         Poly                             { TF c0, c1, c2, ca; }; ///< poly to get optimal weight wrt radius of the first cell and blend ratio for target masses
-    using          TSM                              = TridiagonalSymmetricMatrix<TF>;
     using          VI                               = std::vector<PI>;
     using          VF                               = std::vector<TF>;
     using          MF                               = std::vector<VF>;
     using          VB                               = std::vector<std::array<TF,2>>;
 
-    /**/           System                           ();
+    /**/           TestSystem                           ();
 
     void           set_relative_dirac_masses        ( const VF &relative_mass_ratios );
     void           set_global_mass_ratio            ( const TF &global_mass_ratio );
@@ -29,7 +27,6 @@ public:
     void           initialize_with_flat_density     ();
     MF             der_weights_wrt_flat_ratio       ( PI nb_ders = 2, bool use_approx_for_ders = false ); ///< assuming we're on a solution
     int            newton_iterations                ( TF min_relax = 1e-6 ); ///< return 0 if OK
-    void           solve_using_cdf                  ();
     void           solve                            ( bool use_approx_for_ders = false );
 
     VF             dirac_positions                  () const;
@@ -42,18 +39,12 @@ public:
 
     TF             density_value                    ( TF pos ) const;
     
+    TF             max_relative_mass_error          () const; ///< 
     PI             nb_original_diracs               () const;
     PI             nb_sorted_diracs                 () const;
-    TF             max_mass_error                   () const; ///< 
     TF             l2_mass_error                    ( bool max_if_bad_cell = false ) const; ///< 
     TF             x_tol                            () const; ///<
     void           plot                             ( std::string filename = "glot.py" ) const;
-
-    int            get_weights_for                  ( VF &new_dirac_weights, const ConnectedCells &connected_cells, const std::vector<Poly> &polys, TF a );
-    void           get_system_con                   ( ConnectedCells &connected_cells, std::vector<Poly> &opt_weights, TF &max_a, TF &cell_error, int &has_bad_cell, const VF &sorted_dirac_weights ) const;
-    TF             best_r_for_ib                    ( const std::vector<Poly> &polys, PI n, TF a ) const;
-    int            newton_con                       ( TF min_a );
-    T_T static T   sgn                              ( const T &a ) { return ( a > 0 ) - ( a < 0 ); }
 
     // directly modifiable inputs
     TF             target_max_mass_error            = 1e-4;
@@ -90,14 +81,9 @@ public:
    
     // density
     Density*       density;                         ///<
-
-    //
-    TSM            newton_matrix_ldlt;              ///<
-    VF             newton_vector;                   ///<
-    TF             newton_error;                    ///<
 };
 
 
 } // namespace usdot
 
-#include "System.cxx" // IWYU pragma: export
+#include "TestSystem.cxx" // IWYU pragma: export
