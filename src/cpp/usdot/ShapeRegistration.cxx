@@ -189,6 +189,9 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     for( PI n = 0; n < new_diracs.size(); ++n )
         diracs[ n ] = sp( new_diracs[ n ], proj_dir );
 
+#warning ...
+std::sort( diracs.begin(), diracs.end() );
+
     System<TF> solver;
     solver.set_global_mass_ratio( mass_ratio ); // 
     solver.set_dirac_positions( diracs );
@@ -204,7 +207,9 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
 
         auto t1 = std::chrono::high_resolution_clock::now();
         P( std::chrono::duration<double>{ t1 - t0 } );
-        // assert( 0 );
+        static int cpt = 0;
+        if ( cpt++ == 10 )
+            assert( 0 );
     } catch ( std::runtime_error e ) {
         // P( solver.sorted_dirac_weights );
         //solver.plot();

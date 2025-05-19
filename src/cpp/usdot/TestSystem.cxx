@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <eigen3/Eigen/Dense>
 #include "utility/linspace.h"
 #include "TestSystem.h"
 
@@ -186,60 +187,55 @@ DTP T_T void UTP::_for_each_unintersected_cell( const T &func ) const {
     func( d0, w0, nb_sorted_diracs() - 1, od, numeric_limits<TF>::max(), i0, numeric_limits<TF>::max() );
 }
 
+DTP typename UTP::VF UTP::newton_dir_ap( TF eps ) {    
+    using namespace std;
+
+    // M
+    using TM = Eigen::Matrix<TF,Eigen::Dynamic,Eigen::Dynamic>;
+    using TV = Eigen::Matrix<TF,Eigen::Dynamic,1>;
+    TM M( nb_sorted_diracs(), nb_sorted_diracs() );    
+    VF V = mass_errors();
+
+    M.fill( 0 );
+    for( PI r = 0; r < nb_sorted_diracs(); ++r ) {
+        TF &ref_weight = sorted_dirac_weights[ r ];
+        TF old_weight = ref_weight;
+        ref_weight += eps;
+
+        VF U = mass_errors();
+
+        for( PI c = max( r, 1ul ) - 1; c < min( r + 2, nb_sorted_diracs() ); ++c )
+            M.coeffRef( r, c ) = ( U[ c ] - V[ c ] ) / eps;
+
+        ref_weight = old_weight;
+    }
+
+    TV Y = Eigen::Map<TV,Eigen::Unaligned>( V.data(), V.size() );
+    std::cout << M << std::endl;
+    Eigen::FullPivLU<TM> lu( M );
+
+    Eigen::EigenSolver<TM> es( M );
+    std::cout << es.eigenvalues() << std::endl;
+
+    auto X = lu.solve( Y );
+    return VF{ X.begin(), X.end() };
+}
+
 DTP int UTP::newton_iterations(  TF min_relax ) {
-    ;
+    // 
+    P( newton_dir_ap( 1e-20 ) );
+    return 0;
 }
 
 DTP void UTP::solve( bool use_approx_for_ders ) {
     using namespace std;
 
     initialize_with_flat_density();
+    
+    density->set_flattening_ratio( 1e-3 );
+    newton_iterations();
 
-    density->set_flattening_ratio( 0 );
-    newton_iterations( 1e-3 );
-
-    // density->set_flattening_ratio( 1 - 1e-6 );
-    // newton_iterations( 1e-3 );
-
-    // //
-    // for( TF prev_flattening_ratio = density->current_flattening_ratio; prev_flattening_ratio; ) {
-    //     VF w0 = sorted_dirac_weights;
-    //     MF ders = der_weights_wrt_flat_ratio( 2, use_approx_for_ders );
-    //     TF trat = 0.5;
-    //     for( TF trial_flattening_ratio = 0; ; trial_flattening_ratio = ( 1 - trat ) * prev_flattening_ratio + trat * trial_flattening_ratio ) {
-    //         const TF a = trial_flattening_ratio - prev_flattening_ratio;
-  
-    //         density->set_flattening_ratio( trial_flattening_ratio );
-
-    //         for( PI i = 0; i < nb_sorted_diracs(); ++i )
-    //             if ( isnan( ders[ 0 ][ i ] ) )
-    //                 throw std::runtime_error( "nan der 0" );
-    //         for( PI i = 0; i < nb_sorted_diracs(); ++i )
-    //             if ( isnan( ders[ 1 ][ i ] ) )
-    //                 throw std::runtime_error( "nan der 1" );
-
-    //         for( PI i = 0; i < nb_sorted_diracs(); ++i )
-    //             sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2; // + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
-
-    //         if ( abs( a ) < 1e-6 ) {
-    //             P( w0 );
-    //             P( ders );
-    //             throw std::runtime_error( "low a" );
-    //         }
-
-    //         // test 
-    //         int err = newton_iterations( 1 );
-    //         if ( err == 0 ) {
-    //             prev_flattening_ratio = trial_flattening_ratio;
-    //             if ( verbosity >= 2 && stream )
-    //                 *stream << "  flattening_ratio: " << trial_flattening_ratio << " nb_newton_iterations: " << nb_newton_iterations << "\n";
-    //             break;
-    //         }
-    //     }
-    // }
-
-    // if ( verbosity >= 2 && stream )
-    //     *stream << "nb iteration init: " << nb_iterations_init << " update: " << nb_iterations_update << "\n";
+    P( l2_mass_error() );
 }
 
 DTP PI UTP::nb_original_diracs() const {
@@ -419,6 +415,21 @@ DTP TF UTP::l2_mass_error( bool max_if_bad_cell ) const {
     if ( has_bad_cell )    
         return numeric_limits<TF>::max();
     return sqrt( res );
+}
+
+DTP typename UTP::VF UTP::mass_errors() const {
+    using namespace std;
+    _update_system();
+
+    auto f = [&]( TF v ) {
+        return v + inv_coeff / v;
+    };
+
+    VF res( nb_sorted_diracs() );
+    for_each_cell( [&]( PI n, TF b, TF e ) {
+        res[ n ] = f( density->integral( b, e ) ) - f( sorted_dirac_masses[ n ] );
+    } );
+    return res;
 }
 
 DTP TF UTP::max_relative_mass_error() const {

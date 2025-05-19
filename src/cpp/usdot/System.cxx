@@ -591,7 +591,7 @@ DTP void UTP::get_system_con( ConnectedCells &connected_cells, std::vector<Poly>
     TF dp = 0; // prev prev dirac position
     TF wp = 0; // prev prev weight
 
-    PI bi_ind; // index of the bi cell
+    // PI bi_ind; // index of the bi cell
     for( PI n = 0; n < nb_sorted_diracs(); ++n ) {
         // negative weight ?
         if ( w0 < 0 ) {
@@ -945,7 +945,7 @@ DTP int UTP::newton_iterations( TF min_relax ) {
         for( TF a = 1; ; a /= 2 ) {
             if ( a < min_relax ) {
                 sorted_dirac_weights = w0;
-                return 1;
+                return 2;
             }
 
             for( PI i = 0; i < w0.size(); ++i )
@@ -987,6 +987,31 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
     int err = newton_iterations( 1e-3 );
     if ( err )
         throw std::runtime_error( "bad init" );
+
+    // for( auto b : cell_boundaries() ) {
+    //     assert( b[ 0 ] < b[ 1 ] );
+    //     assert( b[ 0 ] >= density->min_x() );
+    //     assert( b[ 1 ] <= density->max_x() );
+    // }
+    // P( cell_boundaries()[ 0 ] );
+    // P( cell_boundaries()[ 1 ] );
+    // P( density->min_x() );
+
+    density->set_flattening_ratio( 1e-3 );
+    err = newton_iterations( 1e-6 );
+    if ( err ) {
+        // glot( linspace<TF>( density->min_x() - 0, density->max_x() + 0, 1000 ), 
+        //     [&]( TF x ) { return density->value( x ); }
+        // );
+        plot();
+
+        // P( cell_boundaries()[ 0 ] );
+        // P( cell_boundaries()[ 1 ] );
+        // P( density->min_x() );
+        // P( err );
+        throw std::runtime_error( "bad newton" );
+    }
+    return;
 
     //
     for( TF prev_flattening_ratio = density->current_flattening_ratio; prev_flattening_ratio; ) {

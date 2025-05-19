@@ -15,11 +15,11 @@ using namespace usdot;
 using namespace std;
 
 TEST_CASE( "System", "" ) {
-    DiffusionDensity<TF> gd( { 1, 1 } );
+    DiffusionDensity<TF> gd( { 1, 0.1, 0.1, 1 } );
 
     TestSystem<TF> si;
     si.set_dirac_positions( cellspace<TF>( 0.0, 1.0, 10 ) );
-    si.set_global_mass_ratio( 1.0 );
+    si.set_global_mass_ratio( 0.95 );
     si.set_density( &gd );
 
     si.stream = &std::cout;
