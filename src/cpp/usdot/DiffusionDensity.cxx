@@ -122,7 +122,7 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
 
     // 0
     if ( current_flattening_ratio == 0 ) {
-        throw std::runtime_error( "TODO" );
+        throw std::runtime_error( "TODO der 0" );
     }
 
     VF der_1;
@@ -232,7 +232,7 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
 
         // manually solve if current_flattening_ratio == 1
         if ( current_flattening_ratio == 1 ) {
-            throw std::runtime_error( "TODO" );
+            throw std::runtime_error( "TODO der 1" );
 
             // auto ep = [&]( PI i ) { return pow( extended_positions[ i - 0 ] - extended_positions[ i - 1 ], -2 ); };
             // auto en = [&]( PI i ) { return pow( extended_positions[ i + 1 ] - extended_positions[ i + 0 ], -2 ); };

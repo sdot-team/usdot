@@ -105,7 +105,7 @@ DTP void UTP::initialize_with_flat_density() {
 
             while( ++i < agg.end_n ) {
                 const TF d1 = sorted_dirac_positions[ i ];
-                const TF x1 = x0 + sorted_dirac_masses[ i ] * density->ptp_x();
+                const TF x1 = x0 + sorted_dirac_masses[ i - 1 ] * density->ptp_x();
                 const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
 
                 sorted_dirac_weights[ i ] = w1;
@@ -129,7 +129,7 @@ DTP void UTP::initialize_with_flat_density() {
 
             while( i-- > agg.beg_n ) {
                 const TF d0 = sorted_dirac_positions[ i ];
-                const TF x0 = x1 - sorted_dirac_masses[ i ] * density->ptp_x();
+                const TF x0 = x1 - sorted_dirac_masses[ i + 1 ] * density->ptp_x();
                 const TF w0 = w1 - ( d1 - d0 ) * ( d0 + d1 - 2 * x0 );
 
                 sorted_dirac_weights[ i ] = w0;
@@ -155,7 +155,7 @@ DTP void UTP::initialize_with_flat_density() {
         
         while( ++i < agg.end_n ) {
             const TF d1 = sorted_dirac_positions[ i ];
-            const TF x1 = x0 + sorted_dirac_masses[ i ] * density->ptp_x();
+            const TF x1 = x0 + sorted_dirac_masses[ i - 1 ] * density->ptp_x();
             const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
 
             sorted_dirac_weights[ i ] = w1;
@@ -831,7 +831,7 @@ DTP TF UTP::best_r_for_ib( const std::vector<Poly> &polys, PI n, TF a ) const {
         return dichotomy( err, ter, TF( 0 ), max_r );
     }
 
-    throw std::runtime_error( "TODO" );
+    throw std::runtime_error( "TODO best r" );
 }
 
 DTP int UTP::get_weights_for( VF &new_dirac_weights, const ConnectedCells &connected_cells, const std::vector<Poly> &polys, TF a ) {
@@ -922,8 +922,11 @@ DTP int UTP::newton_iterations( TF min_relax ) {
     if ( err )
         return 1;
 
+    //    std::cout << max_mass_error() << std::endl;
+    if ( max_mass_error() <= target_max_mass_error )
+        return 0;
+
     TF prev_newton_error = newton_error;
-    nb_newton_iterations = 0;
     for( nb_newton_iterations = 0; ; ++nb_newton_iterations ) {
         if ( nb_newton_iterations == 1000 )
             throw std::runtime_error( "max iter" );
@@ -952,14 +955,20 @@ DTP int UTP::newton_iterations( TF min_relax ) {
                 sorted_dirac_weights[ i ] = w0[ i ] - a * dir[ i ];
 
             int err = _make_newton_system();
-            if ( err ) // || newton_error > prev_newton_error
+            if ( err )
                 continue;
 
-            prev_newton_error = newton_error;
-            break;
+            if ( prev_newton_error > newton_error ) {
+                prev_newton_error = newton_error;
+                break;
+            }
         }
-            
-        if ( newton_error < target_newton_error )
+
+        if ( verbosity >= 3 && stream )
+            *stream << "  nb iteration newton: " << nb_newton_iterations << " error: " << max_mass_error() << "\n";
+        // std::cout << " error: " << max_mass_error() << " " << target_max_mass_error << " \n";;
+
+        if ( max_mass_error() <= target_max_mass_error )
             return 0;
     }
 }
@@ -984,40 +993,19 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
     initialize_with_flat_density();
 
     density->set_flattening_ratio( 1 );
-    int err = newton_iterations( 1e-3 );
-    if ( err )
+    int err = newton_iterations( 1e-6 );
+    if ( err ) {
+        // std::cout << "max_mass_error: " << max_mass_error() << std::endl;
+        // std::cout << err << std::endl;
+        // plot();
         throw std::runtime_error( "bad init" );
-
-    // for( auto b : cell_boundaries() ) {
-    //     assert( b[ 0 ] < b[ 1 ] );
-    //     assert( b[ 0 ] >= density->min_x() );
-    //     assert( b[ 1 ] <= density->max_x() );
-    // }
-    // P( cell_boundaries()[ 0 ] );
-    // P( cell_boundaries()[ 1 ] );
-    // P( density->min_x() );
-
-    // density->set_flattening_ratio( 1e-3 );
-    // err = newton_iterations( 1e-6 );
-    // if ( err ) {
-    //     // glot( linspace<TF>( density->min_x() - 0, density->max_x() + 0, 1000 ), 
-    //     //     [&]( TF x ) { return density->value( x ); }
-    //     // );
-    //     plot();
-
-    //     // P( cell_boundaries()[ 0 ] );
-    //     // P( cell_boundaries()[ 1 ] );
-    //     // P( density->min_x() );
-    //     // P( err );
-    //     throw std::runtime_error( "bad newton" );
-    // }
-    // return;
+    }
 
     //
     for( TF prev_flattening_ratio = density->current_flattening_ratio; prev_flattening_ratio; ) {
         // compute the derivatives
         VF w0 = sorted_dirac_weights;
-        MF ders = der_weights_wrt_flat_ratio( 2, use_approx_for_ders );
+        // MF ders = der_weights_wrt_flat_ratio( 2, use_approx_for_ders );
         // for( PI i = 0; i < nb_sorted_diracs(); ++i )
         //     if ( isnan( ders[ 0 ][ i ] ) )
         //         throw std::runtime_error( "nan der 0" );
@@ -1036,16 +1024,16 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
             }
 
 
-            // test with the derivatives
-            for( PI i = 0; i < nb_sorted_diracs(); ++i )
-                sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2; // + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
-            err = newton_iterations( 1e-2 );
-            if ( err == 0 ) {
-                prev_flattening_ratio = trial_flattening_ratio;
-                if ( verbosity >= 2 && stream )
-                    *stream << "  flattening_ratio: " << prev_flattening_ratio << " nb_newton_iterations: " << nb_newton_iterations << " (2)\n";
-                break;
-            }
+            // // test with the derivatives
+            // for( PI i = 0; i < nb_sorted_diracs(); ++i )
+            //     sorted_dirac_weights[ i ] = w0[ i ] + ders[ 0 ][ i ] * a + ders[ 1 ][ i ] * pow( a, 2 ) / 2; // + ders[ 2 ][ i ] * pow( a, 3 ) / 6;
+            // err = newton_iterations( 1e-2 );
+            // if ( err == 0 ) {
+            //     prev_flattening_ratio = trial_flattening_ratio;
+            //     if ( verbosity >= 2 && stream )
+            //         *stream << "  flattening_ratio: " << prev_flattening_ratio << " nb_newton_iterations: " << nb_newton_iterations << " (2)\n";
+            //     break;
+            // }
 
             // // test with the derivatives
             // for( PI i = 0; i < nb_sorted_diracs(); ++i )
@@ -1061,7 +1049,7 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
             // test without the derivatives
             for( PI i = 0; i < nb_sorted_diracs(); ++i )
                 sorted_dirac_weights[ i ] = w0[ i ];
-            err = newton_iterations( 13e-3 );
+            err = newton_iterations( 1e-2 );
             if ( err == 0 ) {
                 prev_flattening_ratio = trial_flattening_ratio;
                 if ( verbosity >= 2 && stream )
@@ -1259,9 +1247,9 @@ DTP TF UTP::max_mass_error() const {
     _update_system();
     TF res = 0;
     for_each_cell( [&]( PI n, TF b, TF e ) {
-        res = max( res, abs( sorted_dirac_masses[ n ] - density->integral( b, e ) ) );
+        res = max( res, std::abs( sorted_dirac_masses[ n ] - density->integral( b, e ) ) / sorted_dirac_masses[ n ] );
     } );
-    return sqrt( res );
+    return res;
 }
 
 DTP void UTP::set_dirac_positions( const VF &dirac_positions, TF min_dirac_separation ) {

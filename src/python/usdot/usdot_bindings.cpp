@@ -22,7 +22,7 @@ struct OtResult {
 };
 
 struct OtParms {
-    TF max_mass_ratio_error_target = 1e-6;
+    TF max_mass_ratio_error_target = 1e-4;
     int verbosity = 1;
     TF epsilon = 0;
 };

@@ -2,12 +2,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import usdot
 
-parms = usdot.OtParms()
-parms.verbosity = 2 
 
-res = usdot.from_p1_grid( dirac_positions = np.random.random( [ 20 ] ), density_positions = np.linspace( 100, 101, 3, endpoint = True ), density_values = [1., .1, 1.], global_mass_ratio = 0.95, ot_parms = parms )
+parms = usdot.OtParms()
+parms.verbosity = 0
+
+dirac_positions = np.load( "/Users/hugo.leclerc/Downloads/problematic_diracs_triangular.npy" )
+print(dirac_positions)
+
+res = usdot.from_p1_grid( dirac_positions = dirac_positions, density_positions = [ 0, 1, 2 ], density_values = [ 0, 1, 0 ], global_mass_ratio = 0.1, ot_parms = parms )
+# print( res )
 usdot.plot( res )
-print( res )
+
+# for i in range( 1000 ):
+#     np.random.seed( i )
+#     print( "i:", i )
+
+#     # usdot.plot( res )
+#     # print( res )
 
 # def system_with_extension( D, t, coeff_extension = 2 ):
 #     s = len( D )

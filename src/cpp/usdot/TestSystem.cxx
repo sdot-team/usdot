@@ -93,6 +93,7 @@ DTP void UTP::initialize_with_flat_density() {
     // set the weights
     sorted_dirac_weights.resize( nb_sorted_diracs() );
     for( const Agglomerate &agg : aggs ) {
+        P( agg.beg_x, agg.end_x, agg.len_x );
         if ( agg.beg_x > density->min_x() ) {
             PI i = agg.beg_n;
 
@@ -104,7 +105,7 @@ DTP void UTP::initialize_with_flat_density() {
 
             while( ++i < agg.end_n ) {
                 const TF d1 = sorted_dirac_positions[ i ];
-                const TF x1 = x0 + sorted_dirac_masses[ i ] * density->ptp_x();
+                const TF x1 = x0 + sorted_dirac_masses[ i - 1 ] * density->ptp_x();
                 const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
 
                 sorted_dirac_weights[ i ] = w1;
@@ -128,7 +129,7 @@ DTP void UTP::initialize_with_flat_density() {
 
             while( i-- > agg.beg_n ) {
                 const TF d0 = sorted_dirac_positions[ i ];
-                const TF x0 = x1 - sorted_dirac_masses[ i ] * density->ptp_x();
+                const TF x0 = x1 - sorted_dirac_masses[ i + 1 ] * density->ptp_x();
                 const TF w0 = w1 - ( d1 - d0 ) * ( d0 + d1 - 2 * x0 );
 
                 sorted_dirac_weights[ i ] = w0;
@@ -154,7 +155,7 @@ DTP void UTP::initialize_with_flat_density() {
         
         while( ++i < agg.end_n ) {
             const TF d1 = sorted_dirac_positions[ i ];
-            const TF x1 = x0 + sorted_dirac_masses[ i ] * density->ptp_x();
+            const TF x1 = x0 + sorted_dirac_masses[ i - 1 ] * density->ptp_x();
             const TF w1 = w0 + ( d1 - d0 ) * ( d0 + d1 - 2 * x1 );
 
             sorted_dirac_weights[ i ] = w1;
@@ -243,13 +244,11 @@ DTP int UTP::newton_iterations( TF min_relax ) {
 
         auto dir = newton_dir_ap();
         VF w0 = sorted_dirac_weights;
-        P( w0 );
-        P( dir );
         for( TF a = 1; ; a /= 2 ) {
             if ( a < min_relax ) {
                 sorted_dirac_weights = w0;
-                plot_bnds_evolution( bnds_evolution );
-                P( cell_boundaries() );
+                // plot_bnds_evolution( bnds_evolution );
+                // P( cell_boundaries() );
                 // plot();
                 return 2;
             }
@@ -355,16 +354,19 @@ DTP void UTP::plot( Str filename ) const {
 }
 
 DTP void UTP::plot_bnds_evolution( const std::vector<VB> &bnds ) {
+
     auto ys = linspace<TF>( 0, 1, bnds.size() );
 
     std::ofstream fs( "glot.py" );
     fs << "from matplotlib import pyplot\n";
-    for( PI i = 0; i < bnds[ 0 ].size(); ++i ) {
-        for( PI j = 0; j < bnds[ 0 ][ 0 ].size(); ++j ) {
-            VF xs( bnds.size() );
-            for( PI n = 0; n < bnds.size(); ++n )
-                xs[ n ] = bnds[ n ][ i ][ j ];
-            fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
+    if ( bnds.size() ) {
+        for( PI i = 0; i < bnds[ 0 ].size(); ++i ) {
+            for( PI j = 0; j < bnds[ 0 ][ 0 ].size(); ++j ) {
+                VF xs( bnds.size() );
+                for( PI n = 0; n < bnds.size(); ++n )
+                    xs[ n ] = bnds[ n ][ i ][ j ];
+                fs << "pyplot.plot( " << to_string( xs ) << ", " << to_string( ys ) << " )\n";
+            }
         }
     }
     fs << "pyplot.legend()\n";
@@ -481,7 +483,8 @@ DTP typename UTP::VF UTP::mass_errors() const {
     for_each_cell( [&]( PI n, TF b, TF e ) {
         const TF in = density->integral( b, e );
         const TF ma = sorted_dirac_masses[ n ];
-        res[ n ] = in / ma - inv_coeff * ma / in - ( 1 - inv_coeff );
+        // res[ n ] = in / ma - inv_coeff * ma / in - ( 1 - inv_coeff );
+        res[ n ] = in - ma;
     } );
     return res;
     // VF res( nb_sorted_diracs() );
@@ -506,10 +509,11 @@ DTP TF UTP::max_relative_mass_error() const {
     bool has_bad_cell = 0;
     for_each_cell( [&]( PI n, TF b, TF e ) {
         const TF m = density->integral( b, e );
-        if ( b >= e || m == 0 )
+        if ( m <= 0 )
             has_bad_cell = 1;
         res = max( res, abs( sorted_dirac_masses[ n ] - m ) / sorted_dirac_masses[ n ] );
     } );
+    P( has_bad_cell );
     if ( has_bad_cell )
         return numeric_limits<TF>::max();
     return res;
