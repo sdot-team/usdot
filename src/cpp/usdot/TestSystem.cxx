@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <eigen3/Eigen/SparseLU>
 #include <eigen3/Eigen/Dense>
 #include "utility/linspace.h"
 #include "TestSystem.h"
@@ -192,12 +193,13 @@ DTP typename UTP::VF UTP::newton_dir_ap() {
     using namespace std;
 
     // M
-    using TM = Eigen::Matrix<TF,Eigen::Dynamic,Eigen::Dynamic>;
+    // using TM = Eigen::Matrix<TF,Eigen::Dynamic,Eigen::Dynamic>;
     using TV = Eigen::Matrix<TF,Eigen::Dynamic,1>;
+    using TM = Eigen::SparseMatrix<TF>;
     TM M( nb_sorted_diracs(), nb_sorted_diracs() );    
     VF V = mass_errors();
 
-    M.fill( 0 );
+    // M.fill( 0 );
     for( PI r = 0; r < nb_sorted_diracs(); ++r ) {
         TF &ref_weight = sorted_dirac_weights[ r ];
         TF old_weight = ref_weight;
@@ -213,7 +215,13 @@ DTP typename UTP::VF UTP::newton_dir_ap() {
     }
 
     TV Y = Eigen::Map<TV,Eigen::Unaligned>( V.data(), V.size() );
-    Eigen::FullPivLU<TM> lu( M );
+
+    // Eigen::FullPivLU<TM> lu( M );
+    // auto X = lu.solve( Y );
+    Eigen::SparseLU<TM,Eigen::COLAMDOrdering<int>> solver;
+    solver.analyzePattern( M ); 
+    solver.factorize( M ); 
+    auto X = solver.solve( Y ); 
 
     // Eigen::EigenSolver<TM> es( M );
     // auto ev = es.eigenvalues();
@@ -224,7 +232,6 @@ DTP typename UTP::VF UTP::newton_dir_ap() {
     // std::sort( eigs.begin(), eigs.end() );
     // P( eigs );
 
-    auto X = lu.solve( Y );
     return VF{ X.begin(), X.end() };
 }
 
@@ -236,6 +243,8 @@ DTP int UTP::newton_iterations( TF min_relax ) {
 
         auto dir = newton_dir_ap();
         VF w0 = sorted_dirac_weights;
+        P( w0 );
+        P( dir );
         for( TF a = 1; ; a /= 2 ) {
             if ( a < min_relax ) {
                 sorted_dirac_weights = w0;
@@ -265,11 +274,19 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
 
     initialize_with_flat_density();
     
-    density->set_flattening_ratio( 0 );
-    int err = newton_iterations( 1e-20 );
-    if ( err ) {
-        P( err );
-        throw runtime_error( "err" );
+    for( TF d : { 0.999, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0 } ) {
+        density->set_flattening_ratio( d );
+
+        // glot( linspace<TF>( density->min_x() - 0, density->max_x() + 0, 1000 ), 
+        //     [&]( TF x ) { return density->value( x ); }
+        // );
+        plot();
+
+        int err = newton_iterations( 1e-20 );
+        if ( err ) {
+            P( err );
+            throw runtime_error( "err 1" );
+        }
     }
 }
 

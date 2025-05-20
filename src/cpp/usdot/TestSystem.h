@@ -60,7 +60,7 @@ public:
     TF             time_in_update                   = 0; ///<
     TF             time_in_init                     = 0; ///<
 
-    TF             inv_coeff                        = 1e-2; ///<
+    TF             inv_coeff                        = 0; ///<
     TF             eps                              = 1e-30; ///<
 
 // private:

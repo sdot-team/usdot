@@ -2,6 +2,7 @@
 
 #include "common_macros.h"
 #include <vector>
+#include <cmath>
 
 namespace usdot {
 
