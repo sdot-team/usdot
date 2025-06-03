@@ -10,7 +10,6 @@ namespace usdot {
 #define UTP WeightInitializer<TF,Density>
 
 DTP UTP::WeightInitializer( Sys &sys ) : last_ag( nullptr ), sys( sys ) {
-    coeff_ext_density = 1e-2;
 }
 
 DTP void UTP::run() {
@@ -21,9 +20,6 @@ DTP void UTP::run() {
         optimize_the_new_aggregates();
         merge_touching_aggregates();
     }
-
-    // for( Ag *item = last_ag; item; item = item->prev )
-    //     P( item->beg_u, item->end_u, item->len_n() );
 
     set_the_weights();
 }
@@ -42,8 +38,8 @@ DTP void UTP::make_isolated_aggregates() {
 
         // find the cell position
         const TF b = min( TF( 1 - m ), max( TF( 0 ), newton_1D_unbounded<TF>( sys.density->cdf( x ) - m / 2, x_tol, [&]( TF b ) -> std::pair<TF,TF> {
-            const TF err = sys.density->inv_cdf( b, coeff_ext_density ) + sys.density->inv_cdf( b + m, coeff_ext_density ) - 2 * x;
-            const TF der = sys.density->der_inv_cdf( b, coeff_ext_density ) + sys.density->der_inv_cdf( b + m, coeff_ext_density );
+            const TF err = sys.density->inv_cdf( b ) + sys.density->inv_cdf( b + m ) - 2 * x;
+            const TF der = sys.density->der_inv_cdf( b ) + sys.density->der_inv_cdf( b + m );
             return { err, der };
         } ) ) );
         

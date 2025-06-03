@@ -38,3 +38,5 @@ using FP32    = float;
 using Str     = std::string;
 
 } // namespace usdot
+
+class Displayer;

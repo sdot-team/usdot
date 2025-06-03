@@ -6,7 +6,7 @@
 #include <tl/support/P.h>
 
 #include "ShapeRegistration.h"
-#include "System.h"
+#include "UsdotSystem.h"
 #include "usdot/utility/glot.h"
 
 namespace usdot {
@@ -168,8 +168,8 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     // density
     std::tuple<TF,TF,Vec<TF>> de = projected_density( proj_dir );
 
-    auto dp = linspace( std::get<0>( de ), std::get<1>( de ), std::get<2>( de ).size() );
-    DiffusionDensity<TF> gd( dp, std::move( std::get<2>( de ) ) );
+    // auto dp = linspace( std::get<0>( de ), std::get<1>( de ), std::get<2>( de ).size() );
+    UsdotDensity<TF> gd( std::get<0>( de ), std::get<1>( de ), std::get<2>( de ) );
     // TF beg_x_density = std::get<0>( de );
     // TF end_x_density = std::get<1>( de );
 
@@ -189,13 +189,11 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
     for( PI n = 0; n < new_diracs.size(); ++n )
         diracs[ n ] = sp( new_diracs[ n ], proj_dir );
 
-#warning ...
-std::sort( diracs.begin(), diracs.end() );
+    // #warning ...
+    // std::sort( diracs.begin(), diracs.end() );
 
-    System<TF> solver;
-    solver.set_global_mass_ratio( mass_ratio ); // 
-    solver.set_dirac_positions( diracs );
-    solver.set_density( &gd );
+    UsdotSystem<TF> solver( &gd, diracs, mass_ratio, 1e-2 );
+    solver.target_max_error_ratio = 1e-4;
     
     // solver.stream = &std::cout;
     // solver.verbosity = 2;
@@ -203,15 +201,17 @@ std::sort( diracs.begin(), diracs.end() );
     try {
         auto t0 = std::chrono::high_resolution_clock::now();
 
-        solver.solve( 0 );
+        solver.solve();
 
         auto t1 = std::chrono::high_resolution_clock::now();
-        P( std::chrono::duration<double>{ t1 - t0 } );
-        static int cpt = 0;
-        if ( cpt++ == 10 )
-            assert( 0 );
+        P( std::chrono::duration<double>{ t1 - t0 }.count() );
+        // static int cpt = 0;
+        // if ( cpt++ == 10 )
+        //     assert( 0 );
     } catch ( std::runtime_error e ) {
-        // P( solver.sorted_dirac_weights );
+        P( mass_ratio );
+        P( gd.values );
+        P( diracs );
         //solver.plot();
         // glot_stream( [&]( std::ostream &fs ) {
         //     // gd.plot( fs );
@@ -236,7 +236,7 @@ std::sort( diracs.begin(), diracs.end() );
     // }
 
     // delta
-    const auto ba = solver.cell_barycenters();
+    const auto ba = solver.original_cell_barycenters();
     Vec<TF> res( FromSize(), diracs.size() );
     //res[ n ] = beg_x_density + ( ba[ n ] - diracs[ n ] ) * ( end_x_density - beg_x_density ) / gd.ptp_x();
     for( PI n = 0; n < diracs.size(); ++n )

@@ -18,14 +18,15 @@ TF dichotomy( const Func &func, TF tol, TF beg_x, TF end_x, TF beg_y, TF end_y, 
         // const TF mid_x = ( beg_x + end_x ) / 2; // ( beg_x * end_y - end_x * beg_y ) / ( end_y - beg_y );
         const TF f = max( 0.2, min( 0.8, abs( beg_y ) / ( abs( end_y ) + abs( beg_y ) ) ) );
         const TF mid_x = ( 1 - f ) * beg_x + f * end_x;
-        if ( num_iter == max_iter ) {
-            std::cout << " beg_x:" << beg_x << " end_x:" << end_x << " beg_y:" << beg_y << " end_y:" << end_y << std::endl;
-            throw runtime_error( "dichotomy pb" );
-        }
-
         const TF mid_y = func( mid_x );
         if ( abs( mid_y ) <= tol || beg_x == end_x )
             return mid_x;
+
+        if ( num_iter == max_iter ) {
+            std::cout << " beg_x:" << beg_x << " end_x:" << end_x << " beg_y:" << beg_y << " mid_y:" << mid_y << " end_y:" << end_y << std::endl;
+            throw runtime_error( "dichotomy pb" );
+        }
+
 
         if ( ( mid_y < 0 ) ^ ( beg_y > end_y ) ) {
             beg_x = mid_x;

@@ -37,7 +37,6 @@ private:
     void             set_the_weights            ();
            
     Ag*              last_ag_to_optimize;       ///<
-    TF               coeff_ext_density;         ///<
     Ag*              last_ag;
     BumpPointerPool  pool;
     Sys&             sys;

@@ -2,14 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import usdot
 
+import problemos
 
 parms = usdot.OtParms()
-parms.verbosity = 0
+parms.verbosity = 2
 
-dirac_positions = np.load( "/Users/hugo.leclerc/Downloads/problematic_diracs_triangular.npy" )
-print(dirac_positions)
-
-res = usdot.from_p1_grid( dirac_positions = dirac_positions, density_positions = [ 0, 1, 2 ], density_values = [ 0, 1, 0 ], global_mass_ratio = 0.1, ot_parms = parms )
+res = usdot.from_p1_grid( dirac_positions = problemos.pd, density_positions = problemos.dp, density_values = problemos.dv, global_mass_ratio = 0.984, ot_parms = parms )
 # print( res )
 usdot.plot( res )
 

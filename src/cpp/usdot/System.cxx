@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include "WeightInitializer.h"
+// #include "WeightInitializer.h"
 #include "utility/linspace.h"
 //#include "WeightUpdater.h"
 //#include "utility/glot.h"
@@ -554,6 +554,8 @@ DTP int UTP::_make_newton_system() {
         if ( isnan( v ) )
             throw std::runtime_error( "nan mat (before fact)" );
 
+    // P( mm0, has_bad_cell, has_arc, newton_error );
+
     if ( has_bad_cell )
         return 1;
 
@@ -568,9 +570,8 @@ DTP int UTP::_make_newton_system() {
             return 1;
         // throw std::runtime_error( "nan mat (after fact)" );
 
-    if ( mm0 < 0 )
+    if ( mm0 <= 0 )
         return 2;
-    // P( mm0 );
 
     return 0;
 }
@@ -929,7 +930,7 @@ DTP int UTP::newton_iterations( TF min_relax ) {
     TF prev_newton_error = newton_error;
     for( nb_newton_iterations = 0; ; ++nb_newton_iterations ) {
         if ( nb_newton_iterations == 1000 )
-            throw std::runtime_error( "max iter" );
+            return 4;
 
         for( auto &v : newton_matrix_ldlt.values )
             if ( isnan( v ) )
@@ -958,10 +959,11 @@ DTP int UTP::newton_iterations( TF min_relax ) {
             if ( err )
                 continue;
 
-            if ( prev_newton_error > newton_error ) {
-                prev_newton_error = newton_error;
-                break;
-            }
+            // if ( prev_newton_error > newton_error ) {
+            //     prev_newton_error = newton_error;
+            //     break;
+            // }
+            break;
         }
 
         if ( verbosity >= 3 && stream )
@@ -974,7 +976,11 @@ DTP int UTP::newton_iterations( TF min_relax ) {
 }
 
 DTP void UTP::solve_using_cdf() {
-    // _update_system( true );
+    _update_system( true );
+
+    density->set_flattening_ratio( 0 );
+
+    // 
 
     // auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -984,7 +990,8 @@ DTP void UTP::solve_using_cdf() {
 
     // nb_iterations_init = wi.nb_iterations;
     // auto t1 = std::chrono::high_resolution_clock::now();
-    // time_in_init = std::chrono::duration<double>{ t1 - t0 }.count();
+    // // time_in_init = std::chrono::duration<double>{ t1 - t0 }.count();
+    // P( "cdf:", std::chrono::duration<double>{ t1 - t0 }.count() );
 }
 
 DTP void UTP::solve( bool use_approx_for_ders ) {
@@ -1019,7 +1026,19 @@ DTP void UTP::solve( bool use_approx_for_ders ) {
             //
             const TF a = trial_flattening_ratio - prev_flattening_ratio;
             density->set_flattening_ratio( trial_flattening_ratio );
-            if ( abs( a ) < 1e-6 ) {
+            if ( abs( a ) < 1e-10 ) {
+                plot();
+                // P( cell_boundaries() );
+                // TF mi = 1;
+                // for( auto b : cell_boundaries() ) {
+                //     P( density->integral( b[ 0 ], b[ 1 ] ) / 0.000333335 );
+                //     // P( b[ 1 ] - b[ 0 ] );
+                //     mi = min( mi, b[ 1 ] - b[ 0 ] );
+                // }
+                // P( mi );
+                // solve_using_cdf();
+                // return;
+                // P( density->integral( -1000, 1000 ) );
                 throw std::runtime_error( "low a" );
             }
 

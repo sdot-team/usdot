@@ -11,18 +11,15 @@ namespace usdot {
 #define DTP template<class TF>
 #define UTP DiffusionDensity<TF>
 
-DTP UTP::DiffusionDensity( TF beg_original_positions, TF end_original_positions, const VF &original_values ) : DiffusionDensity( linspace( beg_original_positions, end_original_positions, original_values.size() ), original_values ) {
+DTP UTP::DiffusionDensity( TF beg_original_positions, TF end_original_positions, const VF &original_values, TF start_flattening_ratio ) : DiffusionDensity( linspace( beg_original_positions, end_original_positions, original_values.size() ), original_values, start_flattening_ratio ) {
 }
 
-DTP UTP::DiffusionDensity( const VF &original_values ) : DiffusionDensity( 0, 1, original_values ) {
+DTP UTP::DiffusionDensity( const VF &original_values, TF start_flattening_ratio ) : DiffusionDensity( 0, 1, original_values, start_flattening_ratio ) {
 }
 
-DTP UTP::DiffusionDensity( const VF &positions, const VF &original_values ) {
+DTP UTP::DiffusionDensity( const VF &positions, const VF &original_values, TF start_flattening_ratio ) : indexed_positions( positions ), original_values( original_values ) {
     this->current_flattening_ratio = -1;
     this->coeff_flattening_ratio = 3;
-
-    this->original_values = original_values;
-    this->positions = positions;
 
     // extended positions
     const PI n = positions.size();
@@ -36,7 +33,7 @@ DTP UTP::DiffusionDensity( const VF &positions, const VF &original_values ) {
         this->extended_positions[ i ] = ( 2 - f ) * beg_x + ( f - 1 ) * end_x;
     }
     for( PI i = 0; i < n; ++i )
-        this->extended_positions[ e + i ] = this->positions[ i ];
+        this->extended_positions[ e + i ] = positions[ i ];
     for( PI i = 0; i < e; ++i ) {
         TF f = TF( i + 1 ) / e;
         this->extended_positions[ e + n + i ] = ( 1 - f ) * beg_x + ( 1 + f ) * end_x;
@@ -49,48 +46,34 @@ DTP UTP::DiffusionDensity( const VF &positions, const VF &original_values ) {
     for( auto &v : this->original_values )
         v /= o;
 
-    // opt_pos
-    const TF dx = positions.back() - positions.front();
-    const PI opt_size = positions.size();
-    opt_pos_beg_inds.resize( opt_size );
-    opt_pos_beg_x = positions.front();
-    opt_pos_mul_x = opt_size / dx;
-
-    for( PI &ind : opt_pos_beg_inds )
-        ind = opt_size;
-    for( PI i = 1; i < positions.size(); ++i ) {
-        const PI x0 = PI( floor( ( positions[ i - 1 ] - opt_pos_beg_x ) * opt_pos_mul_x ) );
-        const PI x1 = PI( ceil( ( positions[ i - 0 ] - opt_pos_beg_x ) * opt_pos_mul_x ) );
-        for( PI n = x0; n < std::min( x1, opt_size ); ++n )
-            opt_pos_beg_inds[ n ] = std::min( opt_pos_beg_inds[ n ], i );
-    }
+    // start with no flattening
+    set_flattening_ratio( start_flattening_ratio );
 }
 
 DTP void UTP::set_flattening_ratio( TF flattening_ratio ) {
-    using namespace std;
-
     if ( current_flattening_ratio == flattening_ratio )
         return;
+
     current_flattening_ratio = flattening_ratio;
-
-    //
     _compute_values_for( flattening_ratio );
+    _compute_primitives();
+}
 
-    // primitives
-    x_primitives.resize( this->values.size() );
-    primitives.resize( this->values.size() );
+DTP void UTP::_compute_primitives() {
+    x_primitives.resize( values.size() );
+    primitives.resize( values.size() );
     TF o = 0, x_o = 0;
-    for( PI i = 0; i + 1 < this->values.size(); ++i ) {
-        const TF v0 = this->values[ i + 0 ]; 
-        const TF v1 = this->values[ i + 1 ];
-        const TF x0 = positions[ i + 0 ]; 
-        const TF x1 = positions[ i + 1 ]; 
+    for( PI i = 0; i + 1 < values.size(); ++i ) {
+        const TF x0 = indexed_positions.positions[ i + 0 ]; 
+        const TF x1 = indexed_positions.positions[ i + 1 ]; 
+        const TF v0 = values[ i + 0 ]; 
+        const TF v1 = values[ i + 1 ];
         const TF x6 = ( x0 + x1 ) / 6;
 
         x_primitives[ i ] = x_o;
         primitives[ i ] = o;
 
-        // ( x1 - x0 ) * ( f * v0 * x0 + (f^3 * (v0 - v1) * (x0 - x1) ) / 3 + ( f^2 * (-2 * v0 * x0 + v1 * x0 + v0 * x1 ) ) / 2 )
+        // ( x1 - x0 ) * ( f * v0 * x0 + (f^3 * dv * (x0 - x1) ) / 3 + ( f^2 * (-2 * v0 * x0 + v1 * x0 + v0 * x1 ) ) / 2 )
         x_o += v0 * ( x1 * x6 - x0 * x0 / 3 ) + v1 * ( x1 * x1 / 3 - x0 * x6 );
         o += ( x1 - x0 ) * ( v0 + v1 ) / 2;
     }
@@ -109,9 +92,16 @@ DTP void UTP::set_flattening_ratio( TF flattening_ratio ) {
             v /= sys_div;
     } else
         sys_div = 1;
+
+    max_value = 0;
+    for( const TF &v : values )
+        if ( v > max_value )
+            max_value = v;
 }
 
+
 DTP void UTP::compute_derivatives( PI nb_derivatives ) {
+    const auto &positions = indexed_positions.positions;
     const PI s = extended_positions.size();
     const TF d = pow( ptp_x(), -2 );
     const PI n = positions.size();
@@ -293,6 +283,8 @@ DTP void UTP::compute_derivatives( PI nb_derivatives ) {
 }
 
 DTP TF UTP::x2_integral( TF b, TF e, TF di ) const {
+    // TODO: optimize
+    const auto &positions = indexed_positions.positions;
     using namespace std;
     TF res = 0;
     for( PI i = 1; i < positions.size(); ++i ) {
@@ -305,158 +297,281 @@ DTP TF UTP::x2_integral( TF b, TF e, TF di ) const {
         const TF v0 = values[ i - 1 ];
         const TF v1 = values[ i - 0 ];
         // int( ( x - di ) ^ 2 * ( v0 + ( x - x0 ) / ( x1 - x0 ) * ( v1 - v0 ) ) )
+        // res += (
+        //     i1 * (
+        //         + v0 * ( -12 * di * di * x1 - 4 * i1 * i1 * ( 2 * di + x1 ) + 6 * i1 * di * ( di + 2 * x1 ) + 3 * i1 * i1 * i1 )
+        //         + v1 * ( +12 * di * di * x0 + 4 * i1 * i1 * ( 2 * di + x0 ) - 6 * i1 * di * ( di + 2 * x0 ) - 3 * i1 * i1 * i1 )
+        //     ) - 
+        //     i0 * (
+        //         + v0 * ( -12 * di * di * x1 - 4 * i0 * i0 * ( 2 * di + x1 ) + 6 * i0 * di * ( di + 2 * x1 ) + 3 * i0 * i0 * i0 )
+        //         + v1 * ( +12 * di * di * x0 + 4 * i0 * i0 * ( 2 * di + x0 ) - 6 * i0 * di * ( di + 2 * x0 ) - 3 * i0 * i0 * i0 )
+        //     )
+        // ) / ( 12 * ( x0 - x1 ) );
         res += (
-            i1 * (
-                + v0 * ( -12 * di * di * x1 - 4 * i1 * i1 * ( 2 * di + x1 ) + 6 * i1 * di * ( di + 2 * x1 ) + 3 * i1 * i1 * i1 )
-                + v1 * ( +12 * di * di * x0 + 4 * i1 * i1 * ( 2 * di + x0 ) - 6 * i1 * di * ( di + 2 * x0 ) - 3 * i1 * i1 * i1 )
+            pow( i1 - di, 3 ) * (
+                - v0 * ( 3 * i1 + di - 4 * x1 )
+                + v1 * ( 3 * i1 + di - 4 * x0 )
             ) - 
-            i0 * (
-                + v0 * ( -12 * di * di * x1 - 4 * i0 * i0 * ( 2 * di + x1 ) + 6 * i0 * di * ( di + 2 * x1 ) + 3 * i0 * i0 * i0 )
-                + v1 * ( +12 * di * di * x0 + 4 * i0 * i0 * ( 2 * di + x0 ) - 6 * i0 * di * ( di + 2 * x0 ) - 3 * i0 * i0 * i0 )
+            pow( i0 - di, 3 ) * (
+                - v0 * ( 3 * i0 + di - 4 * x1 )
+                + v1 * ( 3 * i0 + di - 4 * x0 )
             )
-        ) / ( 12 * ( x0 - x1 ) );
+        ) / ( 12 * ( x1 - x0 ) );
     }
     return res;
 }
 
 DTP TF UTP::x_primitive( TF x ) const {
-    if ( x < opt_pos_beg_x )
-        return 0;
-
-    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
-    if ( ox >= opt_pos_beg_inds.size() )
+    auto index = indexed_positions.index( x );
+    if ( index.f > 1 )
         return x_primitives.back();
+    if ( index.f < 0 )
+        return 0;
+    
+    const TF dx = index.x1 - index.x0;
+    const PI i0 = index.i - 1;
+    const PI i1 = index.i - 0;
 
-    for( PI i = opt_pos_beg_inds[ ox ]; i < positions.size(); ++i ) {
-        const TF x1 = positions[ i - 0 ];
-        if ( x1 >= x ) {
-            const TF x0 = positions[ i - 1 ];
-            if ( const TF dx = x1 - x0 ) {
-                const TF v0 = values[ i - 1 ];
-                const TF v1 = values[ i - 0 ];
-                const TF f = ( x - x0 ) / dx;
-                const TF dv = v1 - v0;
-                const TF f2 = f * f;
-                const TF f3 = f2 * f;
-        
-                return x_primitives[ i - 1 ] + dx * ( f * v0 * x0 + f3 * dv * dx / 3 + ( f2 * ( v1 * x0 + v0 * x1 - 2 * v0 * x0 ) ) / 2 );
-            }
-            return x_primitives[ i - 1 ];
+    const TF v0 = values[ i0 ];
+    const TF v1 = values[ i1 ];
+    const TF dv = v1 - v0;
+
+    const TF f1 = index.f;
+    const TF f2 = f1 * f1;
+    const TF f3 = f2 * f1;
+
+    return x_primitives[ i0 ] + dx * ( f1 * v0 * index.x0 + f3 * dv * dx / 3 + ( f2 * ( v1 * index.x0 + v0 * index.x1 - 2 * v0 * index.x0 ) ) / 2 );
+}
+
+DTP void UTP::disk_integral( TF x0, TF x1, TF c, TF r, TF &mass, TF &dmass ) const {
+    using namespace std;
+
+    const auto &positions = indexed_positions.positions;
+    auto i0 = indexed_positions.bounded_index( x0 );
+    auto i1 = indexed_positions.bounded_index( x1 );
+    if ( i0.n == i1.n && i0.f == i1.f )
+        return;
+
+    /* sage:
+        r, x, c, v0, v1, p0, p1 = var('r,x,c,v0,v1,p0,p1')
+        assume( r > 0 )
+        assume( x > 0 )
+        assume( c > 0 )
+        assume( x - c > 0 )
+        assume( p1 - p0 > 0 )
+        assume( r^2 - ( x - c )^2 > 0 )
+        integral( 2 * ( r^2 - ( x - c )^2 )^(1/2) * ( v0 + ( v1 - v0 ) * ( x - p0 ) / ( p1 - p0 ) ), x )
+    */
+    auto p = [&]( auto x, const TF p0, const TF p1, const TF v0, const TF v1 ) -> TF {
+        const TF dp = p0 - p1;
+        if ( dp == 0 )
+            return 0;
+        const TF as = asin( clamp( ( c - x ) / r, TF( -1 ), TF( 1 ) ) );
+        const TF x2 = pow( x, 2 );
+        const TF r2 = pow( r, 2 );
+        const TF c2 = pow( c, 2 );
+        const TF c3 = pow( c, 3 );
+        const TF s2 = max( TF( 0 ), r2 - pow( c - x, 2 ) );
+        const TF s3 = pow( s2, TF( 3 ) / 2 );
+        const TF s1 = sqrt( s2 );
+        const TF dv = v0 - v1;
+        const TF d0 = p0 * dv / dp - v0;
+        return 
+            + (
+                + s1 * ( c * x - c2 )
+                - as * r2 * c
+                - 2 * s3 / 3
+            ) * dv / dp 
+             
+            + (
+                + s1 * ( c - x )
+                + r2 * as
+            ) * d0
+            ;
+    };
+
+    auto contrib = [&]( const TF p0, const TF p1, const TF v0, const TF v1 ) {
+        if ( p0 == p1 )
+            return;
+
+        mass += p( p1, p0, p1, v0, v1 ) - p( p0, p0, p1, v0, v1 );
+
+        const TF a0 = acos( clamp( TF( ( p0 - c ) / r ), TF( -1 ), TF( +1 ) ) );
+        const TF a1 = acos( clamp( TF( ( p1 - c ) / r ), TF( -1 ), TF( +1 ) ) );
+        const TF dc = cos( a1 ) - cos( a0 );
+        const TF ds = sin( a1 ) - sin( a0 );
+        dmass -= (
+            ds * ( v1 - v0 ) +
+            ( a1 - a0 ) * ( cos( a1 ) * v0 - cos( a0 ) * v1 )
+        ) / dc;
+    };
+
+    if ( i0.n < i1.n ) {
+        TF p0 = positions[ i0.n - 1 ] * ( 1 - i0.f ) + positions[ i0.n - 0 ] * i0.f;
+        TF v0 = values[ i0.n - 1 ] * ( 1 - i0.f ) + values[ i0.n - 0 ] * i0.f;
+        TF acc = 0;
+        for( PI i = i0.n; i < i1.n; ++i ) {
+            const TF pi = positions[ i ];
+            const TF vi = values[ i ];
+
+            contrib( p0, pi, v0, vi );
+
+            v0 = vi;
+            p0 = pi;
         }
+
+        const TF p1 = positions[ i1.n - 1 ] * ( 1 - i1.f ) + positions[ i1.n - 0 ] * i1.f;
+        const TF v1 = values[ i1.n - 1 ] * ( 1 - i1.f ) + values[ i1.n - 0 ] * i1.f;
+        contrib( p0, p1, v0, v1 );
+    } else {
+        const TF p0 = positions[ i0.n - 1 ] * ( 1 - i0.f ) + positions[ i0.n - 0 ] * i0.f;
+        const TF p1 = positions[ i0.n - 1 ] * ( 1 - i1.f ) + positions[ i0.n - 0 ] * i1.f;
+        const TF v0 = values[ i0.n - 1 ] * ( 1 - i0.f ) + values[ i0.n - 0 ] * i0.f;
+        const TF v1 = values[ i0.n - 1 ] * ( 1 - i1.f ) + values[ i0.n - 0 ] * i1.f;
+        contrib( p0, p1, v0, v1 );
     }
 
-    return x_primitives.back();
+}
+
+DTP TF UTP::disk_integral( TF x0, TF x1, TF c, TF r ) const {
+    using namespace std;
+
+    const auto &positions = indexed_positions.positions;
+    auto i0 = indexed_positions.bounded_index( x0 );
+    auto i1 = indexed_positions.bounded_index( x1 );
+    if ( i0.n == i1.n && i0.f == i1.f )
+        return 0;
+
+    /* sage:
+        r, x, c, v0, v1, p0, p1 = var('r,x,c,v0,v1,p0,p1')
+        assume( r > 0 )
+        assume( x > 0 )
+        assume( c > 0 )
+        assume( x - c > 0 )
+        assume( p1 - p0 > 0 )
+        assume( r^2 - ( x - c )^2 > 0 )
+        integral( 2 * ( r^2 - ( x - c )^2 )^(1/2) * ( v0 + ( v1 - v0 ) * ( x - p0 ) / ( p1 - p0 ) ), x )
+    */
+    auto p = [&]( auto x, const TF p0, const TF p1, const TF v0, const TF v1 ) -> TF {
+        const TF dp = p0 - p1;
+        if ( dp == 0 )
+            return 0;
+        const TF as = asin( clamp( ( c - x ) / r, TF( -1 ), TF( 1 ) ) );
+        const TF x2 = pow( x, 2 );
+        const TF r2 = pow( r, 2 );
+        const TF c2 = pow( c, 2 );
+        const TF c3 = pow( c, 3 );
+        const TF s2 = max( TF( 0 ), r2 - pow( c - x, 2 ) );
+        const TF s3 = pow( s2, TF( 3 ) / 2 );
+        const TF s1 = sqrt( s2 );
+        const TF dv = v0 - v1;
+        const TF d0 = p0 * dv / dp - v0;
+        return 
+            + (
+                + s1 * ( c * x - c2 )
+                - as * r2 * c
+                - 2 * s3 / 3
+            ) * dv / dp 
+             
+            + (
+                + s1 * ( c - x )
+                + r2 * as
+            ) * d0
+            ;
+    };
+
+    auto pa = [&]( const TF p0, const TF p1, const TF v0, const TF v1 ) -> TF {
+        return p( p1, p0, p1, v0, v1 ) - p( p0, p0, p1, v0, v1 );
+    };
+
+    if ( i0.n < i1.n ) {
+        TF p0 = positions[ i0.n - 1 ] * ( 1 - i0.f ) + positions[ i0.n - 0 ] * i0.f;
+        TF v0 = values[ i0.n - 1 ] * ( 1 - i0.f ) + values[ i0.n - 0 ] * i0.f;
+        TF acc = 0;
+        for( PI i = i0.n; i < i1.n; ++i ) {
+            const TF pi = positions[ i ];
+            const TF vi = values[ i ];
+
+            acc += pa( p0, pi, v0, vi );
+
+            v0 = vi;
+            p0 = pi;
+        }
+
+        const TF p1 = positions[ i1.n - 1 ] * ( 1 - i1.f ) + positions[ i1.n - 0 ] * i1.f;
+        const TF v1 = values[ i1.n - 1 ] * ( 1 - i1.f ) + values[ i1.n - 0 ] * i1.f;
+        acc += pa( p0, p1, v0, v1 );
+
+        return acc;
+    }
+
+    const TF p0 = positions[ i0.n - 1 ] * ( 1 - i0.f ) + positions[ i0.n - 0 ] * i0.f;
+    const TF p1 = positions[ i0.n - 1 ] * ( 1 - i1.f ) + positions[ i0.n - 0 ] * i1.f;
+    const TF v0 = values[ i0.n - 1 ] * ( 1 - i0.f ) + values[ i0.n - 0 ] * i0.f;
+    const TF v1 = values[ i0.n - 1 ] * ( 1 - i1.f ) + values[ i0.n - 0 ] * i1.f;
+    return pa( p0, p1, v0, v1 );
 }
 
 DTP TF UTP::primitive( TF x ) const {
-    if ( x < opt_pos_beg_x )
+    auto index = indexed_positions.index( x );
+    if ( index.f > 1 )
+        return primitives.back();
+    if ( index.f < 0 )
         return 0;
 
-    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
-    if ( ox >= opt_pos_beg_inds.size() )
-        return primitives.back();
-
-    for( PI i = opt_pos_beg_inds[ ox ]; i < positions.size(); ++i ) {
-        const TF x1 = positions[ i - 0 ];
-        if ( x1 >= x ) {
-            const TF x0 = positions[ i - 1 ];
-            if ( const TF dx = x1 - x0 ) {
-                const TF v0 = values[ i - 1 ];
-                const TF v1 = values[ i - 0 ];
-                const TF xd = x - x0;
-              
-                TF res = xd * v0 + xd * xd / dx * ( v1 - v0 ) / 2;
-                return primitives[ i - 1 ] + res;
-            }
-            return primitives[ i - 1 ];
-        }
-    }
-
-    return primitives.back();
+    const TF v0 = values[ index.n - 1 ];
+    const TF v1 = values[ index.n - 0 ];
+    const TF xd = x - index.x0;
+    
+    if ( const TF dx = index.x1 - index.x0 )
+        return primitives[ index.n - 1 ] + xd * v0 + xd * xd / dx * ( v1 - v0 ) / 2;
+    return primitives[ index.n - 1 ];
 }
 
 DTP TF UTP::value( TF x ) const {
-    if ( x < opt_pos_beg_x )
+    auto index = indexed_positions.index( x );
+    if ( index.f > 1 || index.f < 0 )
         return 0;
 
-    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
-    if ( ox >= opt_pos_beg_inds.size() )
-        return 0;
-
-    for( PI i = opt_pos_beg_inds[ ox ]; i < positions.size(); ++i ) {
-        if ( positions[ i ] >= x ) {
-            if ( const TF de = positions[ i - 0 ] - positions[ i - 1 ] ) {
-                TF f = ( x - positions[ i - 1 ] ) / de;
-                return values[ i - 1 ] * ( 1 - f ) + values[ i - 0 ] * f;
-            }
-            return values[ i ];
-        }
-    }
-
-    return 0;
+    const TF v0 = values[ index.n - 1 ];
+    const TF v1 = values[ index.n - 0 ];
+    return v0 * ( 1 - index.f ) + v1 * index.f;
 }
 
 DTP TF UTP::value( TF x, PI num_der ) const {
-    // 
-    if ( num_der == 0 )
-        return value( x );
-    const VF &values = this->der_values[ num_der - 1 ];
-
-    //
-    if ( x < opt_pos_beg_x )
+    auto index = indexed_positions.index( x );
+    if ( index.f > 1 || index.f < 0 )
         return 0;
 
-    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
-    if ( ox >= opt_pos_beg_inds.size() )
-        return 0;
-
-    for( PI i = opt_pos_beg_inds[ ox ]; i < positions.size(); ++i ) {
-        if ( positions[ i ] >= x ) {
-            if ( const TF de = positions[ i - 0 ] - positions[ i - 1 ] ) {
-                TF f = ( x - positions[ i - 1 ] ) / de;
-                return values[ i - 1 ] * ( 1 - f ) + values[ i - 0 ] * f;
-            }
-            return values[ i ];
-        }
-    }
-
-    return 0;
+    const VF &values = num_der ? this->der_values[ num_der - 1 ] : this->values;
+    const TF v0 = values[ index.n - 1 ];
+    const TF v1 = values[ index.n - 0 ];
+    return v0 * ( 1 - index.f ) + v1 * index.f;
 }
 
 DTP TF UTP::primitive( TF x, PI num_der ) const {
-    if ( num_der == 0 )
-        return primitive( x );
+    const VF &primitives = num_der ? der_primitives[ num_der - 1 ] : this->primitives;
+    const VF &values = num_der ? der_values[ num_der - 1 ] : this->values;
 
-    // precomputation(s)
-    const VF &primitives = der_primitives[ num_der - 1 ];
-    const VF &values = der_values[ num_der - 1 ];
-    if ( x < opt_pos_beg_x )
+    auto index = indexed_positions.index( x );
+    if ( index.f > 1 )
+        return primitives.back();
+    if ( index.f < 0 )
         return 0;
 
-    const PI ox = PI( ( x - opt_pos_beg_x ) * opt_pos_mul_x );
-    if ( ox >= opt_pos_beg_inds.size() )
-        return primitives.back();
-
-    for( PI i = 0 * opt_pos_beg_inds[ ox ]; i < positions.size(); ++i ) {
-        const TF x1 = positions[ i - 0 ];
-        if ( x1 >= x ) {
-            const TF x0 = positions[ i - 1 ];
-            if ( const TF dx = x1 - x0 ) {
-                const TF v0 = values[ i - 1 ];
-                const TF v1 = values[ i - 0 ];
-                const TF xd = x - x0;
-                
-                TF res = xd * v0 + xd * xd / dx * ( v1 - v0 ) / 2;
-                return primitives[ i - 1 ] + res;
-            }
-            return primitives[ i - 1 ];
-        }
+    if ( const TF dx = index.x1 - index.x0 ) {
+        const TF v0 = values[ index.n - 1 ];
+        const TF v1 = values[ index.n - 0 ];
+        const TF xd = x - index.x0;
+        
+        TF res = xd * v0 + xd * xd / dx * ( v1 - v0 ) / 2;
+        return primitives[ index.n - 1 ] + res;
     }
-
-    return primitives.back();
+    return primitives[ index.n - 1 ];
 }
 
 DTP typename UTP::VF UTP::_primitive_of( const VF &values ) const {
+    const auto &positions = indexed_positions.positions;
     const PI n = values.size();
     VF res( n );
 
@@ -479,6 +594,7 @@ DTP typename UTP::VF UTP::_primitive_of( const VF &values ) const {
 DTP void UTP::_compute_values_for( TF flattening_ratio ) {
     using namespace std;
 
+    const auto &positions = indexed_positions.positions;
     const PI s = extended_positions.size();
     const PI n = positions.size();
     const PI e = ( s - n ) / 2;
@@ -553,11 +669,11 @@ DTP TF UTP::integral( TF x0, TF x1 ) const {
 }
 
 DTP TF UTP::min_x() const {
-    return positions.front();
+    return indexed_positions.min_x();
 }
 
 DTP TF UTP::max_x() const {
-    return positions.back();
+    return indexed_positions.max_x();
 }
 
 DTP TF UTP::ptp_x() const {
@@ -565,6 +681,7 @@ DTP TF UTP::ptp_x() const {
 }
 
 DTP void UTP::plot( std::ostream &fs, std::string linestyle, double linewidth ) const {
+    const auto &positions = indexed_positions.positions;
     fs << "pyplot.plot( ["; 
     for( PI n = 0; n < positions.size(); ++n )
         fs << positions[ n ] << ", ";    

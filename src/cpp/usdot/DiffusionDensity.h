@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utility/TridiagonalSymmetricMatrix.h"
-#include "utility/common_types.h"
+#include "utility/IndexedPositions.h"
 #include <ostream>
 #include <vector>
 
@@ -21,13 +21,14 @@ template<class TF>
 class DiffusionDensity {
 public:
     using SY                        = TridiagonalSymmetricMatrix<TF>;
+    using IP                        = IndexedPositions<TF>;
     using VF                        = std::vector<TF>;
     using VI                        = std::vector<PI>;
     using MF                        = std::vector<VF>;
          
-    /**/  DiffusionDensity          ( TF beg_original_positions, TF end_original_positions, const VF &original_values );
-    /**/  DiffusionDensity          ( const VF &original_positions, const VF &original_values );
-    /**/  DiffusionDensity          ( const VF &original_values );
+    /**/  DiffusionDensity          ( TF beg_original_positions, TF end_original_positions, const VF &original_values, TF start_flattening_ratio = 0 );
+    /**/  DiffusionDensity          ( const VF &original_positions, const VF &original_values, TF start_flattening_ratio = 0 );
+    /**/  DiffusionDensity          ( const VF &original_values, TF start_flattening_ratio = 0 );
          
     void  set_flattening_ratio      ( TF flattening_ratio );
     void  compute_derivatives       ( PI nb_derivatives );
@@ -36,6 +37,8 @@ public:
     TF    x_primitive               ( TF x ) const; ///< primitive( x d\rho )
     TF    x_integral                ( TF x0, TF x1 ) const; ///< integral( x d\rho, x0, x1 )
        
+    void  disk_integral             ( TF x0, TF x1, TF c, TF r, TF &mass, TF &dmass ) const;
+    TF    disk_integral             ( TF x0, TF x1, TF c, TF r ) const;
     TF    derivative                ( TF x ) const;
     TF    primitive                 ( TF x ) const;
     TF    integral                  ( TF x0, TF x1 ) const;
@@ -53,11 +56,13 @@ public:
     void  plot                      ( std::ostream &fs, std::string linestyle = "-", double linewidth = 1 ) const;
       
     void  _compute_values_for       ( TF flattening_ratio );
+    void  _compute_primitives       ();
     VF    _primitive_of             ( const VF &values ) const;
   
     VF    extended_positions;       ///<
+    IP    indexed_positions;        ///<
     VF    original_values;          ///<
-    VF    positions;                ///<
+    TF    max_value;                ///<
     VF    values;                   ///<
   
     VF    x_primitives;             ///<
@@ -72,10 +77,6 @@ public:
     VF    sys_vec;                  ///<
 
     bool  normalization = 1;        ///<
-     
-    VI    opt_pos_beg_inds;         ///<
-    TF    opt_pos_beg_x;            ///<
-    TF    opt_pos_mul_x;            ///<
 };
 
 } // namespace usdot

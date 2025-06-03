@@ -29,7 +29,7 @@ TEST_CASE( "System", "" ) {
     TestSystem<TF> si;
     // si.set_dirac_positions( cellspace<TF>( 1.0, 2.0, 3 ) );
     si.set_global_mass_ratio( .984 );
-    si.set_dirac_positions( pd, 1e-3 );
+    si.set_dirac_positions( pd, 1e-2 );
     // si.set_dirac_positions( { -1, 0, 0, 0, 0, 1 }, 1e-3 );
     si.set_density( &gd );
     si._update_system();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common_macros.h"
+#include "common_types.h"
 #include <vector>
 #include <cmath>
 
@@ -13,7 +14,6 @@ namespace usdot {
 template<class T>
 class TridiagonalSymmetricMatrix {
 public:
-    using    PI                        = std::size_t;
     using    TV                        = std::vector<T>;
         
     /**/     TridiagonalSymmetricMatrix( PI size, T default_bands_value );
@@ -28,6 +28,7 @@ public:
     T&       operator()                ( PI r, PI c );
     
     T_U void display                   ( U &ds ) const;
+    TV       diag                      () const;
     PI       size                      () const;
           
     int      inplace_ldlt_decomposition();
@@ -78,8 +79,15 @@ DTP T_U void UTP::display( U &ds ) const {
     ds.end_array();
 }
 
-DTP typename UTP::PI UTP::size() const {
+DTP PI UTP::size() const {
     return ( values.size() + 1 ) / 2;
+}
+
+DTP typename UTP::TV UTP::diag() const {
+    TV res( size() );
+    for( PI i = 0; i < size(); ++i )
+        res[ i ] = operator()( i, i );
+    return res;
 }
 
 DTP void UTP::clear_values() {

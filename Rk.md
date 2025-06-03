@@ -332,3 +332,5 @@ d'' = X'' / sys_div
     - 2 * X' * sum( x' ) / sum( x )^2
     + 2 * X * sum( x' )^2 / sum( x )^3
     - X * sum( x'' ) / sum( x )^2
+
+Est-ce qu'on pourrait faire une initialisation avec epsilon très grand ? Ça serait une solution pour simplifier les calculs au démarrage“
