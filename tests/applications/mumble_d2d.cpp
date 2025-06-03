@@ -29,7 +29,7 @@ int main() {
     } ); 
 
     // start from a false position
-    sr.transformation = Sr::Tr::rotation( 15 * M_PI / 180 ) * Sr::Tr::translation( { 4, -6, 0 } );
+    sr.transformation = Sr::Tr::rotation( - 15 * M_PI / 180 ) * Sr::Tr::translation( { -4, -6, 0 } );
     sr.mass_ratio = TF( sr.diracs.size() ) / 3000;
 
     //

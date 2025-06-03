@@ -336,5 +336,6 @@ d'' = X'' / sys_div
 Est-ce qu'on pourrait faire une initialisation avec epsilon très grand ? Ça serait une solution pour simplifier les calculs au démarrage“
 
 
-mean( sr.time_in_solve ):  0.00608082
-Sliced transport ICP: 0.000605081 seconds per iteration
+mean( sr.time_in_solve ):  0.00504353
+mean( sr.time_in_solve ):  0.00265965
+Sliced transport ICP: 0.000611775 seconds per iteration

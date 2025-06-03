@@ -267,6 +267,120 @@ DTP void UTP::plot( Str filename ) const {
     fs << "pyplot.show()\n";
 }
 
+DTP int UTP::newton_dir( VF &dir, TF &max_error_ratio ) const {
+    using namespace std;
+
+    // {
+    //     TridiagonalSymmetricMatrix<TF> M;
+    //     // TF max_error_ratio;
+    //     VF V;
+    //     int err = get_sorted_newton_system( M, V, max_error_ratio );
+    //     if ( err )
+    //         return err;
+    //     M.inplace_ldlt_decomposition();
+    //     dir = M.solve_using_ldlt( V );
+    //     return 0;
+    // }
+
+    // init
+    dir.resize( nb_sorted_diracs() );
+    max_error_ratio = 0;
+    
+    // no diracs ?
+    const PI nc = nb_sorted_diracs();
+    if ( nc == 0 )
+        return 0;
+
+    // system intermediate values
+    VF e( nb_sorted_diracs() );
+    TF prev_ldds = 0;
+    TF prev_v = 0;
+
+    //
+    TF c1 = std::numeric_limits<TF>::lowest();
+    TF ld = std::numeric_limits<TF>::max();
+    TF d1 = sorted_dirac_positions[ 0 ];
+    TF w1 = sorted_dirac_weights[ 0 ];
+    for( PI i = 1; i <= nc; ++i ) {
+        // cuts
+        const TF c0 = c1;
+        const TF d0 = d1;
+        const TF w0 = w1;
+        if ( i < nc ) {
+            d1 = sorted_dirac_positions[ i ];
+            w1 = sorted_dirac_weights[ i ];
+            c1 = ( d1 + d0 - ( w1 - w0 ) / ( d1 - d0 ) ) / 2;
+        } else {
+            d1 = std::numeric_limits<TF>::max();
+            c1 = std::numeric_limits<TF>::max();
+        }
+
+        if ( c0 >= c1 )
+            return 1;
+
+        // ball
+        const TF we = sorted_dirac_weights[ i - 1 ];
+        if ( we <= 0 )
+            return 1; // negative or zero weight
+        const TF rb = sqrt( we );
+        const TF b0 = d0 - rb;
+        const TF b1 = d0 + rb;
+
+        if ( b0 >= c1 || b1 <= c0 )
+            return 2;
+
+        // values
+        TF m0 = 0;
+        if ( b0 > c0 ) {
+            m0 += density->value( b0 ) / rb / 2;
+        } else {
+            const TF d = density->value( c0 ) / ld / 2;
+            m0 += d;
+        }
+
+        TF m1 = 0;
+        const TF rd = d1 - d0;
+        if ( b1 < c1 ) {
+            m0 += density->value( b1 ) / rb / 2;
+        } else {
+            const TF d = density->value( c1 ) / rd / 2;
+            m0 += d;
+            m1 -= d;
+        }
+
+        const TF mass = density->integral( max( b0, c0 ), min( b1, c1 ) );
+        const TF tgt = sorted_dirac_masses[ i - 1 ];
+        const TF y = tgt - mass;
+
+        // storage
+        // if ( dmass_dL ) M( i - 1, i - 2 ) += dmass_dL;
+        // M( i - 1, i - 1 ) += dmass_dM;
+
+        max_error_ratio = max( max_error_ratio, abs( y ) / tgt );
+
+        // system
+        const TF d = m0 - prev_ldds;
+        if ( d <= 0 )
+            return 3;
+        const TF l = m1 / d;
+        e[ i - 1 ] = l;
+
+        prev_ldds = d * l * l;
+
+        const TF v0 = y - prev_v;
+        dir[ i - 1 ] = v0 / d;
+        prev_v = l * v0;
+
+        // swap values
+        ld = rd;
+    }
+
+    for( PI i = nb_sorted_diracs() - 1; i--; )
+        dir[ i ] -= e[ i ] * dir[ i + 1 ];
+
+    return 0;
+}
+
 DTP int UTP::get_sorted_newton_system( TridiagonalSymmetricMatrix<TF> &M, VF &V, TF &max_error_ratio ) const {
     using namespace std;
     
@@ -390,33 +504,32 @@ DTP typename UTP::VB UTP::sorted_cell_boundaries() const {
 DTP int UTP::newton_iterations( const TF min_relax ) {
     // first newton system
     TF max_error_ratio;
+    VF new_dir;
     VF dir;
     int err = newton_dir( dir, max_error_ratio );
-
-    TridiagonalSymmetricMatrix<TF> M;
-    VF V;
-    int err = get_sorted_newton_system( M, V, max_error_ratio );
     if ( err )
         return 1;
     
+    // {
+    //     P( dir, max_error_ratio );
+
+    //     TridiagonalSymmetricMatrix<TF> M;
+
+    //     VF V;
+    //     get_sorted_newton_system( M, V, max_error_ratio );
+    //     M.inplace_ldlt_decomposition();
+    //     P( M.solve_using_ldlt( V ) );
+    //     P( max_error_ratio );
+    // }
+    // assert( 0 );
+
     for( nb_newton_iterations = 0; ; ++nb_newton_iterations ) {
-        if ( nb_newton_iterations == 50000 )
+        if ( nb_newton_iterations == 500000 )
             throw std::runtime_error( "too many newton iterations" );
         
         // on a solution ?
         if ( max_error_ratio < target_max_error_ratio )
-            return 0;
-        
-        // assert( no_nan( M.values ) );
-        // assert( no_nan( V ) );
-
-        // get a direction
-        M.inplace_ldlt_decomposition();
-        VF dir = M.solve_using_ldlt( V );
-
-        // plot();
-        // assert( no_nan( M.values ) );
-        // assert( no_nan( dir ) );
+            return 0;    
 
         // find the relaxation coefficient
         VF w0 = sorted_dirac_weights;
@@ -424,10 +537,26 @@ DTP int UTP::newton_iterations( const TF min_relax ) {
             for( PI i = 0; i < w0.size(); ++i )
                 sorted_dirac_weights[ i ] = w0[ i ] + relax * dir[ i ];
 
-            err = get_sorted_newton_system( M, V, max_error_ratio );
+            err = newton_dir( new_dir, max_error_ratio );
+            // err = get_sorted_newton_system( M, V, max_error_ratio );
             if ( err == 0 ) {
                 if ( verbosity >= 2 )   
                     std::cout << "  relax: " << relax << " nb_newton_iterations: " << nb_newton_iterations << " max_error_ratio: " << max_error_ratio << "\n";
+                std::swap( dir, new_dir );
+
+                // {
+                //     P( dir[ 10 ], max_error_ratio );
+                //     if ( std::isnan( dir[ 10 ] ) || std::isinf( dir[ 10 ] ) )
+                //         throw std::runtime_error( "NaN or Inf in dir" );
+
+                //     TridiagonalSymmetricMatrix<TF> M;
+                //     VF V;
+                //     get_sorted_newton_system( M, V, max_error_ratio );
+                //     M.inplace_ldlt_decomposition();
+                //     P( M.solve_using_ldlt( V )[ 10 ], max_error_ratio );
+                // }
+
+
                 break;
             }
 

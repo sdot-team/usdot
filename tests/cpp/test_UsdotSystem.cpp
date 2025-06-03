@@ -17,25 +17,25 @@ using namespace std;
 #include "problemos.h"
 
 TEST_CASE( "SdotSystem", "" ) {
-    std::vector<TF> my_dv = problemos_dv;
+    // std::vector<TF> my_dv = problemos_dv;
     // for( PI i = 0; i + 1 < problemos_dv.size(); ++i )
     //     for( PI j = 0, n = 500; j < n; ++j )
     //         my_dv.push_back( problemos_dv[ i ] + ( problemos_dv[ i + 1 ] - problemos_dv[ i ] ) * j / n );
     // my_dv.push_back( problemos_dv.back() );
 
-    UsdotDensity<TF> density(  -33.8823, 42.7147, my_dv );
+    // UsdotDensity<TF> density(  -33.8823, 42.7147, my_dv );
 
-    UsdotSystem<TF> sd( &density, problemos_pd, 0.984 ); // , 0.6, 1.0
-    // UsdotDensity<TF> density( 0, 1, { 0.1, 1.0, 0.1 } );
-    // UsdotSystem<TF> sd( &density, cellspace<TF>( -1, 2, 15 ), 0.84 ); // , 0.6, 1.0
-    // sd.verbosity = 2;
-    auto t0 = std::chrono::high_resolution_clock::now();
+    // UsdotSystem<TF> sd( &density, problemos_pd, 0.984 ); // , 0.6, 1.0
+    UsdotDensity<TF> density( 0, 1, { 0.8, 0.1, 0.8 } );
+    UsdotSystem<TF> sd( &density, cellspace<TF>( 0.2, 0.8, 10 ), 0.84 ); // , 0.6, 1.0
+    sd.verbosity = 2;
+    // auto t0 = std::chrono::high_resolution_clock::now();
 
     sd.solve();
 
-    auto t1 = std::chrono::high_resolution_clock::now();
-    PE( std::chrono::duration<double>{ t1 - t0 } );
-    PE( sd.nb_newton_iterations );
+    // auto t1 = std::chrono::high_resolution_clock::now();
+    // PE( std::chrono::duration<double>{ t1 - t0 } );
+    // PE( sd.nb_newton_iterations );
 
     // P( sd.original_cell_barycenters() );
     sd.plot();

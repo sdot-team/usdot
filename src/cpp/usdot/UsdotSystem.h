@@ -37,6 +37,7 @@ public:
     VF                 sorted_cell_barycenters    () const;
     VB                 sorted_cell_boundaries     () const;
     VF                 sorted_cell_masses         () const;
+    int                newton_dir                 ( VF &dir, TF &max_error_ratio ) const;
       
     void               for_each_cell              ( auto &&func ) const;
 
