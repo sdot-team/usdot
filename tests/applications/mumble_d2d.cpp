@@ -1,3 +1,4 @@
+#include <tl/support/operators/mean.h>
 #include <usdot/ShapeRegistration.h>
 #include <usdot/utility/glot.h>
 
@@ -43,4 +44,6 @@ int main() {
      
         P( sr.iteration_SVD() );
     }
+
+    P( mean( sr.time_in_solve ) );
 }

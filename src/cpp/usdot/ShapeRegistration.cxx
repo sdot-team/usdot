@@ -204,7 +204,7 @@ DTP Vec<TF> UTP::delta_for_dir( Pt proj_dir ) {
         solver.solve();
 
         auto t1 = std::chrono::high_resolution_clock::now();
-        P( std::chrono::duration<double>{ t1 - t0 }.count() );
+        time_in_solve << std::chrono::duration<double>{ t1 - t0 }.count();
         // static int cpt = 0;
         // if ( cpt++ == 10 )
         //     assert( 0 );

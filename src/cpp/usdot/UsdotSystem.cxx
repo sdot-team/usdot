@@ -61,7 +61,7 @@ DTP void UTP::initialize_dirac_weights() {
         auto err = [&]( TF r ) {
             return density->integral( dx - r, dx + r ) - mass_ref;
         };
-        const TF r = dichotomy_growing_from_zero( err, target_max_error_ratio * mass_ref, TF( 1 ) );
+        const TF r = dichotomy_growing_from_zero( err, mass_ref * 1e-2, TF( 1 ) );
         sorted_dirac_weights[ i ] = pow( r, 2 );
     }    
 
@@ -142,7 +142,6 @@ DTP void UTP::initialize_dirac_weights() {
 
         sorted_dirac_weights.back() = w;            
     }
-    P( beg_unknowns, end_unknowns );
 }
 
 DTP void UTP::initialize_dirac_masses( const VF &relative_dirac_masses, TF global_mass_ratio ) {
@@ -390,8 +389,11 @@ DTP typename UTP::VB UTP::sorted_cell_boundaries() const {
 
 DTP int UTP::newton_iterations( const TF min_relax ) {
     // first newton system
-    TridiagonalSymmetricMatrix<TF> M;
     TF max_error_ratio;
+    VF dir;
+    int err = newton_dir( dir, max_error_ratio );
+
+    TridiagonalSymmetricMatrix<TF> M;
     VF V;
     int err = get_sorted_newton_system( M, V, max_error_ratio );
     if ( err )
@@ -418,7 +420,7 @@ DTP int UTP::newton_iterations( const TF min_relax ) {
 
         // find the relaxation coefficient
         VF w0 = sorted_dirac_weights;
-        for( TF relax = 1; ; relax /= 5 ) {
+        for( TF relax = 1; ; relax /= 4 ) {
             for( PI i = 0; i < w0.size(); ++i )
                 sorted_dirac_weights[ i ] = w0[ i ] + relax * dir[ i ];
 

@@ -37,7 +37,9 @@ public:
        
     TF            shape_thickness          = 1e-6;
     Vec<Triangle> shape_triangles;     
-    Vec<Pt>       shape_points;     
+    Vec<Pt>       shape_points;  
+
+    Vec<TF>       time_in_solve;     
        
     Tr            transformation;     
     TF            mass_ratio               = 1;
